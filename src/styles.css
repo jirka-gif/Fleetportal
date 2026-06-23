@@ -1,0 +1,17 @@
+/* Louda Auto Fleet Portal — global styles (ported from the design bundle) */
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:'Hanken Grotesk',-apple-system,system-ui,sans-serif;
+  color:#18181B;
+  -webkit-font-smoothing:antialiased;
+  background:#FAFAFA;
+}
+#root{height:100vh}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#E0E0E2;border-radius:8px;border:2px solid #FAFAFA}
+::-webkit-scrollbar-thumb:hover{background:#CFCFD2}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes slideIn{from{transform:translateX(100%)}to{transform:none}}
+@keyframes popIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
