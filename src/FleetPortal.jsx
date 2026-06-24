@@ -593,8 +593,8 @@ export default function FleetPortal() {
     const tab = state.vehicleTab
     const m = statusMeta[v.status]
     const facts = [
-      { k: 'Rok výroby', v: String(v.year) }, { k: 'Palivo', v: v.fuel }, { k: 'Nájezd', v: v.mileage },
-      { k: 'Pojišťovna', v: v.insurer }, { k: 'Aktuální hodnota', v: v.value },
+      { k: 'Druh vozidla', v: v.druh }, { k: 'Rok uvedení', v: String(v.year) }, { k: 'Palivo', v: v.fuel },
+      { k: 'Výkon', v: v.power }, { k: 'Objem', v: v.engine },
     ]
     const actions = [
       { label: 'Změnit park', icon: ic('transfer', 20), color: 'var(--blue)', onClick: () => openParkModal(v) },
@@ -602,25 +602,31 @@ export default function FleetPortal() {
       { label: 'Odebrat', icon: ic('trash', 20), color: 'var(--star)', onClick: () => openUnsub(v) },
     ]
     const specs = [
-      { k: 'Značka', v: v.brand }, { k: 'Model', v: v.model }, { k: 'VIN', v: v.vin }, { k: 'Číslo přihlášky', v: v.prihlaska },
-      { k: 'Rok výroby', v: String(v.year) }, { k: 'Palivo', v: v.fuel }, { k: 'Nájezd', v: v.mileage }, { k: 'Účetní hodnota', v: v.value },
+      { k: 'Tovární značka', v: v.brand }, { k: 'Model / typ', v: v.model }, { k: 'VIN', v: v.vin }, { k: 'Číslo TP/ORV', v: v.tp },
+      { k: 'Druh vozidla', v: v.druh }, { k: 'Datum uvedení do provozu', v: v.firstReg }, { k: 'Výkon motoru', v: v.power }, { k: 'Objem válců', v: v.engine },
+      { k: 'Hmotnost vozidla', v: v.weight }, { k: 'Počet sedadel', v: v.seats }, { k: 'Palivo', v: v.fuel }, { k: 'Číslo v pojistné smlouvě', v: v.prihlaska },
     ]
     const assign = [
-      { k: 'Odpovědný řidič', v: v.driver, icon: ic('user1', 18), bg: 'var(--blue-soft)', color: 'var(--blue)' },
-      { k: 'Vozový park', v: fleetName(v.fleet), icon: ic('fleets', 18), bg: '#F1F1F3', color: 'var(--ink2)' },
-      { k: 'Lokalita', v: fleetName(v.fleet).split(' – ')[0], icon: ic('mapPin', 18), bg: 'var(--green-soft)', color: 'var(--green)' },
-      { k: 'Fleet manager', v: fleetsData.find((f) => f.id === v.fleet).manager, icon: ic('users', 18), bg: 'var(--amber-soft)', color: 'var(--amber)' },
+      { k: 'Vozový park', v: fleetName(v.fleet), icon: ic('fleets', 18), bg: 'var(--blue-soft)', color: 'var(--blue)' },
+      { k: 'Vlastník / držitel', v: 'Jiří Tošovský s.r.o.', icon: ic('users', 18), bg: 'var(--green-soft)', color: 'var(--green)' },
+      { k: 'Limit povinného ručení', v: v.povLimit, icon: ic('shield', 18), bg: 'var(--amber-soft)', color: 'var(--amber)' },
+      { k: 'Datum uvedení do provozu', v: v.firstReg, icon: ic('calendar', 18), bg: '#EEF2F9', color: 'var(--ink2)' },
     ]
     const pchip = (s) => statusChip(s)
-    const products = [
-      { name: 'Povinné ručení', icon: ic('shield', 20), bg: 'var(--star-soft)', color: 'var(--star)', insurer: v.insurer, policy: 'PR-' + v.plate.replace(/\s/g, ''), premiumF: czk(Math.round(v.premium * 0.34)), coverage: '200 / 200 mil. Kč', renewal: v.renewal, deductible: '—', status: 'active' },
-      { name: 'Havarijní pojištění', icon: ic('car', 20), bg: 'var(--star-soft)', color: 'var(--star)', insurer: v.insurer, policy: 'HAV-' + v.plate.replace(/\s/g, ''), premiumF: czk(Math.round(v.premium * 0.46)), coverage: 'All-risk', renewal: v.renewal, deductible: '5 % / min. 5 000', status: v.status === 'nocasco' ? 'nocasco' : 'active' },
-      { name: 'Pojištění skel', icon: ic('glass', 20), bg: 'var(--blue-soft)', color: 'var(--blue)', insurer: v.insurer, policy: 'SKL-' + v.plate.replace(/\s/g, ''), premiumF: czk(Math.round(v.premium * 0.07)), coverage: 'do 30 000 Kč', renewal: v.renewal, deductible: '1 000 Kč', status: 'active' },
-      { name: 'GAP pojištění', icon: ic('refresh', 20), bg: 'var(--green-soft)', color: 'var(--green)', insurer: v.insurer, policy: 'GAP-' + v.plate.replace(/\s/g, ''), premiumF: czk(Math.round(v.premium * 0.08)), coverage: 'pořizovací cena 5 let', renewal: v.renewal, deductible: '—', status: v.id === 'v9' || v.id === 'v16' ? 'nocasco' : 'active' },
-      { name: 'Asistenční služby', icon: ic('wrench', 20), bg: 'var(--amber-soft)', color: 'var(--amber)', insurer: 'Global Assistance', policy: 'AS-' + v.plate.replace(/\s/g, ''), premiumF: czk(Math.round(v.premium * 0.03)), coverage: 'ČR + Evropa', renewal: v.renewal, deductible: '—', status: 'active' },
-      { name: 'Právní ochrana', icon: ic('doc2', 20), bg: '#F1F1F3', color: 'var(--ink2)', insurer: 'D.A.S.', policy: 'PO-' + v.plate.replace(/\s/g, ''), premiumF: czk(Math.round(v.premium * 0.02)), coverage: 'do 1 mil. Kč', renewal: v.renewal, deductible: '—', status: 'active' },
-    ].map((p) => ({ ...p, statusLabel: statusMeta[p.status].label, chipStyle: pchip(p.status) }))
-    const productsTotal = products.filter((p) => p.status !== 'nocasco').reduce((s, p) => s + parseInt(String(p.premiumF).replace(/[^\d]/g, ''), 10), 0)
+    const cov = v.cov || { pov: true }
+    const covDefs = [
+      { key: 'pov', always: true, name: 'Povinné ručení', icon: ic('shield', 20), bg: 'var(--blue-soft)', color: 'var(--blue)', coverage: v.povLimit, deductible: '—' },
+      { key: 'hav', name: 'Havarijní pojištění', icon: ic('car', 20), bg: 'var(--star-soft)', color: 'var(--star)', coverage: 'All-risk', deductible: '5 % / min. 5 000 Kč' },
+      { key: 'skla', name: 'Pojištění skel', icon: ic('glass', 20), bg: 'var(--blue-soft)', color: 'var(--blue)', coverage: 'doplňkové krytí', deductible: '—' },
+      { key: 'asist', name: 'Asistenční služby', icon: ic('wrench', 20), bg: 'var(--amber-soft)', color: 'var(--amber)', coverage: 'ČR + Evropa', deductible: '—' },
+      { key: 'zavaz', name: 'Pojištění zavazadel', icon: ic('archive', 20), bg: 'var(--green-soft)', color: 'var(--green)', coverage: 'doplňkové krytí', deductible: '—' },
+    ]
+    const products = covDefs.filter((c) => c.always || cov[c.key]).map((c) => ({
+      name: c.name, icon: c.icon, bg: c.bg, color: c.color, insurer: '—', policy: '—',
+      premiumF: '—', coverage: c.coverage, renewal: '—', deductible: c.deductible,
+      status: 'active', statusLabel: 'Sjednáno', chipStyle: pchip('active'),
+    }))
+    const productsTotal = 0
     const productsExport = {
       filename: `pojisteni-${v.plate.replace(/\s/g, '')}`, title: `Pojištění – ${v.plate} ${v.brand} ${v.model}`,
       columns: [{ key: 'riziko', label: 'Riziko' }, { key: 'pojistovna', label: 'Pojišťovna' }, { key: 'smlouva', label: 'Číslo smlouvy' }, { key: 'limit', label: 'Limit / pojistná částka' }, { key: 'spoluucast', label: 'Spoluúčast' }, { key: 'obnova', label: 'Obnova' }, { key: 'pojistne', label: 'Roční pojistné' }, { key: 'stav', label: 'Stav' }],
