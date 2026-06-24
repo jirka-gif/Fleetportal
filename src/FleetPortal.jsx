@@ -209,10 +209,11 @@ export default function FleetPortal() {
     const nav = navItems.map(([id, label, icon, badge]) => {
       const on = activeRoute === id
       return {
-        id, label, icon: ic(icon, 18), iconColor: on ? 'var(--blue)' : '#8E8E96',
+        id, label, icon: ic(icon, 18), iconColor: on ? '#fff' : 'var(--side-fg)',
         onClick: () => navigate(id),
-        style: `display:flex;align-items:center;gap:11px;padding:9px 11px;margin:2px 0;border-radius:10px;font-size:13.5px;font-weight:${on ? '600' : '500'};cursor:pointer;color:${on ? 'var(--blue-ink)' : '#3F3F46'};background:${on ? 'var(--blue-soft)' : 'transparent'}`,
-        badge, badgeStyle: `font-size:11px;font-weight:700;color:${on ? 'var(--blue)' : '#8E8E96'};background:${on ? '#fff' : '#F1F1F3'};padding:1px 7px;border-radius:20px`,
+        style: `position:relative;display:flex;align-items:center;gap:12px;padding:10px 12px;margin:2px 0;border-radius:11px;font-size:13.5px;font-weight:${on ? '600' : '500'};cursor:pointer;letter-spacing:-.1px;transition:background .14s ease,color .14s ease;color:${on ? 'var(--side-strong)' : 'var(--side-fg)'};background:${on ? 'var(--side-active)' : 'transparent'};box-shadow:${on ? 'inset 3px 0 0 var(--star)' : 'none'}`,
+        hover: on ? '' : 'background:var(--side-hover);color:var(--side-strong)',
+        badge, badgeStyle: `font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;color:${on ? 'var(--side-strong)' : 'var(--side-fg)'};background:rgba(255,255,255,${on ? '.14' : '.07'});padding:1.5px 8px;border-radius:20px`,
       }
     })
     const titles = {
@@ -357,7 +358,7 @@ export default function FleetPortal() {
       { label: 'Vyplaceno (rok)', value: '1,24 mil.', color: 'var(--ink)' },
     ]
     const cb = [3, 2, 4, 1, 3, 2, 5, 3, 4, 2, 3, 2]; const cbMax = Math.max(...cb)
-    const claimBars = cb.map((v, i) => ({ h: Math.round(v / cbMax * 100) + '%', color: i >= 10 ? 'var(--star)' : '#E3B7BE', label: MONTHS[i][0] }))
+    const claimBars = cb.map((v, i) => ({ h: Math.round(v / cbMax * 100) + '%', color: i >= 10 ? 'var(--star)' : '#E3B7BE', peak: i >= 10, val: v, label: MONTHS[i][0], month: MONTHS[i] }))
     let acc = 0; const segs = insurersData.map((i) => { const a = acc; acc += i.pct / 100 * 360; return `${i.color} ${a}deg ${acc}deg` })
     const insurerDonut = `conic-gradient(${segs.join(',')})`
     const insurers = insurersData.map((i) => ({ ...i, volF: (totalPremium * i.pct / 100 / 1e6).toFixed(2).replace('.', ',') + ' mil.' }))

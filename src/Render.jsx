@@ -41,17 +41,22 @@ function HScroll({ minW, children }) {
 }
 
 const ROOT_STYLE =
-  "--star:#C8102E;--star-soft:#FDECEE;--star-ink:#9B0E25;--blue:#2058C9;--blue-soft:#EAF0FC;" +
+  "--star:#C8102E;--star-soft:#FDECEE;--star-ink:#9B0E25;--blue:#2563D8;--blue-soft:#EAF0FC;" +
   "--blue-ink:#1A47A3;--green:#16A34A;--green-soft:#E7F6ED;--amber:#C2780C;--amber-soft:#FBF1DF;" +
-  "--ink:#18181B;--ink2:#5B5B63;--ink3:#8E8E96;--border:#ECECEE;--border2:#E3E3E6;--canvas:#FAFAFA;" +
-  "--card:#FFFFFF;--r:14px;display:flex;height:100vh;width:100%;overflow:hidden;color:var(--ink);" +
+  "--ink:#15161A;--ink2:#585C66;--ink3:#888C96;--border:#ECEDF1;--border2:#E2E4E9;--canvas:#F6F7F9;" +
+  "--card:#FFFFFF;--r:16px;" +
+  "--shc:0 1px 2px rgba(20,22,30,.05),0 6px 20px -10px rgba(20,22,30,.13);" +
+  "--shc-h:0 2px 8px rgba(20,22,30,.07),0 16px 36px -14px rgba(20,22,30,.20);" +
+  "--side-bg:#15171D;--side-fg:#A7ABB6;--side-strong:#F3F4F7;--side-hover:rgba(255,255,255,.055);" +
+  "--side-active:rgba(255,255,255,.09);--side-border:rgba(255,255,255,.08);" +
+  "display:flex;height:100vh;width:100%;overflow:hidden;color:var(--ink);" +
   "font-family:'Hanken Grotesk',system-ui,sans-serif"
 
 export default function Render({ vm }) {
   const mob = vm.vp.isMobile
   const asideStyle = mob
-    ? `width:min(86vw,300px);flex-shrink:0;background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;height:100%;position:fixed;top:0;left:0;z-index:100;transform:translateX(${vm.sidebarOpen ? '0' : '-100%'});transition:transform .25s ease;box-shadow:${vm.sidebarOpen ? '0 24px 60px rgba(0,0,0,.28)' : 'none'}`
-    : 'width:264px;flex-shrink:0;background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;height:100%'
+    ? `width:min(86vw,300px);flex-shrink:0;background:var(--side-bg);border-right:1px solid var(--side-border);display:flex;flex-direction:column;height:100%;position:fixed;top:0;left:0;z-index:100;transform:translateX(${vm.sidebarOpen ? '0' : '-100%'});transition:transform .25s ease;box-shadow:${vm.sidebarOpen ? '0 24px 60px rgba(0,0,0,.5)' : 'none'}`
+    : 'width:264px;flex-shrink:0;background:var(--side-bg);border-right:1px solid var(--side-border);display:flex;flex-direction:column;height:100%'
   return (
     <div style={S(ROOT_STYLE)}>
 
@@ -60,23 +65,23 @@ export default function Render({ vm }) {
 
       {/* SIDEBAR */}
       <aside style={S(asideStyle)}>
-        <div style={S('padding:22px 20px 18px;border-bottom:1px solid var(--border)')}>
-          <img src={LOGO} alt="Louda Auto" style={S('height:20px;width:auto;max-width:100%;display:block')} />
-          <div style={S('font-size:11px;color:var(--ink3);font-weight:600;letter-spacing:.4px;text-transform:uppercase;margin-top:10px')}>Fleet Portal</div>
+        <div style={S('padding:24px 20px 18px;border-bottom:1px solid var(--side-border)')}>
+          <img src={LOGO} alt="Louda Auto" style={S('height:20px;width:auto;max-width:100%;display:block;filter:brightness(0) invert(1)')} />
+          <div style={S('font-size:10.5px;color:var(--side-fg);font-weight:700;letter-spacing:1.4px;text-transform:uppercase;margin-top:11px;opacity:.85')}>Fleet Portal</div>
         </div>
-        <div style={S('flex:1;overflow-y:auto;padding:4px 12px')}>
+        <div style={S('flex:1;overflow-y:auto;padding:10px 12px')}>
           {vm.nav.map((item) => (
-            <div key={item.id} onClick={item.onClick} style={S(item.style)}>
+            <Hov key={item.id} onClick={item.onClick} base={item.style} hover={item.hover}>
               <span style={{ display: 'flex', color: item.iconColor }}>{item.icon}</span>
               <span style={{ flex: 1 }}>{item.label}</span>
               {item.badge ? <span style={S(item.badgeStyle)}>{item.badge}</span> : null}
-            </div>
+            </Hov>
           ))}
         </div>
-        <div style={S('padding:14px 18px;border-top:1px solid var(--border)')}>
-          <div style={S('font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--ink3);text-transform:uppercase;margin-bottom:8px')}>Spravuje · Powered by</div>
-          <img src={STAR_LOGO} alt="STAR Insurance Group" style={S('height:27px;width:auto;display:block')} />
-          <div style={S('font-size:11px;color:var(--ink3);margin-top:7px')}>Broker Hub · makléř IS Group, spol. s r.o.</div>
+        <div style={S('padding:16px 18px;border-top:1px solid var(--side-border)')}>
+          <div style={S('font-size:9.5px;font-weight:700;letter-spacing:1px;color:var(--side-fg);text-transform:uppercase;margin-bottom:9px;opacity:.7')}>Spravuje · Powered by</div>
+          <img src={STAR_LOGO} alt="STAR Insurance Group" style={S('height:27px;width:auto;display:block;filter:brightness(0) invert(1);opacity:.92')} />
+          <div style={S('font-size:11px;color:var(--side-fg);margin-top:8px;opacity:.8')}>Broker Hub · makléř IS Group, spol. s r.o.</div>
         </div>
       </aside>
 
@@ -653,7 +658,7 @@ function OrvPreview({ vm }) {
 
             {/* header band */}
             <div style={S('display:flex;align-items:center;gap:14px;border-bottom:2px solid #1A47A3;padding-bottom:12px;margin-bottom:14px')}>
-              <div style={S('width:34px;height:46px;border-radius:4px;background:#1A47A3;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:6px;position:relative')}>
+              <div style={S('width:34px;height:46px;border-radius:4px;background:linear-gradient(180deg,#2655C4,#163E92);transform:translateY(-1px);box-shadow:0 6px 16px rgba(32,88,201,.42);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:6px;position:relative')}>
                 <div style={S('position:absolute;top:6px;left:0;right:0;display:flex;justify-content:center;gap:2px')}>{[0, 1, 2].map((i) => <span key={i} style={S('width:2px;height:2px;border-radius:50%;background:#FFD700')}></span>)}</div>
                 <span style={S('font-size:12px;font-weight:800;letter-spacing:.5px')}>CZ</span>
               </div>
@@ -919,13 +924,31 @@ function NewFleetModal({ vm }) {
 }
 
 /* ============================ DASHBOARD ============================ */
+function ChartBar({ b }) {
+  const [h, setH] = useState(false)
+  const grad = b.peak ? 'linear-gradient(180deg,#E0234A 0%,#B10E2B 100%)' : 'linear-gradient(180deg,#F2CCD3 0%,#E2B4BC 100%)'
+  const plural = b.val === 1 ? 'škoda' : b.val >= 2 && b.val <= 4 ? 'škody' : 'škod'
+  return (
+    <div onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+      style={S('position:relative;flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;height:100%;justify-content:flex-end;cursor:default')}>
+      {h && (
+        <div style={S('position:absolute;top:-4px;left:50%;transform:translate(-50%,-100%);background:var(--ink);color:#fff;font-size:11px;font-weight:700;padding:4px 9px;border-radius:8px;white-space:nowrap;box-shadow:0 8px 20px rgba(0,0,0,.25);z-index:4')}>
+          {b.val} {plural} · {b.month}
+        </div>
+      )}
+      <div style={S(`width:100%;height:${b.h};background:${grad};border-radius:7px 7px 4px 4px;min-height:6px;transform-origin:bottom;transition:transform .16s ease,filter .16s ease;transform:${h ? 'scaleY(1.04)' : 'none'};filter:${h ? 'brightness(1.07)' : 'none'};box-shadow:${b.peak ? '0 5px 14px -4px rgba(193,15,42,.5)' : 'none'}`)}></div>
+      <span style={S(`font-size:10px;font-weight:${b.peak ? '700' : '500'};color:${b.peak ? 'var(--star)' : 'var(--ink3)'}`)}>{b.label}</span>
+    </div>
+  )
+}
+
 function Dashboard({ vm }) {
   const mob = vm.vp.isMobile
   return (
     <div>
       <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px')}>
         {vm.khero.map((k, i) => (
-          <div key={i} style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px')}>
+          <div key={i} style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:18px')}>
             <div style={S(`width:40px;height:40px;border-radius:11px;background:${k.iconBg};color:${k.iconColor};display:flex;align-items:center;justify-content:center;margin-bottom:16px`)}>{k.icon}</div>
             <div style={S('font-size:30px;font-weight:800;letter-spacing:-1px;line-height:1')}>{k.value}</div>
             <div style={S('font-size:13.5px;font-weight:600;margin-top:7px')}>{k.label}</div>
@@ -935,7 +958,7 @@ function Dashboard({ vm }) {
       </div>
 
       <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '2fr 1fr'};gap:14px;margin-top:14px`)}>
-        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px')}>
+        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
           <div style={S('display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px')}>
             <div>
               <div style={S('font-size:15px;font-weight:700')}>Škody</div>
@@ -947,21 +970,17 @@ function Dashboard({ vm }) {
               ))}
             </div>
           </div>
-          <div style={S('display:flex;align-items:flex-end;gap:8px;height:130px')}>
-            {vm.claimBars.map((b, i) => (
-              <div key={i} style={S('flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end')}>
-                <div style={S(`width:100%;height:${b.h};background:${b.color};border-radius:5px;min-height:4px`)}></div>
-                <span style={S('font-size:10px;color:var(--ink3)')}>{b.label}</span>
-              </div>
-            ))}
+          <div style={S('position:relative;display:flex;align-items:flex-end;gap:9px;height:140px;padding-top:10px')}>
+            <div style={S('position:absolute;left:0;right:0;top:10px;bottom:22px;background:repeating-linear-gradient(to top,transparent,transparent 27px,var(--border) 27px,var(--border) 28px);opacity:.55;pointer-events:none')}></div>
+            {vm.claimBars.map((b, i) => <ChartBar key={i} b={b} />)}
           </div>
         </div>
 
-        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px')}>
+        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
           <div style={S('font-size:15px;font-weight:700')}>Pojistné po pojišťovnách</div>
           <div style={S('font-size:12.5px;color:var(--ink3);margin-bottom:16px')}>Podíl na ročním předpisu</div>
           <div style={S('display:flex;align-items:center;gap:18px')}>
-            <div style={S(`position:relative;width:108px;height:108px;flex-shrink:0;border-radius:50%;background:${vm.insurerDonut}`)}>
+            <div style={S(`position:relative;width:108px;height:108px;flex-shrink:0;border-radius:50%;background:${vm.insurerDonut};box-shadow:0 8px 20px -8px rgba(0,0,0,.25)`)}>
               <div style={S('position:absolute;inset:24px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center')}>
                 <div style={S('font-size:18px;font-weight:800;letter-spacing:-.5px')}>{vm.insurers.length}</div>
                 <div style={S('font-size:10px;color:var(--ink3)')}>pojišťoven</div>
@@ -981,7 +1000,7 @@ function Dashboard({ vm }) {
         </div>
       </div>
 
-      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-top:14px')}>
+      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden;margin-top:14px')}>
         <div style={S('padding:16px 20px;border-bottom:1px solid var(--border);font-size:15px;font-weight:700')}>Poslední aktivita ve správě parku</div>
         <div style={S('padding:6px 20px 16px')}>
           {vm.activity.map((e, i) => (
@@ -1019,12 +1038,12 @@ function Fleets({ vm }) {
             <div onClick={() => vm.setFleetsView('table')} style={S(segBtn(isTable))} title="Tabulka">{ic('rows', 16)}</div>
           </div>
           <ExportMenu {...vm.fleetsExport} />
-          <Hov onClick={vm.openNewFleet} base="display:flex;align-items:center;gap:8px;height:38px;padding:0 15px;background:var(--blue);color:#fff;border-radius:10px;font-size:13.5px;font-weight:600;cursor:pointer" hover="background:#1A47A3">{ic('plus', 15)} Nový park</Hov>
+          <Hov onClick={vm.openNewFleet} base="display:flex;align-items:center;gap:8px;height:38px;padding:0 15px;background:linear-gradient(180deg,#2C6AE0,#1D50BD);color:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(32,88,201,.30);font-size:13.5px;font-weight:600;cursor:pointer" hover="background:linear-gradient(180deg,#2655C4,#163E92);transform:translateY(-1px);box-shadow:0 6px 16px rgba(32,88,201,.42)">{ic('plus', 15)} Nový park</Hov>
         </div>
       </div>
 
       {isTable ? (
-        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden')}>
+        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden')}>
           <HScroll minW={940}>
             <div style={S('display:flex;align-items:center;gap:14px;padding:11px 18px;border-bottom:1px solid var(--border);background:#FBFBFC;font-size:11.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px')}>
               <div style={S('width:40px;flex-shrink:0')}></div>
@@ -1055,7 +1074,7 @@ function Fleets({ vm }) {
       ) : (
       <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px')}>
         {vm.fleetCards.map((f, i) => (
-          <Hov key={i} onClick={f.onClick} base="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px;cursor:pointer;transition:box-shadow .15s,border-color .15s" hover="border:1px solid #D4D4D8;box-shadow:0 8px 24px rgba(0,0,0,.06)">
+          <Hov key={i} onClick={f.onClick} base="background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px;cursor:pointer;transition:box-shadow .15s,border-color .15s" hover="border:1px solid #D4D4D8;box-shadow:0 8px 24px rgba(0,0,0,.06)">
             <div style={S('display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px')}>
               <div style={S('display:flex;align-items:center;gap:12px')}>
                 <div style={S('width:44px;height:44px;border-radius:11px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center')}>{ic('fleets', 22)}</div>
@@ -1093,7 +1112,7 @@ function FleetDetail({ vm }) {
   return (
     <div>
       <Hov onClick={vm.goFleets} base="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink3);cursor:pointer;margin-bottom:14px" hover="color:var(--ink)"><span style={S('transform:rotate(180deg);display:flex')}>{ic('arrow', 16)}</span> Vozové parky</Hov>
-      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:22px 24px;margin-bottom:16px')}>
+      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:22px 24px;margin-bottom:16px')}>
         <div style={S('display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px')}>
           <div style={S('display:flex;gap:16px;align-items:center')}>
             <div style={S('width:56px;height:56px;border-radius:14px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center')}>{ic('fleets', 28)}</div>
@@ -1105,7 +1124,7 @@ function FleetDetail({ vm }) {
           </div>
           <div style={S('display:flex;gap:8px')}>
             <ExportMenu {...fd.export} variant="header" />
-            <Hov onClick={vm.openAddVehicle} base="height:38px;padding:0 15px;background:var(--blue);color:#fff;border-radius:10px;display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;cursor:pointer" hover="background:#1A47A3">{ic('plus', 15)} Přidat vozidlo do flotily</Hov>
+            <Hov onClick={vm.openAddVehicle} base="height:38px;padding:0 15px;background:linear-gradient(180deg,#2C6AE0,#1D50BD);color:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(32,88,201,.30);display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;cursor:pointer" hover="background:linear-gradient(180deg,#2655C4,#163E92);transform:translateY(-1px);box-shadow:0 6px 16px rgba(32,88,201,.42)">{ic('plus', 15)} Přidat vozidlo do flotily</Hov>
           </div>
         </div>
         <div style={S(`display:grid;grid-template-columns:repeat(auto-fit,minmax(${mob ? '120px' : '150px'},1fr));gap:0;margin-top:20px;border:1px solid var(--border);border-radius:12px;overflow:hidden`)}>
@@ -1127,29 +1146,29 @@ function FleetDetail({ vm }) {
             ))}
           </div>
           <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '2fr 1fr'};gap:14px`)}>
-            <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px')}>
+            <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
               <div style={S('font-size:15px;font-weight:700;margin-bottom:2px')}>Vývoj pojistného</div>
               <div style={S('font-size:12.5px;color:var(--ink3);margin-bottom:8px')}>Park {fd.name} · 12 měsíců</div>
               <svg viewBox="0 0 600 170" style={S('width:100%;height:auto;display:block')} preserveAspectRatio="none"><defs><linearGradient id="fg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2058C9" stopOpacity="0.16" /><stop offset="1" stopColor="#2058C9" stopOpacity="0" /></linearGradient></defs><path d={fd.line} fill="none" stroke="#2058C9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"></path><path d={fd.area} fill="url(#fg)"></path></svg>
             </div>
-            <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px')}>
+            <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
               <div style={S('font-size:15px;font-weight:700;margin-bottom:14px')}>Rozdělení pojistitelů</div>
               <div style={S('display:flex;align-items:center;gap:16px')}>
-                <div style={S(`width:96px;height:96px;border-radius:50%;background:${fd.donut};flex-shrink:0`)}></div>
+                <div style={S(`position:relative;width:96px;height:96px;border-radius:50%;background:${fd.donut};flex-shrink:0;box-shadow:0 6px 16px -6px rgba(0,0,0,.22)`)}><div style={S('position:absolute;inset:21px;background:#fff;border-radius:50%')}></div></div>
                 <div style={S('flex:1;display:flex;flex-direction:column;gap:6px')}>{fd.insurerLegend.map((i, k) => <div key={k} style={S('display:flex;align-items:center;gap:7px;font-size:12px')}><span style={S(`width:8px;height:8px;border-radius:2px;background:${i.color}`)}></span><span style={S('flex:1;color:var(--ink2)')}>{i.name}</span><span style={S('font-weight:700')}>{i.pct}%</span></div>)}</div>
               </div>
             </div>
           </div>
           <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:14px')}>
-            <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px')}>
+            <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
               <div style={S('font-size:14px;font-weight:700;margin-bottom:12px')}>Palivo</div>
               {fd.fuel.map((f, i) => <div key={i} style={S('margin-bottom:10px')}><div style={S('display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px')}><span style={S('font-weight:600')}>{f.name}</span><span style={S('color:var(--ink3)')}>{f.pct}%</span></div><div style={S('height:6px;background:#F1F1F3;border-radius:4px')}><div style={S(`height:100%;width:${f.w};background:${f.color};border-radius:4px`)}></div></div></div>)}
             </div>
-            <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center')}>
+            <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center')}>
               <div style={S('font-size:14px;font-weight:700;align-self:flex-start;margin-bottom:14px')}>Elektromobilita</div>
               <div style={S(`position:relative;width:120px;height:120px;border-radius:50%;background:${fd.evDonut}`)}><div style={S('position:absolute;inset:18px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center')}><div style={S('font-size:24px;font-weight:800;color:var(--green)')}>{fd.evPct}%</div><div style={S('font-size:10.5px;color:var(--ink3)')}>elektro + hybrid</div></div></div>
             </div>
-            <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px')}>
+            <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
               <div style={S('font-size:14px;font-weight:700;margin-bottom:12px')}>Historie událostí</div>
               <div style={S('display:flex;align-items:flex-end;gap:6px;height:90px')}>
                 {fd.claimBars.map((b, i) => <div key={i} style={S('flex:1;height:100%;display:flex;align-items:flex-end')}><div style={S(`width:100%;height:${b.h};background:${b.color};border-radius:4px;min-height:3px`)}></div></div>)}
@@ -1159,7 +1178,7 @@ function FleetDetail({ vm }) {
           </div>
 
           {/* all vehicles in fleet */}
-          <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-top:14px')}>
+          <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden;margin-top:14px')}>
             <div style={S('display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)')}>
               <div style={S('display:flex;align-items:center;gap:9px')}>
                 <span style={S('color:var(--ink2);display:flex')}>{ic('car', 17)}</span>
@@ -1199,7 +1218,7 @@ function FleetDetail({ vm }) {
 
       {fd.isVehicles && (
         <>
-        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden')}>
+        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden')}>
           <HScroll minW={820}>
           {fd.vehicles.map((v) => (
             <Hov key={v.id} onClick={v.onClick} base="display:flex;align-items:center;gap:14px;padding:13px 18px;border-bottom:1px solid var(--border);cursor:pointer" hover="background:#FAFAFA">
@@ -1225,7 +1244,7 @@ function FleetDetail({ vm }) {
             <div style={S('background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px')}><div style={S('font-size:12px;color:var(--ink3)')}>Objem pojistného celkem</div><div style={S('font-size:22px;font-weight:800;letter-spacing:-.5px;margin-top:5px')}>{fd.riskTotalF}</div></div>
           </div>
           <div style={S('display:flex;justify-content:flex-end;margin-bottom:12px')}><ExportMenu {...fd.risksExport} /></div>
-          <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden')}>
+          <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden')}>
             <HScroll minW={820}>
               <div style={S('display:flex;align-items:center;gap:28px;padding:11px 18px;border-bottom:1px solid var(--border);background:#FBFBFC;font-size:11.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px')}>
                 <div style={S('width:38px;flex-shrink:0')}></div>
@@ -1262,7 +1281,7 @@ function FleetDetail({ vm }) {
             <div style={S('background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px')}><div style={S('font-size:12px;color:var(--ink3)')}>Objem pojistného celkem</div><div style={S('font-size:22px;font-weight:800;letter-spacing:-.5px;margin-top:5px')}>{fd.insurersTotalF}</div></div>
           </div>
           <div style={S('display:flex;justify-content:flex-end;margin-bottom:12px')}><ExportMenu {...fd.insurersExport} /></div>
-          <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden')}>
+          <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden')}>
             <HScroll minW={720}>
               <div style={S('display:flex;align-items:center;gap:14px;padding:11px 18px;border-bottom:1px solid var(--border);background:#FBFBFC;font-size:11.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px')}>
                 <div style={S('width:40px;flex-shrink:0')}></div>
@@ -1300,7 +1319,7 @@ function FleetDetail({ vm }) {
       )}
 
       {fd.isOther && (
-        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:48px;text-align:center;color:var(--ink3)')}>
+        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:48px;text-align:center;color:var(--ink3)')}>
           <div style={S('width:52px;height:52px;border-radius:13px;background:#F4F4F5;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:var(--ink3)')}>{fd.otherIcon}</div>
           <div style={S('font-size:15px;font-weight:700;color:var(--ink2)')}>{fd.otherTitle}</div>
           <div style={S('font-size:13px;margin-top:5px;max-width:380px;margin-left:auto;margin-right:auto')}>{fd.otherDesc}</div>
@@ -1338,7 +1357,7 @@ function Vehicles({ vm }) {
         ))}
         <div style={{ flex: 1 }}></div>
         <ExportMenu {...vm.vehiclesExport} />
-        <Hov onClick={vm.openAddVehicle} base="display:flex;align-items:center;gap:7px;height:38px;padding:0 14px;background:var(--blue);color:#fff;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer" hover="background:#1A47A3">{ic('plus', 15)} Přidat vozidlo</Hov>
+        <Hov onClick={vm.openAddVehicle} base="display:flex;align-items:center;gap:7px;height:38px;padding:0 14px;background:linear-gradient(180deg,#2C6AE0,#1D50BD);color:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(32,88,201,.30);font-size:13px;font-weight:600;cursor:pointer" hover="background:linear-gradient(180deg,#2655C4,#163E92);transform:translateY(-1px);box-shadow:0 6px 16px rgba(32,88,201,.42)">{ic('plus', 15)} Přidat vozidlo</Hov>
       </div>
 
       {vm.vSelCount ? (
@@ -1356,7 +1375,7 @@ function Vehicles({ vm }) {
         <span style={S('font-size:15px;font-weight:700')}>Aktivní vozidla v provozu</span>
         <span style={S('font-size:11.5px;font-weight:700;background:#F1F1F3;color:var(--ink2);padding:2px 8px;border-radius:20px')}>{vm.vehicleRows.length}</span>
       </div>
-      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden')}>
+      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden')}>
         <HScroll minW={1000}>
         <div style={S('display:flex;align-items:center;gap:14px;padding:11px 18px;border-bottom:1px solid var(--border);background:#FBFBFC;font-size:11.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px')}>
           <div style={S('width:18px;flex-shrink:0')}></div>
@@ -1405,7 +1424,7 @@ function EndedVehiclesTable({ rows, count, showPark = true }) {
         <span style={S('font-size:11.5px;font-weight:700;background:#F1F1F3;color:var(--ink2);padding:2px 8px;border-radius:20px')}>{count}</span>
         <span style={S('font-size:12.5px;color:var(--ink3)')}>odhlášená z pojištění</span>
       </div>
-      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden')}>
+      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden')}>
         <HScroll minW={showPark ? 900 : 760}>
           <div style={S('display:flex;align-items:center;gap:14px;padding:11px 18px;border-bottom:1px solid var(--border);background:#FBFBFC;font-size:11.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px')}>
             <div style={S('width:46px;flex-shrink:0')}></div>
@@ -1442,7 +1461,7 @@ function VehicleDetail({ vm }) {
       <Hov onClick={vm.goVehicles} base="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink3);cursor:pointer;margin-bottom:14px" hover="color:var(--ink)"><span style={S('transform:rotate(180deg);display:flex')}>{ic('arrow', 16)}</span> Vozidla</Hov>
 
       <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '340px 1fr'};gap:16px;margin-bottom:16px`)}>
-        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden')}>
+        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden')}>
           <div style={S('height:190px;background:linear-gradient(135deg,#EEF1F6,#E2E7EF);display:flex;align-items:center;justify-content:center;position:relative')}>
             <span style={S('color:#B6BCC6')}>{ic('car', 96, 1.2)}</span>
             <span style={{ position: 'absolute', top: 12, left: 12, ...S(vd.chipStyle) }}>{vd.statusLabel}</span>
@@ -1458,7 +1477,7 @@ function VehicleDetail({ vm }) {
         </div>
 
         <div style={S('display:flex;flex-direction:column;gap:16px')}>
-          <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px')}>
+          <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:18px 20px')}>
             <div style={S('display:flex;align-items:center;justify-content:space-between;margin-bottom:14px')}>
               <div style={S('font-size:15px;font-weight:700')}>Rychlé akce</div>
               <span style={S('font-size:12px;color:var(--ink3)')}>{vd.driver} · řidič</span>
@@ -1472,7 +1491,7 @@ function VehicleDetail({ vm }) {
               ))}
             </div>
           </div>
-          <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;flex:1')}>
+          <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:18px 20px;flex:1')}>
             <div style={S('font-size:15px;font-weight:700;margin-bottom:14px')}>Souhrn pojištění</div>
             <div style={S('display:grid;grid-template-columns:repeat(3,1fr);gap:14px')}>
               <div><div style={S('font-size:12px;color:var(--ink3)')}>Celkové pojistné</div><div style={S('font-size:22px;font-weight:800;letter-spacing:-.5px;margin-top:3px')}>{vd.premiumF}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>ročně</div></div>
@@ -1489,13 +1508,13 @@ function VehicleDetail({ vm }) {
 
       {vd.isOverview && (
         <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:14px`)}>
-          <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px')}>
+          <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
             <div style={S('font-size:15px;font-weight:700;margin-bottom:14px')}>Specifikace vozidla</div>
             <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:13px 20px')}>
               {vd.specs.map((x, i) => <div key={i}><div style={S('font-size:11.5px;color:var(--ink3)')}>{x.k}</div><div style={S('font-size:13.5px;font-weight:600;margin-top:1px')}>{x.v}</div></div>)}
             </div>
           </div>
-          <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px')}>
+          <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
             <div style={S('font-size:15px;font-weight:700;margin-bottom:14px')}>Přiřazení & lokalita</div>
             <div style={S('display:flex;flex-direction:column;gap:13px')}>
               {vd.assign.map((x, i) => <div key={i} style={S('display:flex;align-items:center;gap:12px')}><div style={S(`width:36px;height:36px;border-radius:9px;background:${x.bg};color:${x.color};display:flex;align-items:center;justify-content:center;flex-shrink:0`)}>{x.icon}</div><div><div style={S('font-size:11.5px;color:var(--ink3)')}>{x.k}</div><div style={S('font-size:13.5px;font-weight:600')}>{x.v}</div></div></div>)}
@@ -1510,7 +1529,7 @@ function VehicleDetail({ vm }) {
             <div style={S('font-size:13px;color:var(--ink3)')}>{vd.products.length} sjednaných rizik · roční pojistné <span style={S('color:var(--ink);font-weight:700')}>{vd.productsTotalF}</span></div>
             <ExportMenu {...vd.productsExport} />
           </div>
-          <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden')}>
+          <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden')}>
             <HScroll minW={860}>
               <div style={S('display:grid;grid-template-columns:1fr 150px 124px 116px 96px;align-items:center;gap:14px;padding:11px 18px;border-bottom:1px solid var(--border);background:#FBFBFC;font-size:11.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px')}>
                 <div>Riziko</div>
@@ -1547,13 +1566,13 @@ function VehicleDetail({ vm }) {
         <>
           <div style={S('display:flex;align-items:center;justify-content:space-between;margin-bottom:14px')}>
             <div style={S('font-size:14px;color:var(--ink3)')}>{vd.claims.length} událostí pro toto vozidlo</div>
-            <div onClick={vm.openClaimWizard} style={S('display:flex;align-items:center;gap:7px;height:38px;padding:0 15px;background:var(--star);color:#fff;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer')}>{ic('plus', 15)} Nahlásit škodu</div>
+            <div onClick={vm.openClaimWizard} style={S('display:flex;align-items:center;gap:7px;height:38px;padding:0 15px;background:linear-gradient(180deg,#E0234A,#B10E2B);color:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(200,16,46,.30);font-size:13px;font-weight:600;cursor:pointer')}>{ic('plus', 15)} Nahlásit škodu</div>
           </div>
           <div style={S('position:relative;padding-left:8px')}>
             {vd.claims.map((c, i) => (
               <div key={i} style={S('display:flex;gap:16px;padding-bottom:18px')}>
                 <div style={S('display:flex;flex-direction:column;align-items:center;flex-shrink:0')}><span style={S(`width:14px;height:14px;border-radius:50%;background:${c.dot};border:3px solid #fff;box-shadow:0 0 0 1.5px ${c.dot}`)}></span><span style={S('flex:1;width:2px;background:var(--border)')}></span></div>
-                <div style={S('flex:1;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-top:-4px')}>
+                <div style={S('flex:1;background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:16px 18px;margin-top:-4px')}>
                   <div style={S('display:flex;align-items:flex-start;justify-content:space-between')}><div><div style={S('font-size:14.5px;font-weight:700')}>{c.type}</div><div style={S('font-size:12.5px;color:var(--ink3)')}>{c.id} · {c.date} · {c.insurer}</div></div><span style={S(c.chipStyle)}>{c.statusLabel}</span></div>
                   <div style={S('display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:13px')}><div><div style={S('font-size:11px;color:var(--ink3)')}>Odhad škody</div><div style={S('font-size:14px;font-weight:700')}>{c.estimateF}</div></div><div><div style={S('font-size:11px;color:var(--ink3)')}>Servis</div><div style={S('font-size:13px;font-weight:600')}>{c.shop}</div></div><div><div style={S('font-size:11px;color:var(--ink3)')}>Likvidátor</div><div style={S('font-size:13px;font-weight:600')}>{c.adjuster}</div></div></div>
                   <div style={S('margin-top:13px')}><div style={S('display:flex;justify-content:space-between;font-size:11px;color:var(--ink3);margin-bottom:4px')}><span>Průběh opravy</span><span>{c.progress}%</span></div><div style={S('height:6px;background:#F1F1F3;border-radius:4px')}><div style={S(`height:100%;width:${c.progressW};background:${c.dot};border-radius:4px`)}></div></div></div>
@@ -1565,7 +1584,7 @@ function VehicleDetail({ vm }) {
       )}
 
       {vd.isTimeline && (
-        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:24px 26px')}>
+        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:24px 26px')}>
           {vd.timeline.map((e, i) => (
             <div key={i} style={S('display:flex;gap:16px')}>
               <div style={S('width:130px;flex-shrink:0;text-align:right;font-size:12px;color:var(--ink3);padding-top:1px')}>{e.date}</div>
@@ -1577,7 +1596,7 @@ function VehicleDetail({ vm }) {
       )}
 
       {vd.isVehDocs && (
-        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden')}>
+        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden')}>
           <div style={S('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border)')}>
             <div style={S('font-size:15px;font-weight:700')}>Dokumenty vozidla</div>
             <Hov as="span" base="display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;border:1px solid var(--border2);border-radius:10px;font-size:12.5px;font-weight:600;color:var(--ink2);cursor:pointer" hover="background:#FAFAFA">{ic('upload', 15)} Nahrát dokument</Hov>
@@ -1594,10 +1613,10 @@ function VehicleDetail({ vm }) {
       )}
 
       {vd.isNotes && (
-        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden')}>
+        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden')}>
           <div style={S('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border)')}>
             <div style={S('font-size:15px;font-weight:700')}>Poznámky <span style={S('font-size:12.5px;font-weight:600;color:var(--ink3)')}>· {vd.notes.length}</span></div>
-            <Hov onClick={vd.openNoteModal} as="span" base="display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 15px;background:var(--star);color:#fff;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer" hover="filter:brightness(.95)">{ic('plus', 15)} Přidat poznámku</Hov>
+            <Hov onClick={vd.openNoteModal} as="span" base="display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 15px;background:linear-gradient(180deg,#E0234A,#B10E2B);color:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(200,16,46,.30);font-size:13px;font-weight:600;cursor:pointer" hover="filter:brightness(1.05);transform:translateY(-1px);box-shadow:0 6px 16px rgba(200,16,46,.42)">{ic('plus', 15)} Přidat poznámku</Hov>
           </div>
           {vd.notes.length === 0 ? (
             <div style={S('padding:40px 18px;text-align:center;font-size:13px;color:var(--ink3)')}>Zatím žádné poznámky k tomuto vozidlu.</div>
@@ -1614,13 +1633,13 @@ function VehicleDetail({ vm }) {
       )}
 
       {vd.isCosts && (
-        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:48px;text-align:center')}>
-          <Hov onClick={vd.openCostModal} as="span" base="display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 20px;background:var(--star);color:#fff;border-radius:11px;font-size:13.5px;font-weight:600;cursor:pointer" hover="filter:brightness(.95)">{ic('plus', 16)} Přidat náklad</Hov>
+        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:48px;text-align:center')}>
+          <Hov onClick={vd.openCostModal} as="span" base="display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 20px;background:linear-gradient(180deg,#E0234A,#B10E2B);color:#fff;border-radius:11px;box-shadow:0 2px 8px rgba(200,16,46,.30);font-size:13.5px;font-weight:600;cursor:pointer" hover="filter:brightness(1.05);transform:translateY(-1px);box-shadow:0 6px 16px rgba(200,16,46,.42)">{ic('plus', 16)} Přidat náklad</Hov>
         </div>
       )}
 
       {vd.isOther && (
-        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:48px;text-align:center;color:var(--ink3)')}>
+        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:48px;text-align:center;color:var(--ink3)')}>
           <div style={S('width:52px;height:52px;border-radius:13px;background:#F4F4F5;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:var(--ink3)')}>{vd.otherIcon}</div>
           <div style={S('font-size:15px;font-weight:700;color:var(--ink2)')}>{vd.otherTitle}</div>
           <div style={S('font-size:13px;margin-top:5px;max-width:400px;margin:8px auto 0')}>{vd.otherDesc}</div>
@@ -1641,7 +1660,7 @@ function Insurance({ vm }) {
         <div style={S('font-size:15px;font-weight:700')}>Pojistné smlouvy <span style={S('font-size:12.5px;font-weight:600;color:var(--ink3)')}>· {vm.contracts.length}</span></div>
         <ExportMenu {...vm.insExport} />
       </div>
-      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden')}>
+      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden')}>
         <HScroll minW={920}>
           <div style={S('display:grid;grid-template-columns:40px 1fr 150px 118px 96px 110px 124px;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--border);background:#FBFBFC;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px')}>
             <div></div><div>Pojišťovna / smlouva</div><div>Vozový park</div><div style={S('text-align:right')}>Roční pojistné</div><div>Výročí</div><div>Škodní průběh</div><div></div>
@@ -1666,7 +1685,7 @@ function Insurance({ vm }) {
 /* ============================ DETAIL POJISTNÉ SMLOUVY ============================ */
 function InsuranceDetail({ vm }) {
   const d = vm.idet
-  const card = 'background:var(--card);border:1px solid var(--border);border-radius:var(--r)'
+  const card = 'background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc)'
   return (
     <div>
       <Hov onClick={d.goBack} base="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink3);cursor:pointer;margin-bottom:14px" hover="color:var(--ink)"><span style={S('transform:rotate(180deg);display:flex')}>{ic('arrow', 16)}</span> Pojistné smlouvy</Hov>
@@ -1793,7 +1812,7 @@ function ClaimDetail({ vm }) {
       <Hov onClick={cd.goBack} base="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink3);cursor:pointer;margin-bottom:14px" hover="color:var(--ink)"><span style={S('transform:rotate(180deg);display:flex')}>{ic('arrow', 16)}</span> Škody</Hov>
 
       {/* hlavička */}
-      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:22px 24px;margin-bottom:16px')}>
+      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:22px 24px;margin-bottom:16px')}>
         <div style={S('display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px')}>
           <div style={S('display:flex;gap:16px;align-items:center')}>
             <div style={S('width:52px;height:52px;border-radius:13px;background:var(--star-soft);color:var(--star);display:flex;align-items:center;justify-content:center')}>{ic('alert', 26)}</div>
@@ -1817,13 +1836,13 @@ function ClaimDetail({ vm }) {
 
       {/* souhrn + popis */}
       <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:16px')}>
-        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px')}>
+        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
           <div style={S('font-size:15px;font-weight:700;margin-bottom:14px')}>Souhrn události</div>
           <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:13px 20px')}>
             {cd.facts.map((x, i) => <div key={i}><div style={S('font-size:11.5px;color:var(--ink3)')}>{x.k}</div><div style={S('font-size:13.5px;font-weight:600;margin-top:1px;font-variant-numeric:tabular-nums')}>{x.v}</div></div>)}
           </div>
         </div>
-        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px')}>
+        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
           <div style={S('font-size:15px;font-weight:700;margin-bottom:14px')}>Popis události</div>
           <div style={S('font-size:13.5px;line-height:1.6;color:var(--ink2)')}>{cd.description}</div>
           <div style={S('display:flex;align-items:center;gap:9px;margin-top:16px;padding:11px 14px;background:#FBFBFC;border:1px solid var(--border);border-radius:11px')}>
@@ -1834,7 +1853,7 @@ function ClaimDetail({ vm }) {
       </div>
 
       {/* fotodokumentace */}
-      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:16px')}>
+      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px;margin-bottom:16px')}>
         <div style={S('display:flex;align-items:center;justify-content:space-between;margin-bottom:14px')}>
           <div style={S('font-size:15px;font-weight:700')}>Fotodokumentace</div>
           <span style={S('font-size:12.5px;color:var(--ink3)')}>{cd.photoCount} snímků</span>
@@ -1847,7 +1866,7 @@ function ClaimDetail({ vm }) {
       </div>
 
       {/* AI nástroj */}
-      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:16px')}>
+      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden;margin-bottom:16px')}>
         <div style={S('display:flex;align-items:center;gap:12px;padding:15px 20px;background:linear-gradient(135deg,#2563DB,#1A47A3);color:#fff')}>
           <div style={S('width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center')}>{ic('sparkle', 20)}</div>
           <div style={{ flex: 1 }}><div style={S('font-size:15px;font-weight:700')}>AI detekce poškození a rozpočet opravy</div><div style={S('font-size:12px;color:rgba(255,255,255,.8)')}>Automatická analýza z fotodokumentace</div></div>
@@ -1896,7 +1915,7 @@ function ClaimDetail({ vm }) {
       </div>
 
       {/* dokumenty */}
-      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:16px')}>
+      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden;margin-bottom:16px')}>
         <div style={S('padding:14px 18px;border-bottom:1px solid var(--border);font-size:15px;font-weight:700')}>Nahrané dokumenty</div>
         {cd.docs.map((d, i) => (
           <Hov key={i} base="display:flex;align-items:center;gap:14px;padding:13px 18px;border-bottom:1px solid var(--border)" hover="background:#FAFAFA">
@@ -1909,7 +1928,7 @@ function ClaimDetail({ vm }) {
       </div>
 
       {/* časová osa */}
-      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:22px 24px')}>
+      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:22px 24px')}>
         <div style={S('font-size:15px;font-weight:700;margin-bottom:18px')}>Časová osa likvidace</div>
         {cd.timeline.map((e, i) => (
           <div key={i} style={S('display:flex;gap:16px')}>
@@ -1931,7 +1950,7 @@ function ClaimDetail({ vm }) {
 /* ============================ ŠKODY (sdílená tabulka) ============================ */
 function ClaimsTable({ rows, title }) {
   return (
-    <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden')}>
+    <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden')}>
       {title && <div style={S('padding:14px 18px;border-bottom:1px solid var(--border);font-size:15px;font-weight:700')}>{title}</div>}
       <HScroll minW={900}>
         <div style={S('display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--border);background:#FBFBFC;font-size:11.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px')}>
@@ -1974,15 +1993,15 @@ function Claims({ vm }) {
         </div>
         <div style={S('display:flex;align-items:center;gap:8px')}>
           <ExportMenu {...vm.claimsExport} />
-          <div onClick={vm.openClaimWizard} style={S('display:flex;align-items:center;gap:8px;height:42px;padding:0 18px;background:var(--star);color:#fff;border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 6px 18px rgba(200,16,46,.25)')}>{ic('plus', 15)} Nahlásit událost</div>
+          <div onClick={vm.openClaimWizard} style={S('display:flex;align-items:center;gap:8px;height:42px;padding:0 18px;background:linear-gradient(180deg,#E0234A,#B10E2B);color:#fff;border-radius:11px;box-shadow:0 2px 8px rgba(200,16,46,.30);font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 6px 18px rgba(200,16,46,.25)')}>{ic('plus', 15)} Nahlásit událost</div>
         </div>
       </div>
       <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:14px;margin-bottom:14px`)}>
-        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px')}>
+        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
           <div style={S('font-size:15px;font-weight:700;margin-bottom:14px')}>Události podle parku</div>
           {vm.claimsByFleet.map((b, i) => <div key={i} style={S('margin-bottom:11px')}><div style={S('display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px')}><span style={S('font-weight:600')}>{b.name}</span><span style={S('color:var(--ink3)')}>{b.count}</span></div><div style={S('height:7px;background:#F1F1F3;border-radius:4px')}><div style={S(`height:100%;width:${b.w};background:${b.color};border-radius:4px`)}></div></div></div>)}
         </div>
-        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px')}>
+        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
           <div style={S('display:flex;align-items:center;justify-content:space-between;margin-bottom:14px')}><div style={S('font-size:15px;font-weight:700')}>Trend nahlášených</div><span style={S('font-size:12px;font-weight:600;color:var(--green);background:var(--green-soft);padding:3px 9px;border-radius:20px')}>−14 % r/r</span></div>
           <div style={S('display:flex;align-items:flex-end;gap:7px;height:130px')}>
             {vm.claimTrend.map((b, i) => <div key={i} style={S('flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end')}><div style={S(`width:100%;height:${b.h};background:${b.color};border-radius:4px;min-height:3px`)}></div><span style={S('font-size:9.5px;color:var(--ink3)')}>{b.label}</span></div>)}
@@ -2003,7 +2022,7 @@ function Documents({ vm }) {
         <div style={S('display:flex;align-items:center;gap:8px;height:38px;padding:0 12px;background:#fff;border:1px solid var(--border);border-radius:10px;flex:1;min-width:200px;max-width:360px;color:var(--ink3)')}><span style={S('display:flex')}>{ic('search', 17)}</span><input placeholder="Hledat dokument, vozidlo, SPZ…" style={S('border:none;outline:none;font-size:13.5px;font-family:inherit;flex:1;min-width:0;background:transparent')} /></div>
         <div style={{ flex: 1 }}></div>
         <div style={S('display:flex;align-items:center;gap:7px;height:38px;padding:0 13px;border:1px solid var(--border);background:#fff;border-radius:10px;font-size:13px;font-weight:600;color:var(--ink2);cursor:pointer')}>{ic('doc2', 16)} Hromadné stažení</div>
-        <div style={S('display:flex;align-items:center;gap:7px;height:38px;padding:0 14px;background:var(--blue);color:#fff;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer')}>{ic('plus', 15)} Nahrát</div>
+        <div style={S('display:flex;align-items:center;gap:7px;height:38px;padding:0 14px;background:linear-gradient(180deg,#2C6AE0,#1D50BD);color:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(32,88,201,.30);font-size:13px;font-weight:600;cursor:pointer')}>{ic('plus', 15)} Nahrát</div>
       </div>
       <div style={S(`display:grid;grid-template-columns:repeat(${cols},1fr);gap:12px;margin-bottom:18px`)}>
         {vm.docFolders.map((f, i) => (
@@ -2014,7 +2033,7 @@ function Documents({ vm }) {
           </Hov>
         ))}
       </div>
-      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden')}>
+      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden')}>
         <div style={S('padding:14px 18px;border-bottom:1px solid var(--border);font-size:15px;font-weight:700')}>Nedávné dokumenty</div>
         <HScroll minW={680}>
         {vm.docRows.map((d, i) => (
@@ -2045,7 +2064,7 @@ function DocumentsVehicleDocs({ vm }) {
         <span>{dd.banner}</span>
       </div>
 
-      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden')}>
+      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden')}>
         <HScroll minW={840}>
           <div style={S('display:flex;align-items:center;gap:14px;padding:11px 18px;border-bottom:1px solid var(--border);background:#FBFBFC;font-size:11.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px')}>
             <div style={S('width:40px;flex-shrink:0')}></div>
@@ -2090,7 +2109,7 @@ function DocumentsInvoices({ vm }) {
         <span style={S('font-size:15px;font-weight:700')}>Přehled faktur</span>
         <ExportMenu {...dd.export} />
       </div>
-      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden')}>
+      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden')}>
         <HScroll minW={922}>
           <div style={S('display:flex;align-items:center;gap:10px;padding:11px 18px;border-bottom:1px solid var(--border);background:#FBFBFC;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.3px')}>
             <div style={S('width:112px;flex-shrink:0')}>Číslo faktury</div>
@@ -2138,7 +2157,7 @@ function DocumentsDetail({ vm }) {
 
       <div style={S('display:flex;flex-direction:column;gap:12px')}>
         {dd.contracts.map((c) => (
-          <div key={c.id} style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden')}>
+          <div key={c.id} style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden')}>
             <Hov onClick={c.toggle} base={c.headStyle} hover="background:#FAFAFA">
               <InsurerLogo name={c.insurer} size={40} />
               <div style={S('flex:1;min-width:0')}>
@@ -2179,7 +2198,7 @@ function Bonifikace({ vm }) {
         <span>Bonifikace = vrácení části pojistného podle škodního průběhu smlouvy. Vyberte smlouvu pro zobrazení nastavených pásem.</span>
       </div>
       <div style={S('display:flex;justify-content:flex-end;margin-bottom:12px')}><ExportMenu {...vm.bonifExport} /></div>
-      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden')}>
+      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden')}>
         <HScroll minW={760}>
           <div style={S('display:flex;align-items:center;gap:14px;padding:11px 18px;border-bottom:1px solid var(--border);background:#FBFBFC;font-size:11.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px')}>
             <div style={S('width:40px;flex-shrink:0')}></div>
@@ -2210,7 +2229,7 @@ function BonifikaceDetail({ vm }) {
     <div>
       <Hov onClick={bd.goBack} base="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink3);cursor:pointer;margin-bottom:14px" hover="color:var(--ink)"><span style={S('transform:rotate(180deg);display:flex')}>{ic('arrow', 16)}</span> Bonifikace</Hov>
 
-      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:22px 24px;margin-bottom:16px')}>
+      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:22px 24px;margin-bottom:16px')}>
         <div style={S('display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px')}>
           <div style={S('display:flex;gap:16px;align-items:center')}>
             <InsurerLogo name={bd.insurer} size={56} />
@@ -2229,7 +2248,7 @@ function BonifikaceDetail({ vm }) {
         </div>
       </div>
 
-      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden')}>
+      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden')}>
         <div style={S('display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)')}>
           <span style={S('font-size:15px;font-weight:700')}>Nastavená pásma bonifikace</span>
           <span style={S('font-size:12.5px;color:var(--ink3)')}>Roční pojistné {bd.premiumF}</span>
@@ -2258,7 +2277,7 @@ function Analytics({ vm }) {
         {vm.anStats.map((s, i) => <div key={i} style={S('background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px')}><div style={S('font-size:12px;color:var(--ink3)')}>{s.label}</div><div style={S('font-size:23px;font-weight:800;letter-spacing:-.5px;margin-top:5px')}>{s.value}</div><div style={S(`font-size:11.5px;font-weight:600;margin-top:3px;color:${s.dColor}`)}>{s.delta}</div></div>)}
       </div>
       <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '2fr 1fr'};gap:14px;margin-bottom:14px`)}>
-        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px')}>
+        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
           <div style={S('font-size:15px;font-weight:700;margin-bottom:2px')}>Náklady na pojistné a opravy</div>
           <div style={S('font-size:12.5px;color:var(--ink3);margin-bottom:10px')}>Měsíční · 12 měsíců</div>
           <div style={S('display:flex;align-items:flex-end;gap:10px;height:180px')}>
@@ -2266,14 +2285,14 @@ function Analytics({ vm }) {
           </div>
           <div style={S('display:flex;gap:18px;margin-top:14px;font-size:12px')}><span style={S('display:flex;align-items:center;gap:6px')}><span style={S('width:10px;height:10px;border-radius:3px;background:var(--blue)')}></span>Pojistné</span><span style={S('display:flex;align-items:center;gap:6px')}><span style={S('width:10px;height:10px;border-radius:3px;background:var(--star)')}></span>Opravy / škody</span></div>
         </div>
-        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px')}>
+        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
           <div style={S('font-size:15px;font-weight:700;margin-bottom:14px')}>Meziroční srovnání</div>
           {vm.anYears.map((y, i) => <div key={i} style={S('margin-bottom:16px')}><div style={S('display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px')}><span style={S('font-weight:700')}>{y.year}</span><span style={S('font-weight:700;font-variant-numeric:tabular-nums')}>{y.value}</span></div><div style={S('height:9px;background:#F1F1F3;border-radius:5px')}><div style={S(`height:100%;width:${y.w};background:${y.color};border-radius:5px`)}></div></div></div>)}
           <div style={S('margin-top:18px;padding:14px;background:var(--green-soft);border-radius:11px')}><div style={S('font-size:12px;color:var(--green);font-weight:600')}>Celková úspora 2025 → 2026</div><div style={S('font-size:22px;font-weight:800;color:var(--green);letter-spacing:-.5px')}>1,84 mil. Kč</div></div>
         </div>
       </div>
       <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px')}>
-        {vm.anMini.map((m, i) => <div key={i} style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px')}><div style={S('font-size:14px;font-weight:700')}>{m.title}</div><div style={S('font-size:28px;font-weight:800;letter-spacing:-1px;margin-top:8px')}>{m.value}</div><div style={S('font-size:12px;color:var(--ink3);margin-top:2px')}>{m.sub}</div><div style={S('height:6px;background:#F1F1F3;border-radius:4px;margin-top:14px')}><div style={S(`height:100%;width:${m.w};background:${m.color};border-radius:4px`)}></div></div></div>)}
+        {vm.anMini.map((m, i) => <div key={i} style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}><div style={S('font-size:14px;font-weight:700')}>{m.title}</div><div style={S('font-size:28px;font-weight:800;letter-spacing:-1px;margin-top:8px')}>{m.value}</div><div style={S('font-size:12px;color:var(--ink3);margin-top:2px')}>{m.sub}</div><div style={S('height:6px;background:#F1F1F3;border-radius:4px;margin-top:14px')}><div style={S(`height:100%;width:${m.w};background:${m.color};border-radius:4px`)}></div></div></div>)}
       </div>
     </div>
   )
@@ -2304,17 +2323,17 @@ function Contacts({ vm }) {
 function Settings({ vm }) {
   return (
     <div style={S('max-width:760px')}>
-      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:22px;margin-bottom:14px')}>
+      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:22px;margin-bottom:14px')}>
         <div style={S('font-size:15px;font-weight:700;margin-bottom:16px')}>Profil</div>
         <div style={S('display:flex;align-items:center;gap:16px')}><div style={S('width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#3A3A42,#18181B);color:#fff;font-weight:700;font-size:20px;display:flex;align-items:center;justify-content:center')}>MK</div><div><div style={S('font-size:16px;font-weight:700')}>Martin Kovář</div><div style={S('font-size:13px;color:var(--ink3)')}>Fleet Manager · Louda Auto</div><div style={S('font-size:13px;color:var(--blue);margin-top:3px')}>martin.kovar@loudaauto.cz</div></div></div>
       </div>
-      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:22px;margin-bottom:14px')}>
+      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:22px;margin-bottom:14px')}>
         <div style={S('font-size:15px;font-weight:700;margin-bottom:6px')}>Notifikace</div>
         {vm.settingRows.map((s, i) => (
           <div key={i} style={S('display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--border)')}><div><div style={S('font-size:13.5px;font-weight:600')}>{s.title}</div><div style={S('font-size:12px;color:var(--ink3)')}>{s.sub}</div></div><div onClick={s.toggle} style={S(s.trackStyle)}><div style={S(s.knobStyle)}></div></div></div>
         ))}
       </div>
-      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:22px;display:flex;align-items:center;gap:16px')}>
+      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:22px;display:flex;align-items:center;gap:16px')}>
         <img src={STAR_LOGO} alt="STAR Insurance Group" style={S('height:34px;width:auto;flex-shrink:0')} />
         <div style={{ flex: 1 }}><div style={S('font-size:13.5px;font-weight:700')}>Broker Hub powered by STAR Insurance</div><div style={S('font-size:12px;color:var(--ink3)')}>Portál spravuje makléřská kancelář IS Group, spol. s r.o. · podpora po–pá 8–18</div></div>
         <span style={S('font-size:13px;font-weight:600;color:var(--blue);cursor:pointer')}>Kontaktovat</span>
@@ -2516,7 +2535,7 @@ function AddVehicleWizard({ vm }) {
                     <div style={S('width:48px;height:48px;background:var(--blue-soft);color:var(--blue-ink);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0')}>{avm.fieldBadge}</div>
                     <input value={vm.avInput} onChange={avm.onInput} placeholder={avm.fieldPlaceholder} style={S('flex:1;border:none;outline:none;font-size:15px;font-family:inherit;letter-spacing:.5px;text-transform:uppercase')} />
                   </div>
-                  <Hov onClick={avm.load} base="height:48px;padding:0 22px;background:var(--blue);color:#fff;border-radius:11px;display:flex;align-items:center;font-size:14px;font-weight:600;cursor:pointer" hover="background:#1A47A3">{avm.loadLabel}</Hov>
+                  <Hov onClick={avm.load} base="height:48px;padding:0 22px;background:linear-gradient(180deg,#2C6AE0,#1D50BD);color:#fff;border-radius:11px;box-shadow:0 2px 8px rgba(32,88,201,.30);display:flex;align-items:center;font-size:14px;font-weight:600;cursor:pointer" hover="background:linear-gradient(180deg,#2655C4,#163E92);transform:translateY(-1px);box-shadow:0 6px 16px rgba(32,88,201,.42)">{avm.loadLabel}</Hov>
                 </div>
               )}
               <div style={S('display:flex;align-items:center;gap:9px;margin-top:16px;padding:11px 14px;background:var(--blue-soft);border-radius:11px;font-size:12.5px;color:var(--blue-ink)')}>

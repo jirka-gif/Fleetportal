@@ -3,15 +3,32 @@
 html,body{margin:0;padding:0}
 body{
   font-family:'Hanken Grotesk',-apple-system,system-ui,sans-serif;
-  color:#18181B;
+  color:#15161A;
   -webkit-font-smoothing:antialiased;
-  background:#FAFAFA;
+  text-rendering:optimizeLegibility;
+  background:#F6F7F9;
 }
 #root{height:100vh}
 ::-webkit-scrollbar{width:10px;height:10px}
-::-webkit-scrollbar-thumb{background:#E0E0E2;border-radius:8px;border:2px solid #FAFAFA}
-::-webkit-scrollbar-thumb:hover{background:#CFCFD2}
+::-webkit-scrollbar-thumb{background:#D7D9DF;border-radius:8px;border:2px solid #F6F7F9}
+::-webkit-scrollbar-thumb:hover{background:#C3C6CE}
+/* dark sidebar gets its own slim scrollbar */
+aside ::-webkit-scrollbar{width:8px}
+aside ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.13);border:2px solid transparent;background-clip:padding-box}
+aside ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.22);background-clip:padding-box}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes slideIn{from{transform:translateX(100%)}to{transform:none}}
 @keyframes popIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* ---- micro-interactions ---- */
+/* premium hover-lift on every shared card (matches the inline --shc shadow token) */
+@media (hover:hover){
+  main [style*="box-shadow: var(--shc)"]{transition:box-shadow .2s cubic-bezier(.4,0,.2,1),transform .2s cubic-bezier(.4,0,.2,1)}
+  main [style*="box-shadow: var(--shc)"]:hover{box-shadow:var(--shc-h)!important;transform:translateY(-3px)}
+}
+/* keyboard focus rings */
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:6px}
+/* let buttons/links breathe with a transition + tactile press */
+a,button{transition:background .15s ease,color .15s ease,box-shadow .15s ease,transform .1s ease}
+button:active{transform:scale(.97)}
