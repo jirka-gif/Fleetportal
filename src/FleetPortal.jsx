@@ -209,11 +209,11 @@ export default function FleetPortal() {
     const nav = navItems.map(([id, label, icon, badge]) => {
       const on = activeRoute === id
       return {
-        id, label, icon: ic(icon, 18), iconColor: on ? '#fff' : 'var(--side-fg)',
+        id, label, icon: ic(icon, 20), iconColor: on ? '#fff' : 'var(--side-fg)',
         onClick: () => navigate(id),
-        style: `position:relative;display:flex;align-items:center;gap:12px;padding:10px 12px;margin:2px 0;border-radius:11px;font-size:13.5px;font-weight:${on ? '600' : '500'};cursor:pointer;letter-spacing:-.1px;transition:background .14s ease,color .14s ease;color:${on ? 'var(--side-strong)' : 'var(--side-fg)'};background:${on ? 'var(--side-active)' : 'transparent'};box-shadow:${on ? 'inset 3px 0 0 var(--star)' : 'none'}`,
+        style: `position:relative;display:flex;align-items:center;gap:13px;padding:11px 13px;margin:3px 0;border-radius:14px;font-size:14px;font-weight:${on ? '600' : '500'};cursor:pointer;letter-spacing:-.1px;transition:background .16s ease,color .16s ease,box-shadow .16s ease;color:${on ? '#fff' : 'var(--side-fg)'};background:${on ? 'linear-gradient(135deg,#4F6FFF 0%,#6D5EF6 100%)' : 'transparent'};box-shadow:${on ? '0 10px 24px -8px rgba(79,111,255,.7)' : 'none'}`,
         hover: on ? '' : 'background:var(--side-hover);color:var(--side-strong)',
-        badge, badgeStyle: `font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;color:${on ? 'var(--side-strong)' : 'var(--side-fg)'};background:rgba(255,255,255,${on ? '.14' : '.07'});padding:1.5px 8px;border-radius:20px`,
+        badge, badgeStyle: `font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;color:${on ? '#fff' : 'var(--side-fg)'};background:rgba(255,255,255,${on ? '.22' : '.07'});padding:2px 8px;border-radius:20px`,
       }
     })
     const titles = {
@@ -363,15 +363,46 @@ export default function FleetPortal() {
     const insurerDonut = `conic-gradient(${segs.join(',')})`
     const insurers = insurersData.map((i) => ({ ...i, volF: (totalPremium * i.pct / 100 / 1e6).toFixed(2).replace('.', ',') + ' mil.' }))
     const activity = [
-      { actor: 'Škoda Octavia (5SK 8841)', action: 'přidána do parku Praha – Centrála', time: 'před 2 h', color: 'var(--blue)' },
-      { actor: 'BMW 320d (2BM 5567)', action: 'nahlášena pojistná událost – parkovací škoda', time: 'před 5 h', color: 'var(--star)' },
-      { actor: 'VW Transporter (4VW 8800)', action: 'obnoveno povinné ručení (ČSOB)', time: 'včera', color: 'var(--green)' },
-      { actor: 'Audi A6 (8EX 7733)', action: 'změněn řidič na Jan Kučera', time: 'včera', color: '#A1A1AA' },
-      { actor: 'Tesla Model 3 (1EV 9087)', action: 'nahrána zelená karta', time: 'před 2 dny', color: 'var(--blue)' },
-      { actor: 'Škoda Fabia (3FA 1180)', action: 'vyřazena z parku Brno', time: 'před 2 dny', color: '#A1A1AA' },
-      { actor: 'Hyundai Tucson (6HY 3320)', action: 'přidáno havarijní pojištění (Generali)', time: 'před 3 dny', color: 'var(--amber)' },
+      { actor: 'Škoda Octavia (5SK 8841)', action: 'přidána do parku Praha – Centrála', time: 'před 2 h', color: 'var(--blue)', cat: 'Vozidlo', catColor: 'var(--blue)', avatar: 'PN' },
+      { actor: 'BMW 320d (2BM 5567)', action: 'nahlášena pojistná událost – parkovací škoda', time: 'před 5 h', color: 'var(--star)', cat: 'Škoda', catColor: 'var(--star)', avatar: 'MH' },
+      { actor: 'VW Transporter (4VW 8800)', action: 'obnoveno povinné ručení (ČSOB)', time: 'včera', color: 'var(--green)', cat: 'Pojištění', catColor: 'var(--green)', avatar: 'TS' },
+      { actor: 'Audi A6 (8EX 7733)', action: 'změněn řidič na Jan Kučera', time: 'včera', color: '#94A3B8', cat: 'Vozidlo', catColor: 'var(--blue)', avatar: 'JK' },
+      { actor: 'Tesla Model 3 (1EV 9087)', action: 'nahrána zelená karta', time: 'před 2 dny', color: 'var(--blue)', cat: 'Dokument', catColor: 'var(--purple)', avatar: 'LE' },
+      { actor: 'Škoda Fabia (3FA 1180)', action: 'vyřazena z parku Brno', time: 'před 2 dny', color: '#94A3B8', cat: 'Vozidlo', catColor: 'var(--blue)', avatar: 'TS' },
+      { actor: 'Hyundai Tucson (6HY 3320)', action: 'přidáno havarijní pojištění (Generali)', time: 'před 3 dny', color: 'var(--amber)', cat: 'Pojištění', catColor: 'var(--green)', avatar: 'JK' },
     ]
-    return { khero, claimStats, months: MONTHS, claimBars, insurerDonut, insurers, activity }
+    // KPI cards with sparklines + trend (executive cockpit)
+    const kpis = [
+      { value: '312', unit: '', label: 'Aktivních vozidel', trend: '4 %', dir: 'up', note: 'tento měsíc', accent: '#4F6FFF', trendColor: 'var(--green)', spark: [30, 31, 29, 33, 32, 35, 34, 37, 36, 39, 41, 42] },
+      { value: '14,91', unit: 'mil. Kč', label: 'Roční pojistné', trend: '6 %', dir: 'up', note: 'vs. minulý rok', accent: '#4F6FFF', trendColor: 'var(--green)', spark: [121, 124, 129, 132, 130, 136, 139, 141, 143, 146, 148, 149] },
+      { value: '37', unit: '%', label: 'Škodní průběh', trend: '14 %', dir: 'down', note: 'vs. minulý rok', accent: '#EF4444', trendColor: 'var(--star)', spark: [48, 46, 47, 44, 45, 42, 41, 40, 39, 38, 37, 37] },
+      { value: '9', unit: '', label: 'Otevřených škod', trend: '2 nové', dir: 'up', note: 'tento měsíc', accent: '#F59E0B', trendColor: 'var(--amber)', spark: [5, 6, 4, 7, 5, 8, 6, 5, 7, 8, 9, 9] },
+    ]
+    // claims trend — open vs closed (grouped bars)
+    const closedM = [14, 9, 18, 7, 20, 12, 28, 16, 22, 11, 24, 8]
+    const openM = [6, 4, 9, 3, 8, 5, 11, 7, 9, 4, 12, 5]
+    const claimDualMax = Math.max(...closedM, ...openM)
+    const claimDual = MONTHS.map((m, i) => ({ month: m, label: m[0], open: openM[i], closed: closedM[i], openH: Math.round(openM[i] / claimDualMax * 100), closedH: Math.round(closedM[i] / claimDualMax * 100) }))
+    // top fleets for dashboard cards
+    const fleetColor = (r) => (r >= 80 ? 'var(--green)' : r >= 70 ? 'var(--blue)' : r >= 60 ? 'var(--amber)' : 'var(--star)')
+    const dashFleets = fleetsData.slice(0, 4).map((f) => ({
+      id: f.id, name: f.name, manager: f.manager, vehicles: f.vehicles,
+      premiumF: (f.premium / 1e6).toFixed(2).replace('.', ',') + ' mil. Kč', claims: f.claims,
+      risk: f.risk, riskColor: fleetColor(f.risk), barPct: f.risk, onClick: () => navigate('fleet-detail', { fleetId: f.id, fleetTab: 'overview' }),
+    }))
+    const quickStats = [
+      { icon: ic('shield', 18), color: 'var(--star)', bg: 'var(--star-soft)', label: 'Vozidla s končícím pojištěním', sub: 'do 30 dnů', value: '12' },
+      { icon: ic('refresh', 18), color: 'var(--amber)', bg: 'var(--amber-soft)', label: 'Pojištění k obnově', sub: 'do 30 dnů', value: '7' },
+      { icon: ic('alert', 18), color: 'var(--star)', bg: 'var(--star-soft)', label: 'Škody v likvidaci', sub: 'čekají na dokumenty', value: '5' },
+      { icon: ic('doc2', 18), color: 'var(--green)', bg: 'var(--green-soft)', label: 'Expirace STK', sub: 'do 60 dnů', value: '18' },
+    ]
+    const dashDocs = [
+      { name: 'Rámcová smlouva Kooperativa', meta: 'PDF · 2.4 MB · 12. 5. 2024', color: 'var(--star)' },
+      { name: 'Pojistná smlouva – Allianz', meta: 'PDF · 1.8 MB · 5. 5. 2024', color: 'var(--blue)' },
+      { name: 'Zelená karta – 2BM 5567', meta: 'PDF · 0.6 MB · 2. 5. 2024', color: 'var(--green)' },
+    ]
+    const premiumTotalF = premiumMil
+    return { khero, claimStats, months: MONTHS, claimBars, insurerDonut, insurers, activity, kpis, claimDual, dashFleets, quickStats, dashDocs, premiumTotalF, navigate }
   }
 
   const fleetsVM = () => {
@@ -434,7 +465,7 @@ export default function FleetPortal() {
         premiumF: czk(v.premium), statusLabel: statusMeta[v.status].label, chipStyle: statusChip(v.status),
         onClick: () => openVehicle(v.id),
         menuOpen: mo, stop: (e) => e.stopPropagation(),
-        rowStyle: `position:relative;z-index:${mo ? 30 : 'auto'};background:${mo ? '#FAFAFA' : 'transparent'};display:flex;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid var(--border)`,
+        rowStyle: `position:relative;z-index:${mo ? 30 : 'auto'};background:${mo ? '#F2F6FC' : 'transparent'};display:flex;align-items:center;gap:14px;padding:16px 22px;border-bottom:1px solid var(--border)`,
         kebabStyle: `width:30px;height:30px;flex-shrink:0;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:${mo ? 'var(--blue)' : 'var(--ink3)'};background:${mo ? 'var(--blue-soft)' : 'transparent'}`,
         toggleMenu: (e) => { e.stopPropagation(); setState((s) => ({ rowMenu: s.rowMenu === v.id ? null : v.id })) },
         changeCover: (e) => { e.stopPropagation(); setState({ rowMenu: null }); openVehicle(v.id); setState({ vehicleTab: 'insurance' }) },
@@ -536,7 +567,7 @@ export default function FleetPortal() {
         checkStyle: `width:18px;height:18px;border-radius:5px;border:1.5px solid ${on ? 'var(--blue)' : '#CFCFD4'};background:${on ? 'var(--blue)' : '#fff'};display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;color:#fff`,
         checkIcon: on ? ic('check', 12, 2.5) : null,
         menuOpen: mo, stop: (e) => e.stopPropagation(),
-        rowStyle: `position:relative;z-index:${mo ? 30 : 'auto'};background:${mo ? '#FAFAFA' : 'transparent'};display:flex;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid var(--border)`,
+        rowStyle: `position:relative;z-index:${mo ? 30 : 'auto'};background:${mo ? '#F2F6FC' : 'transparent'};display:flex;align-items:center;gap:14px;padding:16px 22px;border-bottom:1px solid var(--border)`,
         kebabStyle: `width:30px;height:30px;flex-shrink:0;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:${mo ? 'var(--blue)' : 'var(--ink3)'};background:${mo ? 'var(--blue-soft)' : 'transparent'};border:1px solid ${mo ? 'var(--blue-soft)' : 'transparent'}`,
         toggleMenu: (e) => { e.stopPropagation(); setState((s) => ({ rowMenu: s.rowMenu === v.id ? null : v.id })) },
         changeCover: (e) => { e.stopPropagation(); setState({ rowMenu: null }); openVehicle(v.id); setState({ vehicleTab: 'insurance' }) },
