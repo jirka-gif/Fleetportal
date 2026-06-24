@@ -198,7 +198,7 @@ export default function FleetPortal() {
       ['fleets', 'Vozové parky', 'fleets', null],
       ['vehicles', 'Vozidla', 'car', '335'],
       ['insurance', 'Pojištění', 'shield', null],
-      ['claims', 'Škody', 'alert', '9'],
+      ['claims', 'Škody', 'alert', null],
       ['documents', 'Dokumenty', 'file', null],
       ['bonifikace', 'Bonifikace', 'percent', null],
       ['contacts', 'Kontakty', 'users', null],
@@ -221,7 +221,7 @@ export default function FleetPortal() {
       fleets: ['Vozové parky', '6 kategorií · 335 vozidel'],
       vehicles: ['Vozidla', '335 vozidel celkem'],
       insurance: ['Pojištění', 'Smlouvy a krytí napříč parky'],
-      claims: ['Škody', '9 otevřených · 47 uzavřených letos'],
+      claims: ['Škody', 'Pojistné události vozového parku'],
       documents: ['Dokumenty', 'Centrální úložiště dokumentů'],
       'documents-detail': ['Pojistné smlouvy', 'Flotilové smlouvy a jejich dokumenty'],
       bonifikace: ['Bonifikace', 'Vrácení části pojistného dle škodního průběhu'],
@@ -435,13 +435,16 @@ export default function FleetPortal() {
       { label: 'Havarijní krytí', value: fHavPct + ' %', color: 'var(--blue)' },
       { label: 'Roční pojistné', value: '—', color: 'var(--ink3)' },
     ]
-    const tabsDef = [['overview', 'Přehled'], ['vehicles', 'Vozidla'], ['insurers', 'Pojistitelé'], ['insurance', 'Pojištění'], ['claims', 'Škody'], ['documents', 'Dokumenty'], ['analytics', 'Analytika'], ['timeline', 'Timeline']]
+    const tabsDef = [['overview', 'Přehled'], ['vehicles', 'Vozidla'], ['documents', 'Dokumenty']]
     const fleetTabs = tabsDef.map(([id, label]) => { const on = tab === id; return { label, onClick: () => setState({ fleetTab: id }), style: `padding:10px 14px;font-size:13.5px;font-weight:600;cursor:pointer;color:${on ? 'var(--blue-ink)' : 'var(--ink3)'};border-bottom:2px solid ${on ? 'var(--blue)' : 'transparent'};margin-bottom:-1px` } })
+    const fhav = f.hav || 0
+    const fvehAll = vehiclesData.filter((v) => v.fleet === f.id)
+    const fskla = fvehAll.filter((v) => v.cov && v.cov.skla).length
     const summary = [
-      { label: 'Předepsané pojistné', value: (f.premium ? (f.premium / 1000000).toFixed(2).replace('.', ',') + ' mil.' : '—'), sub: 'ročně', color: 'var(--ink)' },
-      { label: 'Pojistné události', value: String(f.claims), sub: 'za 12 měsíců', color: 'var(--ink)' },
-      { label: 'Ø pojistné / vozidlo', value: (f.premium ? Math.round(f.premium / (f.vehicles || 1)).toLocaleString('cs-CZ') : '—'), sub: 'Kč ročně', color: 'var(--ink)' },
-      { label: 'Obnovy do 30 dnů', value: String(f.renewals), sub: 'smluv', color: 'var(--amber)' },
+      { label: 'Vozidel celkem', value: String(f.vehicles), sub: 'v kategorii', color: 'var(--ink)' },
+      { label: 'S havarijním', value: String(fhav), sub: 'plné krytí', color: 'var(--green)' },
+      { label: 'Pouze povinné ručení', value: String(f.vehicles - fhav), sub: 'základní krytí', color: 'var(--ink)' },
+      { label: 'Pojištění skel', value: String(fskla), sub: 'doplňkové krytí', color: 'var(--blue)' },
     ]
     const base = f.premium / 12 / 1000
     const lv = [0.9, 0.93, 0.95, 0.97, 1.0, 1.02, 1.04, 1.03, 1.06, 1.08, 1.07, 1.1].map((x) => x * base)

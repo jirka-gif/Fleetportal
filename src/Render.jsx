@@ -162,14 +162,14 @@ export default function Render({ vm }) {
             {vm.isVehicles && <Vehicles vm={vm} />}
             {vm.isVehicleDetail && <VehicleDetail vm={vm} />}
             {vm.isClaimDetail && <ClaimDetail vm={vm} />}
-            {vm.isInsurance && <Insurance vm={vm} />}
+            {vm.isInsurance && <EmptyState icon="shield" title="Detail pojistného krytí se připravuje" sub="Pojistné smlouvy, pojišťovny a roční pojistné se zobrazí po napojení portálu na systém pojišťovny. Sjednané krytí jednotlivých vozidel (povinné ručení / havarijní / skla / asistence) najdete v detailu vozidla." />}
             {vm.isInsuranceDetail && <InsuranceDetail vm={vm} />}
-            {vm.isClaims && <Claims vm={vm} />}
+            {vm.isClaims && <EmptyState icon="alert" title="Žádné evidované škody" sub="Aktuální sestava vozového parku neobsahuje škodní historii. Po napojení na systém pojišťovny se zde zobrazí nahlášené i likvidované pojistné události včetně stavu likvidace a výplat." />}
             {vm.isDocuments && <Documents vm={vm} />}
             {vm.isDocumentsDetail && <DocumentsDetail vm={vm} />}
-            {vm.isBonifikace && <Bonifikace vm={vm} />}
+            {vm.isBonifikace && <EmptyState icon="percent" title="Bonifikace se připravuje" sub="Výpočet bonifikace — vrácení části pojistného dle škodního průběhu — se zobrazí po napojení na systém pojišťovny a doplnění pojistného a škodní historie." />}
             {vm.isBonifikaceDetail && <BonifikaceDetail vm={vm} />}
-            {vm.isAnalytics && <Analytics vm={vm} />}
+            {vm.isAnalytics && <EmptyState icon="chart" title="Analytika nákladů se připravuje" sub="Náklady, pojistné, trendy a úspory se zobrazí po napojení portálu na backend. Reálná data o složení vozového parku najdete na Přehledu, ve Vozidlech a Vozových parcích." />}
             {vm.isContacts && <Contacts vm={vm} />}
             {vm.isSettings && <Settings vm={vm} />}
 
@@ -999,6 +999,17 @@ function SectionHead({ title, sub, action, onAction }) {
   )
 }
 
+function EmptyState({ icon = 'info', title, sub }) {
+  return (
+    <div style={S(`${CARD};padding:56px 28px;text-align:center;display:flex;flex-direction:column;align-items:center`)}>
+      <div style={S('width:56px;height:56px;border-radius:15px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;margin-bottom:18px')}>{ic(icon, 26)}</div>
+      <div style={S('font-size:17px;font-weight:700;letter-spacing:-.3px')}>{title}</div>
+      <div style={S('font-size:13.5px;color:var(--ink3);margin-top:8px;max-width:470px;line-height:1.6')}>{sub}</div>
+      <div style={S('display:inline-flex;align-items:center;gap:7px;margin-top:20px;height:34px;padding:0 15px;background:var(--blue-soft);border-radius:20px;font-size:12px;font-weight:600;color:var(--blue-ink)')}><span style={S('width:7px;height:7px;border-radius:50%;background:var(--blue)')}></span>Čeká na napojení na systém</div>
+    </div>
+  )
+}
+
 function KpiCard({ k }) {
   return (
     <div style={S(`${CARD};padding:18px 20px`)}>
@@ -1357,35 +1368,16 @@ function FleetDetail({ vm }) {
               <div key={i} style={S('background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px')}><div style={S('font-size:12px;color:var(--ink3)')}>{c.label}</div><div style={S(`font-size:22px;font-weight:800;letter-spacing:-.5px;margin-top:5px;color:${c.color}`)}>{c.value}</div><div style={S('font-size:11.5px;color:var(--ink3);margin-top:2px')}>{c.sub}</div></div>
             ))}
           </div>
-          <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '2fr 1fr'};gap:14px`)}>
+          <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1.5fr'};gap:14px`)}>
             <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
-              <div style={S('font-size:15px;font-weight:700;margin-bottom:2px')}>Vývoj pojistného</div>
-              <div style={S('font-size:12.5px;color:var(--ink3);margin-bottom:8px')}>Park {fd.name} · 12 měsíců</div>
-              <svg viewBox="0 0 600 170" style={S('width:100%;height:auto;display:block')} preserveAspectRatio="none"><defs><linearGradient id="fg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2058C9" stopOpacity="0.16" /><stop offset="1" stopColor="#2058C9" stopOpacity="0" /></linearGradient></defs><path d={fd.line} fill="none" stroke="#2058C9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"></path><path d={fd.area} fill="url(#fg)"></path></svg>
+              <div style={S('font-size:14px;font-weight:700;margin-bottom:14px')}>Palivo</div>
+              {fd.fuel.map((f, i) => <div key={i} style={S('margin-bottom:11px')}><div style={S('display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px')}><span style={S('font-weight:600')}>{f.name}</span><span style={S('color:var(--ink3)')}>{f.pct}%</span></div><div style={S('height:6px;background:#EEF2F9;border-radius:4px')}><div style={S(`height:100%;width:${f.w};background:${f.color};border-radius:4px`)}></div></div></div>)}
             </div>
-            <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
-              <div style={S('font-size:15px;font-weight:700;margin-bottom:14px')}>Rozdělení pojistitelů</div>
-              <div style={S('display:flex;align-items:center;gap:16px')}>
-                <div style={S(`position:relative;width:96px;height:96px;border-radius:50%;background:${fd.donut};flex-shrink:0;box-shadow:0 6px 16px -6px rgba(0,0,0,.22)`)}><div style={S('position:absolute;inset:21px;background:#fff;border-radius:50%')}></div></div>
-                <div style={S('flex:1;display:flex;flex-direction:column;gap:6px')}>{fd.insurerLegend.map((i, k) => <div key={k} style={S('display:flex;align-items:center;gap:7px;font-size:12px')}><span style={S(`width:8px;height:8px;border-radius:2px;background:${i.color}`)}></span><span style={S('flex:1;color:var(--ink2)')}>{i.name}</span><span style={S('font-weight:700')}>{i.pct}%</span></div>)}</div>
-              </div>
-            </div>
-          </div>
-          <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:14px')}>
-            <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
-              <div style={S('font-size:14px;font-weight:700;margin-bottom:12px')}>Palivo</div>
-              {fd.fuel.map((f, i) => <div key={i} style={S('margin-bottom:10px')}><div style={S('display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px')}><span style={S('font-weight:600')}>{f.name}</span><span style={S('color:var(--ink3)')}>{f.pct}%</span></div><div style={S('height:6px;background:#EEF2F9;border-radius:4px')}><div style={S(`height:100%;width:${f.w};background:${f.color};border-radius:4px`)}></div></div></div>)}
-            </div>
-            <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center')}>
-              <div style={S('font-size:14px;font-weight:700;align-self:flex-start;margin-bottom:14px')}>Elektromobilita</div>
-              <div style={S(`position:relative;width:120px;height:120px;border-radius:50%;background:${fd.evDonut}`)}><div style={S('position:absolute;inset:18px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center')}><div style={S('font-size:24px;font-weight:800;color:var(--green)')}>{fd.evPct}%</div><div style={S('font-size:10.5px;color:var(--ink3)')}>elektro + hybrid</div></div></div>
-            </div>
-            <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
-              <div style={S('font-size:14px;font-weight:700;margin-bottom:12px')}>Historie událostí</div>
-              <div style={S('display:flex;align-items:flex-end;gap:6px;height:90px')}>
-                {fd.claimBars.map((b, i) => <div key={i} style={S('flex:1;height:100%;display:flex;align-items:flex-end')}><div style={S(`width:100%;height:${b.h};background:${b.color};border-radius:4px;min-height:3px`)}></div></div>)}
-              </div>
-              <div style={S('font-size:11.5px;color:var(--ink3);margin-top:8px')}>{fd.claims} událostí za 12 měsíců</div>
+            <div style={S(`${CARD};padding:40px 24px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center`)}>
+              <div style={S('width:52px;height:52px;border-radius:14px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;margin-bottom:16px')}>{ic('shield', 24)}</div>
+              <div style={S('font-size:15.5px;font-weight:700')}>Pojistné, pojistitelé a škody</div>
+              <div style={S('font-size:13px;color:var(--ink3);margin-top:7px;max-width:380px;line-height:1.55')}>Vývoj pojistného, rozdělení pojistitelů a škodní historie parku se zobrazí po napojení na systém pojišťovny.</div>
+              <div style={S('display:inline-flex;align-items:center;gap:7px;margin-top:18px;height:32px;padding:0 14px;background:var(--blue-soft);border-radius:20px;font-size:12px;font-weight:600;color:var(--blue-ink)')}><span style={S('width:7px;height:7px;border-radius:50%;background:var(--blue)')}></span>Čeká na napojení na systém</div>
             </div>
           </div>
 
