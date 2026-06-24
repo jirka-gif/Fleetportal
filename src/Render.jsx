@@ -996,6 +996,72 @@ function SectionHead({ title, sub, action, onAction }) {
   )
 }
 
+function KpiCard({ k }) {
+  return (
+    <div style={S(`${CARD};padding:18px 20px`)}>
+      <div style={S('display:flex;align-items:flex-start;justify-content:space-between;gap:8px')}>
+        <div style={{ minWidth: 0 }}>
+          <div style={S('display:flex;align-items:baseline;gap:5px')}>
+            <span style={S('font-size:30px;font-weight:700;letter-spacing:-1.4px;line-height:1;white-space:nowrap')}>{k.value}</span>
+            {k.unit && <span style={S('font-size:13.5px;font-weight:600;color:var(--ink2);white-space:nowrap')}>{k.unit}</span>}
+          </div>
+          <div style={S('font-size:13px;color:var(--ink2);font-weight:500;margin-top:10px')}>{k.label}</div>
+        </div>
+        <div style={{ flexShrink: 0, marginTop: 2 }}><Sparkline data={k.spark} color={k.accent} /></div>
+      </div>
+      {(k.trend || k.note) && (
+        <div style={S('display:flex;align-items:center;gap:6px;margin-top:13px')}>
+          {k.trend && <span style={S(`display:inline-flex;align-items:center;gap:3px;font-size:12.5px;font-weight:700;color:${k.trendColor}`)}><span style={{ display: 'flex', transform: k.dir === 'down' ? 'rotate(90deg)' : 'rotate(-90deg)' }}>{ic('arrow', 13)}</span>{k.trend}</span>}
+          {k.note && <span style={S('font-size:12px;color:var(--ink3)')}>{k.note}</span>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function KpiRow({ items, mb }) {
+  return (
+    <div style={S(`display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px${mb ? ';margin-bottom:' + mb : ''}`)}>
+      {items.map((k, i) => <KpiCard key={i} k={k} />)}
+    </div>
+  )
+}
+
+const PARK_KPIS = [
+  { value: '6', label: 'Vozových parků', note: 'aktivní pobočky', accent: '#4F6FFF', spark: [4, 4, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6] },
+  { value: '312', label: 'Vozidel celkem', trend: '4 %', dir: 'up', trendColor: 'var(--green)', note: 'tento měsíc', accent: '#4F6FFF', spark: [30, 31, 29, 33, 32, 35, 34, 37, 36, 39, 41, 42] },
+  { value: '14,91', unit: 'mil. Kč', label: 'Roční pojistné', trend: '6 %', dir: 'up', trendColor: 'var(--green)', note: 'vs. minulý rok', accent: '#4F6FFF', spark: [121, 124, 129, 132, 130, 136, 139, 141, 143, 146, 148, 149] },
+  { value: '34', label: 'Obnovy do 30 dnů', trend: '8', dir: 'up', trendColor: 'var(--amber)', note: 'vyžadují akci', accent: '#F59E0B', spark: [12, 18, 20, 15, 22, 28, 24, 30, 26, 32, 34, 34] },
+]
+
+const VEHICLE_KPIS = [
+  { value: '312', label: 'Aktivních vozidel', trend: '4 %', dir: 'up', trendColor: 'var(--green)', note: 'tento měsíc', accent: '#4F6FFF', spark: [30, 31, 29, 33, 32, 35, 34, 37, 36, 39, 41, 42] },
+  { value: '47 760', unit: 'Kč', label: 'Ø pojistné / vozidlo', trend: '2 %', dir: 'down', trendColor: 'var(--green)', note: 'vs. minulý rok', accent: '#4F6FFF', spark: [50, 49, 49, 48, 48, 48, 47, 48, 47, 47, 48, 48] },
+  { value: '22', unit: '%', label: 'Elektro + hybrid', trend: '5 %', dir: 'up', trendColor: 'var(--green)', note: 'podíl flotily', accent: '#22C55E', spark: [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 21, 22] },
+  { value: '34', label: 'Obnovy do 30 dnů', trend: '8', dir: 'up', trendColor: 'var(--amber)', note: 'vyžadují akci', accent: '#F59E0B', spark: [12, 18, 20, 15, 22, 28, 24, 30, 26, 32, 34, 34] },
+]
+
+const INS_KPIS = [
+  { value: '14,91', unit: 'mil. Kč', label: 'Předepsané pojistné', trend: '6 %', dir: 'up', trendColor: 'var(--green)', note: 'vs. minulý rok', accent: '#4F6FFF', spark: [121, 124, 129, 132, 130, 136, 139, 141, 143, 146, 148, 149] },
+  { value: '6', label: 'Aktivních smluv', note: 'flotilových smluv', accent: '#4F6FFF', spark: [4, 4, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6] },
+  { value: '1', label: 'Výročí do 30 dnů', note: 'vyžadují akci', accent: '#F59E0B', spark: [2, 1, 3, 2, 1, 2, 1, 2, 1, 0, 1, 1] },
+  { value: '37', unit: '%', label: 'Ø škodní průběh', trend: '14 %', dir: 'down', trendColor: 'var(--star)', note: 'vs. minulý rok', accent: '#EF4444', spark: [48, 46, 47, 44, 45, 42, 41, 40, 39, 38, 37, 37] },
+]
+
+const CLAIM_KPIS = [
+  { value: '9', label: 'Otevřené události', trend: '2 nové', dir: 'up', trendColor: 'var(--amber)', note: 'tento měsíc', accent: '#EF4444', spark: [5, 6, 4, 7, 5, 8, 6, 5, 7, 8, 9, 9] },
+  { value: '47', label: 'Uzavřené (rok)', note: 'vyřešených', accent: '#4F6FFF', spark: [20, 24, 28, 30, 33, 36, 38, 40, 42, 44, 46, 47] },
+  { value: '18', unit: 'dní', label: 'Ø doba likvidace', trend: '3 dny', dir: 'down', trendColor: 'var(--green)', note: 'rychlejší', accent: '#22C55E', spark: [24, 23, 22, 22, 21, 21, 20, 20, 19, 19, 18, 18] },
+  { value: '1,24', unit: 'mil.', label: 'Náklady (rok)', trend: '8 %', dir: 'down', trendColor: 'var(--green)', note: 'vs. minulý rok', accent: '#4F6FFF', spark: [145, 140, 138, 135, 132, 130, 128, 127, 126, 125, 124, 124] },
+]
+
+const AN_KPIS = [
+  { value: '31,4', unit: 'mil.', label: 'TCO flotily (rok)', trend: '6 %', dir: 'down', trendColor: 'var(--green)', note: 'r/r', accent: '#4F6FFF', spark: [348, 344, 340, 338, 336, 335, 334, 333, 332, 318, 314, 314] },
+  { value: '1,24', unit: 'mil.', label: 'Náklady na škody', trend: '14 %', dir: 'down', trendColor: 'var(--green)', note: 'r/r', accent: '#4F6FFF', spark: [145, 140, 138, 135, 132, 130, 128, 127, 126, 125, 124, 124] },
+  { value: '7,4', unit: '%', label: 'Frekvence škod', trend: '1,2 pb', dir: 'down', trendColor: 'var(--green)', note: 'r/r', accent: '#22C55E', spark: [92, 90, 88, 87, 86, 84, 82, 80, 79, 77, 75, 74] },
+  { value: '43 200', unit: 'Kč', label: 'Ø oprava', trend: '4 %', dir: 'up', trendColor: 'var(--star)', note: 'r/r', accent: '#EF4444', spark: [40, 41, 40, 42, 41, 43, 42, 43, 42, 43, 43, 43] },
+]
+
 function Dashboard({ vm }) {
   const mob = vm.vp.isMobile
   const nav = vm.navigate || (() => {})
@@ -1020,26 +1086,7 @@ function Dashboard({ vm }) {
         {/* ============ MAIN COLUMN ============ */}
         <div style={S('display:flex;flex-direction:column;gap:18px;min-width:0')}>
           {/* KPI ROW */}
-          <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px')}>
-            {vm.kpis.map((k, i) => (
-              <div key={i} style={S(`${CARD};padding:18px 20px`)}>
-                <div style={S('display:flex;align-items:flex-start;justify-content:space-between;gap:8px')}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={S('display:flex;align-items:baseline;gap:5px')}>
-                      <span style={S('font-size:30px;font-weight:700;letter-spacing:-1.4px;line-height:1')}>{k.value}</span>
-                      {k.unit && <span style={S('font-size:13.5px;font-weight:600;color:var(--ink2)')}>{k.unit}</span>}
-                    </div>
-                    <div style={S('font-size:13px;color:var(--ink2);font-weight:500;margin-top:10px')}>{k.label}</div>
-                  </div>
-                  <div style={{ flexShrink: 0, marginTop: 2 }}><Sparkline data={k.spark} color={k.accent} /></div>
-                </div>
-                <div style={S('display:flex;align-items:center;gap:6px;margin-top:13px')}>
-                  <span style={S(`display:inline-flex;align-items:center;gap:3px;font-size:12.5px;font-weight:700;color:${k.trendColor}`)}><span style={{ display: 'flex', transform: k.dir === 'down' ? 'rotate(90deg)' : 'rotate(-90deg)' }}>{ic('arrow', 13)}</span>{k.trend}</span>
-                  <span style={S('font-size:12px;color:var(--ink3)')}>{k.note}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+          <KpiRow items={vm.kpis} />
 
           {/* CHARTS ROW */}
           <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1.35fr 1fr'};gap:18px`)}>
@@ -1204,6 +1251,7 @@ function Fleets({ vm }) {
   const segBtn = (on) => `width:34px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:${on ? 'var(--ink)' : 'var(--ink3)'};background:${on ? '#fff' : 'transparent'};box-shadow:${on ? '0 1px 3px rgba(0,0,0,.08)' : 'none'}`
   return (
     <div>
+      <KpiRow items={PARK_KPIS} mb="22px" />
       <div style={S('display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:18px')}>
         <div style={S('display:flex;gap:10px;flex-wrap:wrap')}>
           <div style={S('display:flex;align-items:center;gap:7px;height:36px;padding:0 13px;background:#fff;border:1px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;color:var(--ink2);cursor:pointer')}>Všechny parky <span style={S('color:var(--ink3);display:flex')}>{ic('chevron', 16)}</span></div>
@@ -1268,6 +1316,7 @@ function Fleets({ vm }) {
               <div><div style={S('font-size:11.5px;color:var(--ink3)')}>Události (rok)</div><div style={S('font-size:18px;font-weight:800;letter-spacing:-.5px')}>{f.claims}</div></div>
               <div><div style={S('font-size:11.5px;color:var(--ink3)')}>Rizikové skóre</div><div style={S('display:flex;align-items:center;gap:7px')}><span style={S(`font-size:18px;font-weight:800;letter-spacing:-.5px;color:${f.riskColor}`)}>{f.risk}</span><span style={S('font-size:11px;color:var(--ink3)')}>/100</span></div></div>
             </div>
+            <div style={S('height:6px;border-radius:6px;background:#EEF2F9;overflow:hidden;margin-top:14px')}><div style={S(`height:100%;width:${f.risk}%;border-radius:6px;background:${f.riskColor}`)}></div></div>
             <div style={S('display:flex;align-items:center;justify-content:space-between;margin-top:14px')}>
               <div style={S('display:flex;gap:6px')}>
                 {f.insurers.map((insN, k) => <span key={k} style={S('font-size:11px;font-weight:600;color:var(--ink2);background:#EEF2F9;border:1px solid var(--border);padding:3px 9px;border-radius:7px')}>{insN}</span>)}
@@ -1522,6 +1571,7 @@ function Vehicles({ vm }) {
   return (
     <div>
       {vm.rowMenuOpen && <div onClick={vm.closeRowMenu} style={S('position:fixed;inset:0;z-index:25')}></div>}
+      <KpiRow items={VEHICLE_KPIS} mb="22px" />
       <div style={S('display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:14px')}>
         <div style={S('display:flex;align-items:center;gap:8px;height:38px;padding:0 12px;background:#fff;border:1px solid var(--border);border-radius:10px;flex:1;min-width:220px;max-width:340px;color:var(--ink3)')}>
           <span style={S('display:flex')}>{ic('search', 17)}</span>
@@ -1830,9 +1880,7 @@ function VehicleDetail({ vm }) {
 function Insurance({ vm }) {
   return (
     <div>
-      <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:16px')}>
-        {vm.insStats.map((s, i) => <div key={i} style={S('background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px')}><div style={S('font-size:12px;color:var(--ink3)')}>{s.label}</div><div style={S(`font-size:24px;font-weight:800;letter-spacing:-.5px;margin-top:5px;color:${s.color}`)}>{s.value}</div><div style={S('font-size:11.5px;color:var(--ink3);margin-top:1px')}>{s.sub}</div></div>)}
-      </div>
+      <KpiRow items={INS_KPIS} mb="18px" />
       <div style={S('display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px')}>
         <div style={S('font-size:15px;font-weight:700')}>Pojistné smlouvy <span style={S('font-size:12.5px;font-weight:600;color:var(--ink3)')}>· {vm.contracts.length}</span></div>
         <ExportMenu {...vm.insExport} />
@@ -2164,14 +2212,10 @@ function Claims({ vm }) {
   const mob = vm.vp.isMobile
   return (
     <div>
-      <div style={S('display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px')}>
-        <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;flex:1;min-width:260px;max-width:760px')}>
-          {vm.claimStats.map((s, i) => <div key={i} style={S('background:var(--card);border:1px solid var(--border);border-radius:12px;padding:15px 16px')}><div style={S('font-size:11.5px;color:var(--ink3)')}>{s.label}</div><div style={S(`font-size:23px;font-weight:800;letter-spacing:-.5px;margin-top:4px;color:${s.color}`)}>{s.value}</div></div>)}
-        </div>
-        <div style={S('display:flex;align-items:center;gap:8px')}>
-          <ExportMenu {...vm.claimsExport} />
-          <div onClick={vm.openClaimWizard} style={S('display:flex;align-items:center;gap:8px;height:42px;padding:0 18px;background:linear-gradient(180deg,#E0234A,#B10E2B);color:#fff;border-radius:11px;box-shadow:0 2px 8px rgba(200,16,46,.30);font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 6px 18px rgba(200,16,46,.25)')}>{ic('plus', 15)} Nahlásit událost</div>
-        </div>
+      <KpiRow items={CLAIM_KPIS} mb="16px" />
+      <div style={S('display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:16px')}>
+        <ExportMenu {...vm.claimsExport} />
+        <div onClick={vm.openClaimWizard} style={S('display:flex;align-items:center;gap:8px;height:42px;padding:0 18px;background:linear-gradient(180deg,#E0234A,#B10E2B);color:#fff;border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 6px 18px rgba(200,16,46,.30)')}>{ic('plus', 15)} Nahlásit událost</div>
       </div>
       <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:14px;margin-bottom:14px`)}>
         <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
@@ -2450,9 +2494,7 @@ function Analytics({ vm }) {
   const mob = vm.vp.isMobile
   return (
     <div>
-      <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px')}>
-        {vm.anStats.map((s, i) => <div key={i} style={S('background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px')}><div style={S('font-size:12px;color:var(--ink3)')}>{s.label}</div><div style={S('font-size:23px;font-weight:800;letter-spacing:-.5px;margin-top:5px')}>{s.value}</div><div style={S(`font-size:11.5px;font-weight:600;margin-top:3px;color:${s.dColor}`)}>{s.delta}</div></div>)}
-      </div>
+      <KpiRow items={AN_KPIS} mb="16px" />
       <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '2fr 1fr'};gap:14px;margin-bottom:14px`)}>
         <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
           <div style={S('font-size:15px;font-weight:700;margin-bottom:2px')}>Náklady na pojistné a opravy</div>
