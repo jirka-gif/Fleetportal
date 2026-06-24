@@ -65,7 +65,7 @@ const parseCz = (s) => { const p = String(s).replace(/\s/g, '').split('.').map(N
 const fmtCz = (dt) => `${dt.getDate()}. ${dt.getMonth() + 1}. ${dt.getFullYear()}`
 const nextAnniv = (start, today) => { const d = parseCz(start); let c = new Date(today.getFullYear(), d.getMonth(), d.getDate()); if (c < today) c = new Date(today.getFullYear() + 1, d.getMonth(), d.getDate()); return c }
 // Zprostředkovatel pojištění (makléř)
-const BROKER = { name: 'IS Group, spol. s r.o.', role: 'Pojišťovací makléř', reg: 'ČNB, reg. č. 197542PM', ico: '264 18 920', person: 'Martin Kovář', email: 'martin.kovar@isgroup.cz', phone: '+420 222 119 350' }
+const BROKER = { name: 'Petrisk a.s.', role: 'Pojišťovací makléř', reg: 'ČNB, reg. č. 197542PM', ico: '264 18 920', person: 'Martin Kovář', email: 'martin.kovar@petrisk.cz', phone: '+420 222 119 350' }
 const POJISTNIK = { name: 'Jiří Tošovský s.r.o.', ico: '02043858' }
 
 export default function FleetPortal() {
@@ -178,7 +178,7 @@ export default function FleetPortal() {
       nf: {
         close: () => setState({ np: false }), stop: (e) => e.stopPropagation(), create,
         canCreate: d.name.trim().length > 0,
-        broker: 'Robert Harlas, IS Group, spol. s r.o.',
+        broker: 'Petr Kmoch, Petrisk a.s.',
         insurerOpts: ['Kooperativa', 'Allianz', 'ČPP', 'Generali', 'UNIQA', 'ČSOB Poj.'],
         name: d.name, manager: d.manager, insurer: d.insurer, policy: d.policy, start: d.start, vehicles: d.vehicles,
         onName: (e) => setField('name', e.target.value),
@@ -948,7 +948,7 @@ export default function FleetPortal() {
     const P = (name, role, phone, email, bg, color) => ({ name, role, phone, email, initials: init(name), bg, color, phoneIcon: ic('phone', 14), mailIcon: ic('file', 14) })
     const contactGroups = [
       { name: 'Fleet manažeři', people: fleetsData.map((f, i) => P(f.manager, f.name, '+420 ' + (602 + i) + ' 1' + (20 + i) + ' ' + (300 + i * 7), f.manager.toLowerCase().replace(/[^a-z]/g, '.') + '@tosovsky.cz', 'var(--blue-soft)', 'var(--blue)')) },
-      { name: 'Makléři & poradci', people: [P('Robert Harlas', 'Odpovědný makléř · IS Group, spol. s r.o.', '+420 777 123 456', 'robert.harlas@isgroup.cz', 'var(--star-soft)', 'var(--star)'), P('Petra Veselá', 'Account manager · STAR', '+420 605 998 112', 'petra.vesela@star.cz', 'var(--star-soft)', 'var(--star)')] },
+      { name: 'Makléři & poradci', people: [P('Petr Kmoch', 'Odpovědný makléř · Petrisk a.s.', '+420 777 123 456', 'petr.kmoch@petrisk.cz', 'var(--star-soft)', 'var(--star)'), P('Petra Veselá', 'Account manager · STAR', '+420 605 998 112', 'petra.vesela@star.cz', 'var(--star-soft)', 'var(--star)')] },
       { name: 'Servisy & opravny', people: [P('AutoCentrum Praha', 'Autorizovaný servis', '+420 244 010 200', 'servis@acpraha.cz', 'var(--green-soft)', 'var(--green)'), P('AutoSklo Express', 'Opravy skel', '+420 800 100 200', 'info@autosklo.cz', 'var(--green-soft)', 'var(--green)'), P('Servis MB Brno', 'Karosárna', '+420 545 221 330', 'brno@servismb.cz', 'var(--green-soft)', 'var(--green)')] },
       { name: 'Likvidátoři & asistence', people: [P('Pavel Říha', 'Likvidátor · Kooperativa', '+420 957 105 105', 'p.riha@koop.cz', 'var(--amber-soft)', 'var(--amber)'), P('Global Assistance', 'Asistenční linka 24/7', '1220', 'dispecink@1220.cz', 'var(--amber-soft)', 'var(--amber)'), P('Nouzová linka', 'Havárie & odtah', '+420 800 124 124', 'sos@tosovsky.cz', 'var(--star-soft)', 'var(--star)')] },
     ]

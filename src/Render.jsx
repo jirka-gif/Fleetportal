@@ -94,7 +94,7 @@ export default function Render({ vm }) {
         <div style={S('padding:16px 18px;border-top:1px solid var(--side-border)')}>
           <div style={S('font-size:9.5px;font-weight:700;letter-spacing:1px;color:var(--side-fg);text-transform:uppercase;margin-bottom:9px;opacity:.7')}>Spravuje · Powered by</div>
           <img src={STAR_LOGO} alt="STAR Insurance Group" style={S('height:27px;width:auto;display:block;filter:brightness(0) invert(1);opacity:.92')} />
-          <div style={S('font-size:11px;color:var(--side-fg);margin-top:8px;opacity:.8')}>Broker Hub · makléř IS Group, spol. s r.o.</div>
+          <div style={S('font-size:11px;color:var(--side-fg);margin-top:8px;opacity:.8')}>Broker Hub · makléř Petrisk a.s.</div>
         </div>
       </aside>
 
@@ -1341,7 +1341,7 @@ function FleetDetail({ vm }) {
             <div style={S('width:56px;height:56px;border-radius:14px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center')}>{ic('fleets', 28)}</div>
             <div>
               <div style={S('font-size:22px;font-weight:800;letter-spacing:-.5px')}>{fd.name}</div>
-              <div style={S('font-size:13px;color:var(--ink3);margin-top:3px')}>Fleet manager <span style={S('color:var(--ink2);font-weight:600')}>{fd.manager}</span> · Odpovědný makléř <span style={S('color:var(--ink2);font-weight:600')}>Robert Harlas, IS Group, spol. s r.o.</span></div>
+              <div style={S('font-size:13px;color:var(--ink3);margin-top:3px')}>Fleet manager <span style={S('color:var(--ink2);font-weight:600')}>{fd.manager}</span> · Odpovědný makléř <span style={S('color:var(--ink2);font-weight:600')}>Petr Kmoch, Petrisk a.s.</span></div>
               <div style={S('display:inline-flex;align-items:center;gap:8px;margin-top:9px;padding:5px 11px;background:var(--blue-soft);border-radius:8px;font-size:12.5px;color:var(--blue-ink)')}><span style={S('display:flex')}>{ic('doc2', 15)}</span>Flotilová smlouva č. <span style={S('font-weight:700;font-variant-numeric:tabular-nums')}>{fd.policy}</span> · platná od {fd.policyStart}</div>
             </div>
           </div>
@@ -2532,7 +2532,7 @@ function Settings({ vm }) {
       </div>
       <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:22px;display:flex;align-items:center;gap:16px')}>
         <img src={STAR_LOGO} alt="STAR Insurance Group" style={S('height:34px;width:auto;flex-shrink:0')} />
-        <div style={{ flex: 1 }}><div style={S('font-size:13.5px;font-weight:700')}>Broker Hub powered by STAR Insurance</div><div style={S('font-size:12px;color:var(--ink3)')}>Portál spravuje makléřská kancelář IS Group, spol. s r.o. · podpora po–pá 8–18</div></div>
+        <div style={{ flex: 1 }}><div style={S('font-size:13.5px;font-weight:700')}>Broker Hub powered by STAR Insurance</div><div style={S('font-size:12px;color:var(--ink3)')}>Portál spravuje makléřská kancelář Petrisk a.s. · podpora po–pá 8–18</div></div>
         <span style={S('font-size:13px;font-weight:600;color:var(--blue);cursor:pointer')}>Kontaktovat</span>
       </div>
     </div>
