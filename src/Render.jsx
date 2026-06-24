@@ -1,5 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, Suspense } from 'react'
 import { css as S, Hov, Icon, InsurerLogo, exportData } from './helpers.jsx'
+
+// Mapa škod (Leaflet) je těžká a jen na dashboardu → lazy-load do vlastního chunku.
+const ClaimsMap = React.lazy(() => import('./ClaimsMap.jsx'))
 
 const ic = (name, size = 18, sw = 1.8) => <Icon name={name} size={size} sw={sw} />
 const LOGO = '/fleet-portal/logo-louda.svg'
@@ -1215,15 +1218,9 @@ function Dashboard({ vm }) {
           {/* CLAIMS MAP */}
           <div style={S(`${CARD};padding:18px 18px 16px`)}>
             <SectionHead title="Mapa škod" action="Zobrazit mapu" onAction={() => nav('claims')} />
-            <div style={S('position:relative;height:150px;border-radius:14px;overflow:hidden;background:radial-gradient(120% 120% at 50% 20%,#F4F7FE,#EAF0FB);border:1px solid var(--border)')}>
-              <div style={S('position:absolute;inset:0;background-image:radial-gradient(circle,rgba(79,111,255,.16) 1px,transparent 1.4px);background-size:15px 15px;opacity:.8')}></div>
-              {[['28%', '38%', 'var(--blue)', 26], ['54%', '30%', 'var(--amber)', 22], ['46%', '62%', 'var(--purple)', 30], ['70%', '54%', 'var(--star)', 18], ['38%', '52%', 'var(--blue)', 16]].map((p, i) => (
-                <div key={i} style={S(`position:absolute;left:${p[0]};top:${p[1]};width:${p[3]}px;height:${p[3]}px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,${p[2]} 0%,${p[2]} 28%,transparent 72%);opacity:.55`)}></div>
-              ))}
-              {[['28%', '38%', 'var(--blue)'], ['54%', '30%', 'var(--amber)'], ['46%', '62%', 'var(--purple)'], ['70%', '54%', 'var(--star)']].map((p, i) => (
-                <div key={'d' + i} style={S(`position:absolute;left:${p[0]};top:${p[1]};width:8px;height:8px;transform:translate(-50%,-50%);border-radius:50%;background:${p[2]};box-shadow:0 0 0 3px rgba(255,255,255,.7)`)}></div>
-              ))}
-            </div>
+            <Suspense fallback={<div style={S('height:180px;border-radius:14px;border:1px solid var(--border);background:linear-gradient(110deg,#F1F5FB 30%,#E8EEF7 50%,#F1F5FB 70%);background-size:200% 100%;animation:pulse 1.4s ease-in-out infinite')}></div>}>
+              <ClaimsMap height={180} />
+            </Suspense>
           </div>
 
           {/* DOCUMENTS */}
