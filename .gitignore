@@ -3,3 +3,6 @@ dist
 .DS_Store
 *.log
 .vercel
+
+# Importy reálných klientských dat (necommitovat surové soubory)
+_import/

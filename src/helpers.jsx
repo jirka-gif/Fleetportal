@@ -169,7 +169,7 @@ export function Icon({ name, size = 18, sw = 1.8, style }) {
 // ---------------------------------------------------------------------------
 // Shared formatting / chart helpers (ported from the design).
 // ---------------------------------------------------------------------------
-export const czk = (n) => n.toLocaleString('cs-CZ') + ' Kč'
+export const czk = (n) => (!n || isNaN(n)) ? '—' : n.toLocaleString('cs-CZ') + ' Kč'
 
 export function linePath(vals, w, h, pad) {
   const mn = Math.min(...vals), mx = Math.max(...vals), rg = (mx - mn) || 1
@@ -212,7 +212,7 @@ function xlsHtml(title, columns, rows) {
 function printRows(title, columns, rows) {
   const th = columns.map((c) => `<th>${escHtml(c.label)}</th>`).join('')
   const trs = rows.map((r) => '<tr>' + columns.map((c) => `<td>${escHtml(r[c.key])}</td>`).join('') + '</tr>').join('')
-  const html = `<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>${escHtml(title)}</title><style>body{font-family:-apple-system,system-ui,sans-serif;color:#111;margin:28px}h1{font-size:18px;margin:0 0 3px}.sub{color:#666;font-size:12px;margin-bottom:18px}table{border-collapse:collapse;width:100%;font-size:11px}th,td{border:1px solid #d0d0d0;padding:6px 8px;text-align:left}th{background:#f3f3f3}@media print{@page{size:landscape;margin:14mm}}</style></head><body><h1>${escHtml(title)}</h1><div class="sub">Louda Auto Fleet Portal · ${rows.length} záznamů</div><table><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table><script>window.onload=function(){setTimeout(function(){window.print()},250)}</script></body></html>`
+  const html = `<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>${escHtml(title)}</title><style>body{font-family:-apple-system,system-ui,sans-serif;color:#111;margin:28px}h1{font-size:18px;margin:0 0 3px}.sub{color:#666;font-size:12px;margin-bottom:18px}table{border-collapse:collapse;width:100%;font-size:11px}th,td{border:1px solid #d0d0d0;padding:6px 8px;text-align:left}th{background:#f3f3f3}@media print{@page{size:landscape;margin:14mm}}</style></head><body><h1>${escHtml(title)}</h1><div class="sub">Jiří Tošovský s.r.o. — Fleet Portal · ${rows.length} záznamů</div><table><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table><script>window.onload=function(){setTimeout(function(){window.print()},250)}</script></body></html>`
   const w = window.open('', '_blank')
   if (w) { w.document.write(html); w.document.close() }
 }
