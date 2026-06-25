@@ -970,6 +970,7 @@ export default function FleetPortal() {
       { name: 'Za makléře · Petrisk a.s.', people: [
         { name: 'Ing. Michal Zeman', role: 'Vedoucí oddělení pojištění motorových vozidel', initials: 'MZ', bg: 'var(--purple-soft)', color: 'var(--purple)', email: 'zeman@petrisk.cz', mobil: '+420 777 282 996', telefon: '+420 272 769 586', adresa: ADDR, www: 'www.petrisk.cz' },
         { name: 'Dana Strejcovská', role: 'Senior broker', initials: 'DS', bg: 'var(--purple-soft)', color: 'var(--purple)', email: 'strejcovska@petrisk.cz', mobil: '+420 724 159 016', telefon: '+420 272 769 586', adresa: ADDR, www: 'www.petrisk.cz' },
+        { name: 'Jiří Netopilík', role: 'Ředitel likvidace pojistných událostí', initials: 'JN', bg: 'var(--purple-soft)', color: 'var(--purple)', email: 'netopilik@petrisk.cz', mobil: '+420 777 262 244', telefon: '+420 272 769 586', adresa: ADDR, www: 'www.petrisk.cz' },
       ] },
     ]
     return { contactGroups }
