@@ -2496,17 +2496,40 @@ function Analytics({ vm }) {
 }
 
 /* ============================ CONTACTS ============================ */
+function ContactRow({ icon, label, value, href }) {
+  return (
+    <div style={S('display:flex;gap:10px;min-width:0')}>
+      <span style={S('color:var(--ink3);display:flex;flex-shrink:0;margin-top:2px')}>{ic(icon, 15)}</span>
+      <div style={S('min-width:0;display:flex;flex-direction:column;gap:1px')}>
+        <span style={S('font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px;font-weight:600')}>{label}</span>
+        {href
+          ? <a href={href} target={href.startsWith('http') ? '_blank' : undefined} rel="noreferrer" style={S('font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;line-height:1.35;word-break:break-word')}>{value}</a>
+          : <span style={S('font-size:13px;font-weight:600;color:var(--ink2);line-height:1.35;word-break:break-word')}>{value}</span>}
+      </div>
+    </div>
+  )
+}
+
 function Contacts({ vm }) {
   return (
     <div>
       {vm.contactGroups.map((g, gi) => (
-        <div key={gi} style={S('margin-bottom:24px')}>
-          <div style={S('display:flex;align-items:center;gap:9px;margin-bottom:12px')}><span style={S('font-size:15px;font-weight:700')}>{g.name}</span><span style={S('font-size:11.5px;font-weight:700;color:var(--ink3);background:#EEF2F9;padding:2px 8px;border-radius:20px')}>{g.people.length}</span></div>
-          <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px')}>
+        <div key={gi} style={S('margin-bottom:26px')}>
+          <div style={S('display:flex;align-items:center;gap:9px;margin-bottom:14px')}><span style={S('font-size:15px;font-weight:700;letter-spacing:-.2px')}>{g.name}</span><span style={S('font-size:11.5px;font-weight:700;color:var(--ink3);background:#EEF2F9;padding:2px 8px;border-radius:20px')}>{g.people.length}</span></div>
+          <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,400px));gap:14px')}>
             {g.people.map((p, pi) => (
-              <div key={pi} style={S('background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px')}>
-                <div style={S('display:flex;align-items:center;gap:11px')}><div style={S(`width:42px;height:42px;border-radius:50%;background:${p.bg};color:${p.color};font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0`)}>{p.initials}</div><div style={S('min-width:0')}><div style={S('font-size:13.5px;font-weight:700;line-height:1.15')}>{p.name}</div><div style={S('font-size:12px;color:var(--ink3)')}>{p.role}</div></div></div>
-                <div style={S('margin-top:13px;display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--ink2)')}><div style={S('display:flex;align-items:center;gap:8px')}><span style={S('color:var(--ink3);display:flex')}>{p.phoneIcon}</span>{p.phone}</div><div style={S('display:flex;align-items:center;gap:8px;min-width:0')}><span style={S('color:var(--ink3);display:flex')}>{p.mailIcon}</span><span style={S('overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{p.email}</span></div></div>
+              <div key={pi} style={S(`${CARD};padding:20px`)}>
+                <div style={S('display:flex;align-items:center;gap:13px')}>
+                  <div style={S(`width:48px;height:48px;border-radius:50%;background:${p.bg};color:${p.color};font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;flex-shrink:0`)}>{p.initials}</div>
+                  <div style={S('min-width:0')}><div style={S('font-size:15.5px;font-weight:700;line-height:1.2')}>{p.name}</div><div style={S('font-size:12.5px;color:var(--ink3);margin-top:1px')}>{p.role}</div></div>
+                </div>
+                <div style={S('margin-top:16px;padding-top:16px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:11px')}>
+                  {p.email && <ContactRow icon="file" label="E-mail" value={p.email} href={'mailto:' + p.email} />}
+                  {p.mobil && <ContactRow icon="phone" label="Mobil" value={p.mobil} href={'tel:' + p.mobil.replace(/\s/g, '')} />}
+                  {p.telefon && <ContactRow icon="phone" label="Telefon" value={p.telefon} href={'tel:' + p.telefon.replace(/\s/g, '')} />}
+                  {p.adresa && <ContactRow icon="pin" label="Adresa" value={p.adresa} />}
+                  {p.www && <ContactRow icon="info" label="Web" value={p.www} href={'https://' + p.www.replace(/^https?:\/\//, '')} />}
+                </div>
               </div>
             ))}
           </div>

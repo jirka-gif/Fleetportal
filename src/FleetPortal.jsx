@@ -225,7 +225,7 @@ export default function FleetPortal() {
       documents: ['Dokumenty', 'Centrální úložiště dokumentů'],
       'documents-detail': ['Pojistné smlouvy', 'Flotilové smlouvy a jejich dokumenty'],
       bonifikace: ['Bonifikace', 'Vrácení části pojistného dle škodního průběhu'],
-      contacts: ['Kontakty', 'Manažeři, řidiči, partneři'],
+      contacts: ['Kontakty', 'Správa vozového parku a pojišťovací makléř'],
       analytics: ['Analytika', 'Náklady, trendy a úspory'],
       settings: ['Nastavení', 'Profil a předvolby portálu'],
     }
@@ -962,13 +962,15 @@ export default function FleetPortal() {
 
   const contactsVM = () => {
     if (state.route !== 'contacts') return {}
-    const init = (n) => n.split(' ').map((x) => x[0]).slice(0, 2).join('')
-    const P = (name, role, phone, email, bg, color) => ({ name, role, phone, email, initials: init(name), bg, color, phoneIcon: ic('phone', 14), mailIcon: ic('file', 14) })
+    const ADDR = 'Brumlovka – budova G, Michelská 1552/58, 141 00 Praha 4'
     const contactGroups = [
-      { name: 'Fleet manažeři', people: fleetsData.map((f, i) => P(f.manager, f.name, '+420 ' + (602 + i) + ' 1' + (20 + i) + ' ' + (300 + i * 7), f.manager.toLowerCase().replace(/[^a-z]/g, '.') + '@tosovsky.cz', 'var(--blue-soft)', 'var(--blue)')) },
-      { name: 'Makléři & poradci', people: [P('Petr Kmoch', 'Odpovědný makléř · Petrisk a.s.', '+420 777 123 456', 'petr.kmoch@petrisk.cz', 'var(--star-soft)', 'var(--star)'), P('Petra Veselá', 'Account manager · STAR', '+420 605 998 112', 'petra.vesela@star.cz', 'var(--star-soft)', 'var(--star)')] },
-      { name: 'Servisy & opravny', people: [P('AutoCentrum Praha', 'Autorizovaný servis', '+420 244 010 200', 'servis@acpraha.cz', 'var(--green-soft)', 'var(--green)'), P('AutoSklo Express', 'Opravy skel', '+420 800 100 200', 'info@autosklo.cz', 'var(--green-soft)', 'var(--green)'), P('Servis MB Brno', 'Karosárna', '+420 545 221 330', 'brno@servismb.cz', 'var(--green-soft)', 'var(--green)')] },
-      { name: 'Likvidátoři & asistence', people: [P('Pavel Říha', 'Likvidátor · Kooperativa', '+420 957 105 105', 'p.riha@koop.cz', 'var(--amber-soft)', 'var(--amber)'), P('Global Assistance', 'Asistenční linka 24/7', '1220', 'dispecink@1220.cz', 'var(--amber-soft)', 'var(--amber)'), P('Nouzová linka', 'Havárie & odtah', '+420 800 124 124', 'sos@tosovsky.cz', 'var(--star-soft)', 'var(--star)')] },
+      { name: 'Za klienta · správa vozového parku', people: [
+        { name: 'Josef Moučka', role: 'Správa vozového parku · Jiří Tošovský s.r.o.', initials: 'JM', bg: 'var(--blue-soft)', color: 'var(--blue)', email: 'josef.moucka@autotos.cz', telefon: '+420 602 215 732' },
+      ] },
+      { name: 'Za makléře · Petrisk a.s.', people: [
+        { name: 'Ing. Michal Zeman', role: 'Vedoucí oddělení pojištění motorových vozidel', initials: 'MZ', bg: 'var(--purple-soft)', color: 'var(--purple)', email: 'zeman@petrisk.cz', mobil: '+420 777 282 996', telefon: '+420 272 769 586', adresa: ADDR, www: 'www.petrisk.cz' },
+        { name: 'Dana Strejcovská', role: 'Senior broker', initials: 'DS', bg: 'var(--purple-soft)', color: 'var(--purple)', email: 'strejcovska@petrisk.cz', mobil: '+420 724 159 016', telefon: '+420 272 769 586', adresa: ADDR, www: 'www.petrisk.cz' },
+      ] },
     ]
     return { contactGroups }
   }
