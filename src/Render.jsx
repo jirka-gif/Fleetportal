@@ -6,7 +6,7 @@ const ClaimsMap = React.lazy(() => import('./ClaimsMap.jsx'))
 
 const ic = (name, size = 18, sw = 1.8) => <Icon name={name} size={size} sw={sw} />
 const LOGO = '/fleet-portal/tosovsky-logo.png'
-const STAR_LOGO = '/fleet-portal/star-logo.png'
+const STAR_LOGO = '/fleet-portal/petrisk-logo.svg'
 
 // Export button with an XLS / CSV / PDF dropdown — exports the given rows.
 function ExportMenu({ filename, title, columns, rows, variant }) {
@@ -93,7 +93,7 @@ export default function Render({ vm }) {
         </div>
         <div style={S('padding:16px 18px;border-top:1px solid var(--side-border)')}>
           <div style={S('font-size:9.5px;font-weight:700;letter-spacing:1px;color:var(--side-fg);text-transform:uppercase;margin-bottom:9px;opacity:.7')}>Spravuje · Powered by</div>
-          <img src={STAR_LOGO} alt="STAR Insurance Group" style={S('height:27px;width:auto;display:block;filter:brightness(0) invert(1);opacity:.92')} />
+          <img src={STAR_LOGO} alt="Petrisk a.s." style={S('height:24px;width:auto;display:block;filter:brightness(0) invert(1);opacity:.92')} />
           <div style={S('font-size:11px;color:var(--side-fg);margin-top:8px;opacity:.8')}>Broker Hub · makléř Petrisk a.s.</div>
         </div>
       </aside>
@@ -2531,8 +2531,8 @@ function Settings({ vm }) {
         ))}
       </div>
       <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:22px;display:flex;align-items:center;gap:16px')}>
-        <img src={STAR_LOGO} alt="STAR Insurance Group" style={S('height:34px;width:auto;flex-shrink:0')} />
-        <div style={{ flex: 1 }}><div style={S('font-size:13.5px;font-weight:700')}>Broker Hub powered by STAR Insurance</div><div style={S('font-size:12px;color:var(--ink3)')}>Portál spravuje makléřská kancelář Petrisk a.s. · podpora po–pá 8–18</div></div>
+        <img src={STAR_LOGO} alt="Petrisk a.s." style={S('height:30px;width:auto;flex-shrink:0')} />
+        <div style={{ flex: 1 }}><div style={S('font-size:13.5px;font-weight:700')}>Broker Hub · Petrisk a.s.</div><div style={S('font-size:12px;color:var(--ink3)')}>Portál spravuje makléřská kancelář Petrisk a.s. · podpora po–pá 8–18</div></div>
         <span style={S('font-size:13px;font-weight:600;color:var(--blue);cursor:pointer')}>Kontaktovat</span>
       </div>
     </div>
