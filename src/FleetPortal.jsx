@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react'
 import { Icon, czk, linePath, useViewport } from './helpers.jsx'
 import Render from './Render.jsx'
 import {
-  insurersData, brandsData, fleetsData, vehiclesData, claimsData, greenCards,
+  insurersData, brandsData, fleetsData, vehiclesData, claimsData, greenCards, driversData,
   statusMeta, claimStatusMeta, fleetName, statusChip,
 } from './data.js'
 
@@ -107,6 +107,7 @@ export default function FleetPortal() {
   const navigate = (route, patch) => setState({ route, ...(patch || {}), search: false, notif: false, companyMenu: false, sidebar: false })
   const openFleet = (id) => navigate('fleet-detail', { fleetId: id, fleetTab: 'overview' })
   const openVehicle = (id) => navigate('vehicle-detail', { vehicleId: id, vehicleTab: 'overview' })
+  const openDriver = (id) => navigate('driver-detail', { driverId: id })
   const openClaim = (id) => navigate('claim-detail', { claimId: id })
   const toggleNotif = () => setState((s) => ({ notif: !s.notif, companyMenu: false }))
   const toggleAI = () => setState((s) => ({ ai: !s.ai }))
@@ -197,6 +198,7 @@ export default function FleetPortal() {
       ['dashboard', 'Přehled', 'dashboard', null],
       ['fleets', 'Vozové parky', 'fleets', null],
       ['vehicles', 'Vozidla', 'car', '335'],
+      ['drivers', 'Řidiči', 'users', String(driversData.length)],
       ['insurance', 'Pojištění', 'shield', null],
       ['claims', 'Škody', 'alert', String(claimsData.filter((c) => c.status !== 'closed').length) || null],
       ['documents', 'Dokumenty', 'file', null],
@@ -205,7 +207,7 @@ export default function FleetPortal() {
       ['analytics', 'Analytika', 'chart', null],
       ['settings', 'Nastavení', 'settings', null],
     ]
-    const activeRoute = r === 'fleet-detail' ? 'fleets' : r === 'vehicle-detail' ? 'vehicles' : r === 'bonifikace-detail' ? 'bonifikace' : r === 'documents-detail' ? 'documents' : r === 'claim-detail' ? 'claims' : r
+    const activeRoute = r === 'fleet-detail' ? 'fleets' : r === 'vehicle-detail' ? 'vehicles' : r === 'driver-detail' ? 'drivers' : r === 'bonifikace-detail' ? 'bonifikace' : r === 'documents-detail' ? 'documents' : r === 'claim-detail' ? 'claims' : r
     const nav = navItems.map(([id, label, icon, badge]) => {
       const on = activeRoute === id
       return {
@@ -220,6 +222,7 @@ export default function FleetPortal() {
       dashboard: ['Přehled', 'Souhrn vozového parku Jiří Tošovský s.r.o.'],
       fleets: ['Vozové parky', '6 kategorií · 335 vozidel'],
       vehicles: ['Vozidla', '335 vozidel celkem'],
+      drivers: ['Řidiči', `${driversData.length} řidičů vozového parku`],
       insurance: ['Pojištění', 'Smlouvy a krytí napříč parky'],
       claims: ['Škody', `${claimsData.filter((c) => c.status !== 'closed').length} otevřených · ${claimsData.filter((c) => c.status === 'closed').length} uzavřených`],
       documents: ['Dokumenty', 'Centrální úložiště dokumentů'],
@@ -235,6 +238,7 @@ export default function FleetPortal() {
     else if (r === 'bonifikace-detail') { const f = allFleets.find((x) => x.id === state.fleetId) || allFleets[0]; title = `Bonifikace · ${f.insurers[0]}`; sub = `Flotilová smlouva č. ${f.policy || '—'}` }
     else if (r === 'documents-detail') { const tm = { zk: ['Zelené karty', 'Zelená karta ke každému vozidlu'], orv: ['Technické průkazy', 'Osvědčení o registraci vozidla (ORV)'], faktury: ['Faktury', 'Faktury za pojištění'] }; const t = tm[state.docCat] || ['Pojistné smlouvy', 'Flotilové smlouvy a jejich dokumenty']; title = t[0]; sub = t[1] }
     else if (r === 'claim-detail') { const c = claimsData.find((x) => x.id === state.claimId) || claimsData[0]; title = `Škoda ${c.id}`; sub = `${c.type} · ${c.vehicle}` }
+    else if (r === 'driver-detail') { const d = driversData.find((x) => x.id === state.driverId) || driversData[0]; title = d.name; sub = d.position }
     else { const t = titles[r] || ['', '']; title = t[0]; sub = t[1] }
 
     const aiMessages = state.aiMessages.map((m) => ({
@@ -269,7 +273,7 @@ export default function FleetPortal() {
       nav, pageTitle: title, pageSubtitle: sub, route: r,
       isDashboard: r === 'dashboard', isFleets: r === 'fleets', isFleetDetail: r === 'fleet-detail',
       isVehicles: r === 'vehicles', isVehicleDetail: r === 'vehicle-detail',
-      isInsurance: r === 'insurance', isInsuranceDetail: r === 'insurance-detail', isClaims: r === 'claims', isDocuments: r === 'documents', isAnalytics: r === 'analytics', isContacts: r === 'contacts', isSettings: r === 'settings',
+      isInsurance: r === 'insurance', isInsuranceDetail: r === 'insurance-detail', isClaims: r === 'claims', isDocuments: r === 'documents', isAnalytics: r === 'analytics', isContacts: r === 'contacts', isSettings: r === 'settings', isDrivers: r === 'drivers', isDriverDetail: r === 'driver-detail',
       isDocumentsDetail: r === 'documents-detail',
       openDocCat: (cat) => navigate('documents-detail', { docCat: cat, docOpen: {} }), goDocuments: () => navigate('documents'),
       docPreview: state.docPreview, closeDocPreview: () => setState({ docPreview: null }),
@@ -976,6 +980,58 @@ export default function FleetPortal() {
     return { contactGroups }
   }
 
+  const DRV_STATUS = { active: { label: 'Aktivní', c: '#22C55E', bg: '#E7F9EE' }, inactive: { label: 'Neaktivní', c: '#64748B', bg: '#EEF2F9' } }
+  const DRV_PAL = ['var(--blue)', 'var(--purple)', 'var(--green)', 'var(--amber)', 'var(--star)', '#0EA5A5']
+
+  const driversVM = () => {
+    if (state.route !== 'drivers') return {}
+    const rows = driversData.map((d, i) => {
+      const sm = DRV_STATUS[d.status]
+      const pv = d.vehicleIds[0] ? vehiclesData.find((v) => v.id === d.vehicleIds[0]) : null
+      return {
+        id: d.id, name: d.name, initials: d.initials, position: d.position, kind: d.kind,
+        employment: d.employment, phone: d.phone, vehicleCount: d.vehicleIds.length,
+        primaryVehicle: pv ? `${pv.brand} ${pv.model} · ${pv.plate}` : '—',
+        rpGroups: d.rp.groups, adr: d.adr,
+        claimsCount: claimsData.filter((c) => d.vehicleIds.includes(c.vId)).length,
+        statusLabel: sm.label, statusC: sm.c, statusBg: sm.bg, color: DRV_PAL[i % DRV_PAL.length],
+        onClick: () => openDriver(d.id),
+      }
+    })
+    const drStats = [
+      { value: String(driversData.length), label: 'Řidičů celkem' },
+      { value: String(driversData.filter((d) => d.status === 'active').length), label: 'Aktivních' },
+      { value: String(driversData.filter((d) => d.kind === 'MKD').length), label: 'Řidičů MKD' },
+      { value: String(driversData.filter((d) => d.adr).length), label: 'S ADR oprávněním' },
+    ]
+    return { driverRows: rows, drStats }
+  }
+
+  const driverDetailVM = () => {
+    if (state.route !== 'driver-detail') return {}
+    const d = driversData.find((x) => x.id === state.driverId) || driversData[0]
+    const sm = DRV_STATUS[d.status]
+    const vehicles = d.vehicleIds.map((vid) => vehiclesData.find((v) => v.id === vid)).filter(Boolean).map((v) => ({
+      id: v.id, plate: v.plate, brand: v.brand, model: v.model, druh: v.druh, fleetName: fleetName(v.fleet), onClick: () => openVehicle(v.id),
+    }))
+    const claims = claimsData.filter((c) => d.vehicleIds.includes(c.vId)).map(buildClaimRow)
+    const personal = [['Datum narození', d.birth], ['Rodné číslo', d.rc], ['Adresa', d.address], ['Telefon', d.phone], ['E-mail', d.email]]
+    const employment = [['Pozice', d.position], ['Pracovní poměr', d.employment], ['Ve firmě od', d.since], ['Číslo pracovní smlouvy', d.contractNo], ['Číslo účtu', d.bankAccount], ['ADR oprávnění', d.adr ? 'Ano' : 'Ne']]
+    const idDocs = [
+      { title: 'Občanský průkaz (OP)', icon: ic('user1', 18), color: 'var(--blue)', bg: 'var(--blue-soft)', rows: [['Číslo OP', d.op.number], ['Platnost do', d.op.validTo]] },
+      { title: 'Řidičský průkaz (ŘP)', icon: ic('car', 18), color: 'var(--green)', bg: 'var(--green-soft)', rows: [['Číslo ŘP', d.rp.number], ['Skupiny', d.rp.groups], ['Platnost do', d.rp.validTo], ['Profesní způsobilost', d.rp.profValidTo ? 'do ' + d.rp.profValidTo : 'nevyžaduje se']] },
+    ]
+    if (d.tachoCard) idDocs.push({ title: 'Karta řidiče (tachograf)', icon: ic('hash', 18), color: 'var(--purple)', bg: 'var(--purple-soft)', rows: [['Číslo karty', d.tachoCard.number], ['Platnost do', d.tachoCard.validTo]] })
+    if (d.adr) idDocs.push({ title: 'ADR – přeprava nebezpečných věcí', icon: ic('alert', 18), color: 'var(--amber)', bg: 'var(--amber-soft)', rows: [['Osvědčení', 'Platné'], ['Rozsah', 'Kusy + cisterny'], ['Platnost do', d.rp.validTo]] })
+    const files = [
+      { name: `Pracovní smlouva ${d.contractNo}.pdf`, type: 'Pracovní smlouva', color: 'var(--blue)' },
+      { name: `Kopie OP ${d.name}.pdf`, type: 'Občanský průkaz', color: 'var(--green)' },
+      { name: `Kopie ŘP ${d.rp.number}.pdf`, type: 'Řidičský průkaz', color: 'var(--green)' },
+      { name: `Mzdový list.pdf`, type: 'Mzdy', color: 'var(--purple)' },
+    ]
+    return { dd: { ...d, statusLabel: sm.label, statusC: sm.c, statusBg: sm.bg, vehicles, claims, personal, employment, idDocs, files, goDrivers: () => navigate('drivers') } }
+  }
+
   const settingsVM = () => {
     if (state.route !== 'settings') return {}
     const p = state.pref
@@ -1253,7 +1309,7 @@ export default function FleetPortal() {
 
   const vm = {
     ...shellVM(), ...dashboardVM(), ...fleetsVM(), ...fleetDetailVM(), ...vehiclesVM(), ...vehicleDetailVM(),
-    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...wizardVM(), ...addVehicleVM(),
+    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...wizardVM(), ...addVehicleVM(),
   }
 
   return <Render vm={vm} />
