@@ -164,7 +164,7 @@ export default function Render({ vm }) {
             {vm.isClaimDetail && <ClaimDetail vm={vm} />}
             {vm.isInsurance && <EmptyState icon="shield" title="Detail pojistného krytí se připravuje" sub="Pojistné smlouvy, pojišťovny a roční pojistné se zobrazí po napojení portálu na systém pojišťovny. Sjednané krytí jednotlivých vozidel (povinné ručení / havarijní / skla / asistence) najdete v detailu vozidla." />}
             {vm.isInsuranceDetail && <InsuranceDetail vm={vm} />}
-            {vm.isClaims && <EmptyState icon="alert" title="Žádné evidované škody" sub="Aktuální sestava vozového parku neobsahuje škodní historii. Po napojení na systém pojišťovny se zde zobrazí nahlášené i likvidované pojistné události včetně stavu likvidace a výplat." />}
+            {vm.isClaims && <Claims vm={vm} />}
             {vm.isDocuments && <Documents vm={vm} />}
             {vm.isDocumentsDetail && <DocumentsDetail vm={vm} />}
             {vm.isBonifikace && <EmptyState icon="percent" title="Bonifikace se připravuje" sub="Výpočet bonifikace — vrácení části pojistného dle škodního průběhu — se zobrazí po napojení na systém pojišťovny a doplnění pojistného a škodní historie." />}
@@ -2190,18 +2190,18 @@ function Claims({ vm }) {
   const mob = vm.vp.isMobile
   return (
     <div>
-      <KpiRow items={CLAIM_KPIS} mb="16px" />
+      <KpiRow items={vm.claimStats.map((s) => ({ value: s.value, label: s.label }))} mb="16px" />
       <div style={S('display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:16px')}>
         <ExportMenu {...vm.claimsExport} />
         <div onClick={vm.openClaimWizard} style={S('display:flex;align-items:center;gap:8px;height:42px;padding:0 18px;background:linear-gradient(180deg,#E0234A,#B10E2B);color:#fff;border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 6px 18px rgba(200,16,46,.30)')}>{ic('plus', 15)} Nahlásit událost</div>
       </div>
       <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:14px;margin-bottom:14px`)}>
         <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
-          <div style={S('font-size:15px;font-weight:700;margin-bottom:14px')}>Události podle parku</div>
+          <div style={S('font-size:15px;font-weight:700;margin-bottom:14px')}>Události podle kategorie</div>
           {vm.claimsByFleet.map((b, i) => <div key={i} style={S('margin-bottom:11px')}><div style={S('display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px')}><span style={S('font-weight:600')}>{b.name}</span><span style={S('color:var(--ink3)')}>{b.count}</span></div><div style={S('height:7px;background:#EEF2F9;border-radius:4px')}><div style={S(`height:100%;width:${b.w};background:${b.color};border-radius:4px`)}></div></div></div>)}
         </div>
         <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
-          <div style={S('display:flex;align-items:center;justify-content:space-between;margin-bottom:14px')}><div style={S('font-size:15px;font-weight:700')}>Trend nahlášených</div><span style={S('font-size:12px;font-weight:600;color:var(--green);background:var(--green-soft);padding:3px 9px;border-radius:20px')}>−14 % r/r</span></div>
+          <div style={S('display:flex;align-items:center;justify-content:space-between;margin-bottom:14px')}><div style={S('font-size:15px;font-weight:700')}>Trend nahlášených</div><span style={S('font-size:12px;color:var(--ink3)')}>{vm.claimRows.length} událostí celkem</span></div>
           <div style={S('display:flex;align-items:flex-end;gap:7px;height:130px')}>
             {vm.claimTrend.map((b, i) => <div key={i} style={S('flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end')}><div style={S(`width:100%;height:${b.h};background:${b.color};border-radius:4px;min-height:3px`)}></div><span style={S('font-size:9.5px;color:var(--ink3)')}>{b.label}</span></div>)}
           </div>

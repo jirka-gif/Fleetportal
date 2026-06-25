@@ -198,7 +198,7 @@ export default function FleetPortal() {
       ['fleets', 'Vozové parky', 'fleets', null],
       ['vehicles', 'Vozidla', 'car', '335'],
       ['insurance', 'Pojištění', 'shield', null],
-      ['claims', 'Škody', 'alert', null],
+      ['claims', 'Škody', 'alert', String(claimsData.filter((c) => c.status !== 'closed').length) || null],
       ['documents', 'Dokumenty', 'file', null],
       ['bonifikace', 'Bonifikace', 'percent', null],
       ['contacts', 'Kontakty', 'users', null],
@@ -221,7 +221,7 @@ export default function FleetPortal() {
       fleets: ['Vozové parky', '6 kategorií · 335 vozidel'],
       vehicles: ['Vozidla', '335 vozidel celkem'],
       insurance: ['Pojištění', 'Smlouvy a krytí napříč parky'],
-      claims: ['Škody', 'Pojistné události vozového parku'],
+      claims: ['Škody', `${claimsData.filter((c) => c.status !== 'closed').length} otevřených · ${claimsData.filter((c) => c.status === 'closed').length} uzavřených`],
       documents: ['Dokumenty', 'Centrální úložiště dokumentů'],
       'documents-detail': ['Pojistné smlouvy', 'Flotilové smlouvy a jejich dokumenty'],
       bonifikace: ['Bonifikace', 'Vrácení části pojistného dle škodního průběhu'],
@@ -784,17 +784,35 @@ export default function FleetPortal() {
 
   const claimsVM = () => {
     if (state.route !== 'claims') return {}
+    const cd = claimsData
+    const openN = cd.filter((c) => c.status !== 'closed').length
+    const closedN = cd.filter((c) => c.status === 'closed').length
+    const paidSum = cd.reduce((a, c) => a + (c.payout || 0), 0)
+    const reserveSum = cd.reduce((a, c) => a + (c.estimate || 0), 0)
+    const milF = (n) => (n / 1e6).toFixed(2).replace('.', ',') + ' mil.'
     const claimStats = [
-      { label: 'Otevřené události', value: '9', color: 'var(--star)' },
-      { label: 'Uzavřené (rok)', value: '47', color: 'var(--ink)' },
-      { label: 'Ø doba likvidace', value: '18 dní', color: 'var(--ink)' },
-      { label: 'Náklady (rok)', value: '1,24 mil.', color: 'var(--ink)' },
+      { label: 'Otevřené události', value: String(openN), color: 'var(--star)' },
+      { label: 'Uzavřené', value: String(closedN), color: 'var(--ink)' },
+      { label: 'Vyplaceno celkem', value: milF(paidSum), color: 'var(--ink)' },
+      { label: 'Rezervy', value: milF(reserveSum), color: 'var(--ink)' },
     ]
-    const cf = [['Praha – Centrála', 12, '#2058C9'], ['Dlouhodobý pronájem', 15, '#3A7BE0'], ['Brno – Pobočka', 9, '#16A34A'], ['Ml. Boleslav', 7, '#C2780C'], ['Servisní vozy', 4, '#8B5CF6'], ['Management', 1, '#A1A1AA']]
-    const cfMax = Math.max(...cf.map((x) => x[1]))
-    const claimsByFleet = cf.map(([name, count, color]) => ({ name, count, color, w: Math.round(count / cfMax * 100) + '%' }))
-    const ct = [5, 4, 6, 3, 5, 4, 7, 4, 6, 3, 4, 2]; const ctMax = Math.max(...ct)
-    const claimTrend = ct.map((v, i) => ({ h: Math.round(v / ctMax * 100) + '%', color: i >= 10 ? 'var(--star)' : '#E3B7BE', label: MONTHS[i][0] }))
+    // podle kategorie vozidla (reálné)
+    const vById = Object.fromEntries(vehiclesData.map((v) => [v.id, v]))
+    const catName = Object.fromEntries(fleetsData.map((f) => [f.id, f.name]))
+    const PAL = ['#4F6FFF', '#6D5EF6', '#22C55E', '#F59E0B', '#EF4444', '#0EA5A5', '#94A3B8']
+    const grp = {}
+    cd.forEach((c) => { const v = vById[c.vId]; const key = v ? catName[v.fleet] : 'Mimo aktuální flotilu'; grp[key] = (grp[key] || 0) + 1 })
+    const cfArr = Object.entries(grp).sort((a, b) => b[1] - a[1])
+    const cfMax = Math.max(...cfArr.map((x) => x[1]), 1)
+    const claimsByFleet = cfArr.map(([name, count], i) => ({ name, count, color: PAL[i % PAL.length], w: Math.round(count / cfMax * 100) + '%' }))
+    // měsíční trend nahlášení (reálný)
+    const parseD = (s) => { const p = String(s).split('. '); return p.length === 3 ? new Date(+p[2], +p[1] - 1, +p[0]) : null }
+    const buckets = {}
+    cd.forEach((c) => { const d = parseD(c.date); if (d) { const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; buckets[k] = (buckets[k] || 0) + 1 } })
+    const keys = Object.keys(buckets).sort().slice(-12)
+    const ctMax = Math.max(...keys.map((k) => buckets[k]), 1)
+    const MN = ['Led', 'Úno', 'Bře', 'Dub', 'Kvě', 'Čvn', 'Čvc', 'Srp', 'Zář', 'Říj', 'Lis', 'Pro']
+    const claimTrend = keys.map((k) => ({ h: Math.round(buckets[k] / ctMax * 100) + '%', color: '#6D8BFF', label: MN[+k.split('-')[1] - 1] }))
     const claimRows = claimsData.map(buildClaimRow)
     const claimsExport = { filename: 'skody', title: 'Škody', columns: CLAIM_EXPORT_COLS, rows: claimRows.map(claimExportRow) }
     return { claimStats, claimsByFleet, claimTrend, claimRows, claimsExport }
