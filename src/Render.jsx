@@ -1658,6 +1658,19 @@ function EndedVehiclesTable({ rows, count, showPark = true }) {
 }
 
 /* ============================ VEHICLE DETAIL ============================ */
+const brandSlug = (b) => (b || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+function BrandMark({ brand }) {
+  const [err, setErr] = useState(false)
+  const slug = brandSlug(brand)
+  if (slug && !err) {
+    return <img src={`/fleet-portal/brands/${slug}.png`} alt={brand} onError={() => setErr(true)} style={{ maxWidth: '66%', maxHeight: 96, width: 'auto', height: 'auto', objectFit: 'contain' }} />
+  }
+  if (!brand || brand === 'Neuvedeno') return <span style={S('color:#B6BCC6')}>{ic('car', 92, 1.2)}</span>
+  const initials = brand.replace(/[^A-Za-zÁ-Žá-ž0-9]/g, ' ').trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 3).toUpperCase()
+  let h = 0; for (let i = 0; i < brand.length; i++) h = (h * 31 + brand.charCodeAt(i)) % 360
+  return <div style={{ width: 96, height: 96, borderRadius: 24, background: `hsl(${h} 50% 90%)`, color: `hsl(${h} 42% 36%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, fontWeight: 800, letterSpacing: '.5px' }}>{initials}</div>
+}
+
 function VehicleDetail({ vm }) {
   const vd = vm.vd
   const mob = vm.vp.isMobile
@@ -1668,7 +1681,7 @@ function VehicleDetail({ vm }) {
       <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '340px 1fr'};gap:16px;margin-bottom:16px`)}>
         <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden')}>
           <div style={S('height:190px;background:linear-gradient(135deg,#EEF1F6,#E2E7EF);display:flex;align-items:center;justify-content:center;position:relative')}>
-            <span style={S('color:#B6BCC6')}>{ic('car', 96, 1.2)}</span>
+            <BrandMark brand={vd.brand} />
             <span style={{ position: 'absolute', top: 12, left: 12, ...S(vd.chipStyle) }}>{vd.statusLabel}</span>
           </div>
           <div style={S('padding:18px')}>
