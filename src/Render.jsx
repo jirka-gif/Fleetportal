@@ -1811,7 +1811,7 @@ function VehicleDetail({ vm }) {
               <div style={S(`width:36px;height:36px;border-radius:9px;background:${d.bg};color:${d.color};display:flex;align-items:center;justify-content:center;flex-shrink:0`)}>{d.icon}</div>
               <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{d.name}</div><div style={S('font-size:12px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{d.type} · {d.meta}</div></div>
               <div style={S('width:64px;font-size:12px;color:var(--ink3);text-align:right;font-variant-numeric:tabular-nums')}>{d.size}</div>
-              <div style={S('display:flex;gap:10px;color:var(--ink3)')}><Hov as="span" onClick={d.openPreview} base="cursor:pointer;display:flex" hover="color:var(--blue)" title="Náhled">{d.preview}</Hov><Hov as="span" base="cursor:pointer;display:flex" hover="color:var(--blue)" title="Stáhnout">{d.download}</Hov></div>
+              <div style={S('display:flex;gap:10px;color:var(--ink3)')}><Hov as="span" onClick={d.openPreview} base="cursor:pointer;display:flex" hover="color:var(--blue)" title="Náhled">{d.preview}</Hov><Hov as="span" onClick={d.openDownload} base="cursor:pointer;display:flex" hover="color:var(--blue)" title="Stáhnout">{d.download}</Hov></div>
             </Hov>
           ))}
         </div>
@@ -2375,7 +2375,7 @@ function DocumentsDetail({ vm }) {
                       <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:600')}>{d.name}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{d.type}</div></div>
                       <div style={S('width:90px;font-size:12px;color:var(--ink3);font-variant-numeric:tabular-nums')}>{d.date}</div>
                       <div style={S('width:60px;font-size:12px;color:var(--ink3)')}>{d.size}</div>
-                      <div style={S('display:flex;gap:10px;color:var(--ink3)')}><Hov as="span" onClick={d.openPreview} base="cursor:pointer;display:flex" hover="color:var(--blue)" title="Náhled">{d.preview}</Hov><Hov as="span" base="cursor:pointer;display:flex" hover="color:var(--blue)" title="Stáhnout">{d.download}</Hov></div>
+                      <div style={S('display:flex;gap:10px;color:var(--ink3)')}><Hov as="span" onClick={d.openPreview} base="cursor:pointer;display:flex" hover="color:var(--blue)" title="Náhled">{d.preview}</Hov><Hov as="span" onClick={d.openDownload} base="cursor:pointer;display:flex" hover="color:var(--blue)" title="Stáhnout">{d.download}</Hov></div>
                     </Hov>
                   ))}
                 </HScroll>
