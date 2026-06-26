@@ -3,7 +3,7 @@ import { Icon, czk, linePath, useViewport } from './helpers.jsx'
 import Render from './Render.jsx'
 import {
   insurersData, brandsData, fleetsData, vehiclesData, claimsData, greenCards, driversData,
-  statusMeta, claimStatusMeta, fleetName, statusChip, vehicleTypeCat, vehicleTypeOrder,
+  statusMeta, claimStatusMeta, fleetName, statusChip, vehicleTypeCat, vehicleTypeOrder, vehicleStk, vehicleVignette,
 } from './data.js'
 
 const ic = (name, size = 18, sw = 1.8) => <Icon name={name} size={size} sw={sw} />
@@ -23,6 +23,13 @@ const ROOT_STYLE =
 
 const MONTHS = ['Čvc', 'Srp', 'Zář', 'Říj', 'Lis', 'Pro', 'Led', 'Úno', 'Bře', 'Dub', 'Kvě', 'Čvn']
 const parseCzDate = (s) => { const p = String(s || '').split('. '); return p.length === 3 ? new Date(+p[2], +p[1] - 1, +p[0]) : null }
+// Stav platnosti data (STK, dálniční známka) vůči dnešku.
+const dueInfo = (dateStr, soonDays = 30) => {
+  const d = parseCzDate(dateStr); if (!d) return null
+  const now = new Date(); now.setHours(0, 0, 0, 0)
+  const days = Math.round((d - now) / 86400000)
+  return { date: dateStr, days, expired: days < 0, soon: days >= 0 && days <= soonDays }
+}
 // Financování končící do `days` dnů od dneška (reálné new Date).
 const financingEnding = (days = 90) => {
   const now = new Date(); now.setHours(0, 0, 0, 0)
@@ -475,25 +482,46 @@ export default function FleetPortal() {
     const f = allFleets.find((x) => x.id === state.fleetId) || allFleets[0]
     const tab = state.fleetTab
     const riskColor = (r) => r >= 75 ? 'var(--green)' : r >= 62 ? 'var(--amber)' : 'var(--star)'
-    const fHavPct = Math.round((f.hav || 0) / (f.vehicles || 1) * 100)
+    const fvehAll = vehiclesData.filter((v) => v.fleet === f.id)
+    const fveh = fvehAll.filter((v) => v.status !== 'ended')
+    const cnt = fveh.length
+    const fhav = fveh.filter((v) => v.cov && v.cov.hav).length
+    const fpov = cnt - fhav
+    const fskla = fveh.filter((v) => v.cov && v.cov.skla).length
+    const fasist = fveh.filter((v) => v.cov && v.cov.asist).length
+    const fHavPct = Math.round(fhav / (cnt || 1) * 100)
     const stats = [
-      { label: 'Vozidel', value: String(f.vehicles), color: 'var(--ink)' },
-      { label: 'S havarijním', value: String(f.hav || 0), color: 'var(--green)' },
-      { label: 'Pouze povinné ručení', value: String(f.vehicles - (f.hav || 0)), color: 'var(--ink)' },
+      { label: 'Vozidel', value: String(cnt), color: 'var(--ink)' },
+      { label: 'S havarijním', value: String(fhav), color: 'var(--green)' },
+      { label: 'Pouze povinné ručení', value: String(fpov), color: 'var(--ink)' },
       { label: 'Havarijní krytí', value: fHavPct + ' %', color: 'var(--blue)' },
       { label: 'Roční pojistné', value: '—', color: 'var(--ink3)' },
     ]
     const tabsDef = [['overview', 'Přehled'], ['vehicles', 'Vozidla'], ['documents', 'Dokumenty']]
     const fleetTabs = tabsDef.map(([id, label]) => { const on = tab === id; return { label, onClick: () => setState({ fleetTab: id }), style: `padding:10px 14px;font-size:13.5px;font-weight:600;cursor:pointer;color:${on ? 'var(--blue-ink)' : 'var(--ink3)'};border-bottom:2px solid ${on ? 'var(--blue)' : 'transparent'};margin-bottom:-1px` } })
-    const fhav = f.hav || 0
-    const fvehAll = vehiclesData.filter((v) => v.fleet === f.id)
-    const fskla = fvehAll.filter((v) => v.cov && v.cov.skla).length
-    const summary = [
-      { label: 'Vozidel celkem', value: String(f.vehicles), sub: 'v parku', color: 'var(--ink)' },
-      { label: 'S havarijním', value: String(fhav), sub: 'plné krytí', color: 'var(--green)' },
-      { label: 'Pouze povinné ručení', value: String(f.vehicles - fhav), sub: 'základní krytí', color: 'var(--ink)' },
-      { label: 'Pojištění skel', value: String(fskla), sub: 'doplňkové krytí', color: 'var(--blue)' },
-    ]
+    // Rozpad vozidel podle typu
+    const typeBreakdown = vehicleTypeOrder.map((name) => ({ name, count: fveh.filter((v) => vehicleTypeCat(v.druh) === name).length })).filter((t) => t.count).map((t) => ({ ...t, pct: Math.round(t.count / (cnt || 1) * 100) }))
+    // Rozpad pojistného krytí
+    const coverBreakdown = [
+      { label: 'Povinné ručení', count: cnt, color: 'var(--blue)' },
+      { label: 'Havarijní pojištění', count: fhav, color: 'var(--green)' },
+      { label: 'Pojištění skel', count: fskla, color: 'var(--purple)' },
+      { label: 'Asistence', count: fasist, color: 'var(--amber)' },
+    ].map((c) => ({ ...c, pct: Math.round(c.count / (cnt || 1) * 100) }))
+    // Rozpad financování
+    const finBreakdown = [
+      { key: 'bank_loan', label: 'Účelový úvěr', color: 'var(--blue)' },
+      { key: 'finance_lease', label: 'Finanční leasing', color: 'var(--purple)' },
+      { key: 'operating_lease', label: 'Operativní leasing', color: 'var(--amber)' },
+      { key: 'own', label: 'Vlastní zdroje', color: 'var(--ink3)' },
+    ].map((t) => ({ ...t, count: fveh.filter((v) => v.financing && (t.key === 'own' ? !v.financing.active : v.financing.type === t.key)).length })).filter((t) => t.count).map((t) => ({ ...t, pct: Math.round(t.count / (cnt || 1) * 100) }))
+    const financedCount = fveh.filter((v) => v.financing && v.financing.active).length
+    // Končící STK a dálniční známky (≤ 60 dnů nebo prošlé)
+    const mkExp = (v, info) => ({ id: v.id, plate: v.plate, name: `${v.brand} ${v.model}`, date: info.date, days: info.days, expired: info.expired, label: info.expired ? `prošlo před ${-info.days} dny` : info.days === 0 ? 'končí dnes' : `končí za ${info.days} ${info.days === 1 ? 'den' : info.days < 5 ? 'dny' : 'dní'}`, color: info.expired ? 'var(--star)' : info.days <= 30 ? 'var(--amber)' : 'var(--green)', onClick: () => openVehicle(v.id) })
+    const stkAll = fveh.map((v) => ({ v, info: dueInfo(vehicleStk(v)) })).filter((x) => x.info && x.info.days <= 60).sort((a, b) => a.info.days - b.info.days)
+    const vigAll = fveh.map((v) => { const vg = vehicleVignette(v); return vg ? { v, info: dueInfo(vg.validTo) } : null }).filter((x) => x && x.info && x.info.days <= 60).sort((a, b) => a.info.days - b.info.days)
+    const expiringStk = stkAll.slice(0, 6).map((x) => mkExp(x.v, x.info))
+    const expiringVig = vigAll.slice(0, 6).map((x) => mkExp(x.v, x.info))
     const base = f.premium / 12 / 1000
     const lv = [0.9, 0.93, 0.95, 0.97, 1.0, 1.02, 1.04, 1.03, 1.06, 1.08, 1.07, 1.1].map((x) => x * base)
     const lp = linePath(lv, 600, 170, 16)
@@ -555,7 +583,10 @@ export default function FleetPortal() {
     const o = otherMap[tab] || ['', '', null]
     return {
       fd: {
-        name: f.name, address: f.address || '', singlePark: allFleets.length === 1, manager: f.manager, policy: f.policy || '—', policyStart: f.policyStart || '—', stats, summary, line: lp.line, area: lp.area, donut, insurerLegend, fuel, evPct, evDonut, claimBars, claims: f.claims,
+        name: f.name, address: f.address || '', singlePark: allFleets.length === 1, manager: f.manager, policy: f.policy || '—', policyStart: f.policyStart || '—', stats,
+        typeBreakdown, coverBreakdown, finBreakdown, financedCount, premiumYear: '—',
+        expiringStk, expiringVig, stkExpCount: stkAll.length, vigExpCount: vigAll.length,
+        line: lp.line, area: lp.area, donut, insurerLegend, fuel, evPct, evDonut, claimBars, claims: f.claims,
         vehicles: fleetVehicles, vehicleCount: fleetVehicles.length, goVehiclesTab: () => setState({ fleetTab: 'vehicles' }),
         endedVehicles: fleetEnded, endedCount: fleetEnded.length,
         insurersExport: { filename: `pojistitele-${f.id}`, title: `Pojistitelé – ${f.name}`, columns: [{ key: 'pojistitel', label: 'Pojistitel' }, { key: 'smlouva', label: 'Číslo pojistné smlouvy' }, { key: 'vozidla', label: 'Vozidla' }, { key: 'objem', label: 'Objem pojistného' }], rows: parkInsurers.map((p) => ({ pojistitel: p.name, smlouva: p.policy, vozidla: p.count, objem: p.premiumF })) },
@@ -666,6 +697,19 @@ export default function FleetPortal() {
       { k: 'Limit povinného ručení', v: v.povLimit, icon: ic('shield', 18), bg: 'var(--amber-soft)', color: 'var(--amber)' },
       { k: 'Datum uvedení do provozu', v: v.firstReg, icon: ic('calendar', 18), bg: '#EEF2F9', color: 'var(--ink2)' },
     ]
+    // STK + dálniční známka s platností (STK z registru, známka z eDalnice.cz)
+    const compStatus = (due) => !due ? null
+      : due.expired ? { label: `po platnosti · ${-due.days} dnů`, color: 'var(--star)', bg: 'var(--star-soft)' }
+      : due.soon ? { label: `končí za ${due.days} ${due.days === 1 ? 'den' : due.days < 5 ? 'dny' : 'dní'}`, color: '#B45309', bg: 'var(--amber-soft)' }
+      : { label: 'platná', color: 'var(--green)', bg: 'var(--green-soft)' }
+    const stkD = vehicleStk(v); const stkDue = dueInfo(stkD)
+    const vig = vehicleVignette(v); const vigDue = vig ? dueInfo(vig.validTo) : null
+    const compliance = [
+      { k: 'STK / technická prohlídka', v: `platná do ${stkD}`, sub: 'z registru vozidel', icon: ic('check2', 18), status: compStatus(stkDue) },
+      vig
+        ? { k: 'Dálniční známka', v: `${vig.country} · ${vig.type}, do ${vig.validTo}`, sub: 'eDalnice.cz', icon: ic('doc2', 18), status: compStatus(vigDue) }
+        : { k: 'Dálniční známka', v: 'nevyžaduje (nad 3,5 t — mýto)', sub: 'eDalnice.cz', icon: ic('doc2', 18), status: null },
+    ]
     const pchip = (s) => statusChip(s)
     const cov = v.cov || { pov: true }
     const covDefs = [
@@ -728,7 +772,7 @@ export default function FleetPortal() {
       vd: {
         brand: v.brand, model: v.model, plate: v.plate, driver: v.driver, fleetName: fleetName(v.fleet),
         financing: v.financing || { active: false, type: 'own', typeLabel: 'Vlastní zdroje (hotovost)' },
-        statusLabel: m.label, chipStyle: statusChip(v.status), facts, actions, specs, assign, products, productsExport, productsTotalF: czk(productsTotal), claims, timeline, vehicleDocs, notes, openNoteModal: () => openNoteModal(v),
+        statusLabel: m.label, chipStyle: statusChip(v.status), facts, actions, specs, assign, compliance, products, productsExport, productsTotalF: czk(productsTotal), claims, timeline, vehicleDocs, notes, openNoteModal: () => openNoteModal(v),
         premiumF: czk(v.premium), productCount: products.filter((p) => p.status !== 'nocasco').length, renewal: v.renewal,
         isOverview: tab === 'overview', isInsurance: tab === 'insurance', isClaims: tab === 'claims', isTimeline: tab === 'timeline',
         isNotes: tab === 'notes', isCosts: tab === 'costs', openCostModal: () => openCostModal(v),
@@ -1224,7 +1268,7 @@ export default function FleetPortal() {
     const regFields = [
       ['Značka', 'Škoda'], ['Model', 'Octavia Combi'], ['Druh vozidla', 'Osobní automobil'],
       ['Rok výroby', '2023'], ['Palivo', 'Diesel'], ['Objem / výkon', '1 968 cm³ / 110 kW'],
-      ['Převodovka', 'Automat DSG'], ['VIN', loaded.vin],
+      ['Převodovka', 'Automat DSG'], ['VIN', loaded.vin], ['STK platná do', '14. 4. 2027'],
     ].map(([label, value]) => ({ label, value }))
     const coverDefs = [
       ['pr', 'Povinné ručení', 'Zákonné pojištění odpovědnosti', [['Limit', state.avPrLimit]]],

@@ -1294,7 +1294,13 @@ function Dashboard({ vm }) {
 
           {/* FLEET PARKS */}
           <div>
-            <SectionHead title="Vozové parky" action={vm.parkCount > 1 ? 'Zobrazit všechny' : 'Otevřít park'} onAction={vm.goParks} />
+            <div style={S('display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:14px')}>
+              <div style={S('font-size:16px;font-weight:650;letter-spacing:-.3px')}>Vozové parky</div>
+              <div style={S('display:flex;align-items:center;gap:14px')}>
+                <Hov as="span" onClick={vm.goParks} base="display:flex;align-items:center;gap:4px;font-size:13px;font-weight:600;color:var(--blue);cursor:pointer;white-space:nowrap" hover="color:var(--blue-ink)">{vm.parkCount > 1 ? 'Zobrazit všechny' : 'Otevřít park'} <span style={S('display:flex')}>{ic('arrow', 14)}</span></Hov>
+                <Hov onClick={vm.openNewFleet} base="display:flex;align-items:center;gap:6px;height:34px;padding:0 13px;background:var(--blue-soft);color:var(--blue-ink);border:1px solid var(--blue);border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap" hover="background:var(--blue);color:#fff">{ic('plus', 15)} Nový vozový park</Hov>
+              </div>
+            </div>
             <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:16px')}>
               {vm.dashFleets.map((f) => (
                 <div key={f.id} onClick={f.onClick} style={S(`${CARD};padding:18px;cursor:pointer`)}>
@@ -1492,8 +1498,9 @@ function FleetDetail({ vm }) {
               <div style={S('display:inline-flex;align-items:center;gap:8px;margin-top:9px;padding:5px 11px;background:var(--blue-soft);border-radius:8px;font-size:12.5px;color:var(--blue-ink)')}><span style={S('display:flex')}>{ic('doc2', 15)}</span>Flotilová smlouva č. <span style={S('font-weight:700;font-variant-numeric:tabular-nums')}>{fd.policy}</span> · platná od {fd.policyStart}</div>
             </div>
           </div>
-          <div style={S('display:flex;gap:8px')}>
+          <div style={S('display:flex;gap:8px;flex-wrap:wrap')}>
             <ExportMenu {...fd.export} variant="header" />
+            <Hov onClick={vm.openNewFleet} base="height:38px;padding:0 14px;background:#fff;color:var(--ink);border:1px solid var(--border2);border-radius:10px;display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;cursor:pointer" hover="border-color:var(--blue);color:var(--blue)">{ic('plus', 15)} Nový vozový park</Hov>
             <Hov onClick={vm.openAddVehicle} base="height:38px;padding:0 15px;background:linear-gradient(180deg,#2C6AE0,#1D50BD);color:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(32,88,201,.30);display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;cursor:pointer" hover="background:linear-gradient(180deg,#2655C4,#163E92);transform:translateY(-1px);box-shadow:0 6px 16px rgba(32,88,201,.42)">{ic('plus', 15)} Přidat vozidlo do flotily</Hov>
           </div>
         </div>
@@ -1510,21 +1517,60 @@ function FleetDetail({ vm }) {
 
       {fd.isOverview && (
         <>
-          <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:14px')}>
-            {fd.summary.map((c, i) => (
-              <div key={i} style={S('background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px')}><div style={S('font-size:12px;color:var(--ink3)')}>{c.label}</div><div style={S(`font-size:22px;font-weight:800;letter-spacing:-.5px;margin-top:5px;color:${c.color}`)}>{c.value}</div><div style={S('font-size:11.5px;color:var(--ink3);margin-top:2px')}>{c.sub}</div></div>
+          {/* rozpady: typ vozidel / pojistné krytí / financování */}
+          <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : 'repeat(3,1fr)'};gap:14px;margin-bottom:14px`)}>
+            {[['Vozidla podle typu', fd.typeBreakdown, null, 'var(--blue)'], ['Pojistné krytí', fd.coverBreakdown, null], ['Financování', fd.finBreakdown, `${fd.financedCount} financováno`]].map(([title, rows, note, fixed], k) => (
+              <div key={k} style={S(`${CARD};padding:18px`)}>
+                <div style={S('display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:14px')}><span style={S('font-size:13.5px;font-weight:700')}>{title}</span>{note && <span style={S('font-size:11.5px;color:var(--ink3)')}>{note}</span>}</div>
+                {rows.length ? rows.map((r, i) => (
+                  <div key={i} style={S('margin-bottom:10px')}>
+                    <div style={S('display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px')}><span style={S('font-weight:600')}>{r.name || r.label}</span><span style={S('color:var(--ink3)')}><b style={S('color:var(--ink)')}>{r.count}</b> · {r.pct}%</span></div>
+                    <div style={S('height:6px;background:#EEF2F9;border-radius:4px;overflow:hidden')}><div style={S(`height:100%;width:${r.pct}%;background:${fixed || r.color || 'var(--blue)'};border-radius:4px`)}></div></div>
+                  </div>
+                )) : <div style={S('font-size:12.5px;color:var(--ink3)')}>Žádné záznamy.</div>}
+              </div>
             ))}
           </div>
-          <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1.5fr'};gap:14px`)}>
-            <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
-              <div style={S('font-size:14px;font-weight:700;margin-bottom:14px')}>Palivo</div>
-              {fd.fuel.map((f, i) => <div key={i} style={S('margin-bottom:11px')}><div style={S('display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px')}><span style={S('font-weight:600')}>{f.name}</span><span style={S('color:var(--ink3)')}>{f.pct}%</span></div><div style={S('height:6px;background:#EEF2F9;border-radius:4px')}><div style={S(`height:100%;width:${f.w};background:${f.color};border-radius:4px`)}></div></div></div>)}
+
+          {/* roční pojistné + palivo */}
+          <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1.6fr'};gap:14px;margin-bottom:14px`)}>
+            <div style={S(`${CARD};padding:18px;display:flex;flex-direction:column;justify-content:center`)}>
+              <div style={S('font-size:13.5px;font-weight:700;margin-bottom:8px')}>Roční pojistné parku</div>
+              <div style={S('font-size:30px;font-weight:800;letter-spacing:-.8px;color:var(--ink3)')}>{fd.premiumYear}</div>
+              <div style={S('display:inline-flex;align-items:center;gap:7px;margin-top:12px;height:30px;padding:0 12px;background:var(--blue-soft);border-radius:20px;font-size:11.5px;font-weight:600;color:var(--blue-ink);align-self:flex-start')}><span style={S('width:7px;height:7px;border-radius:50%;background:var(--blue)')}></span>Čeká na napojení na pojišťovnu</div>
             </div>
-            <div style={S(`${CARD};padding:40px 24px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center`)}>
-              <div style={S('width:52px;height:52px;border-radius:14px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;margin-bottom:16px')}>{ic('shield', 24)}</div>
-              <div style={S('font-size:15.5px;font-weight:700')}>Pojistné, pojistitelé a škody</div>
-              <div style={S('font-size:13px;color:var(--ink3);margin-top:7px;max-width:380px;line-height:1.55')}>Vývoj pojistného, rozdělení pojistitelů a škodní historie parku se zobrazí po napojení na systém pojišťovny.</div>
-              <div style={S('display:inline-flex;align-items:center;gap:7px;margin-top:18px;height:32px;padding:0 14px;background:var(--blue-soft);border-radius:20px;font-size:12px;font-weight:600;color:var(--blue-ink)')}><span style={S('width:7px;height:7px;border-radius:50%;background:var(--blue)')}></span>Čeká na napojení na systém</div>
+            <div style={S(`${CARD};padding:18px`)}>
+              <div style={S('font-size:13.5px;font-weight:700;margin-bottom:14px')}>Palivo</div>
+              <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:6px 22px')}>
+                {fd.fuel.map((f, i) => <div key={i}><div style={S('display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px')}><span style={S('font-weight:600')}>{f.name}</span><span style={S('color:var(--ink3)')}>{f.pct}%</span></div><div style={S('height:6px;background:#EEF2F9;border-radius:4px')}><div style={S(`height:100%;width:${f.w};background:${f.color};border-radius:4px`)}></div></div></div>)}
+              </div>
+            </div>
+          </div>
+
+          {/* končící STK a dálniční známky */}
+          <div style={S(`${CARD};padding:0;margin-bottom:14px;overflow:hidden`)}>
+            <div style={S('display:flex;align-items:center;gap:9px;padding:15px 20px;border-bottom:1px solid var(--border)')}>
+              <span style={S('color:var(--amber);display:flex')}>{ic('alert', 17)}</span>
+              <span style={S('font-size:14px;font-weight:700')}>Končící STK a dálniční známky</span>
+              <span style={S('font-size:11px;color:var(--ink3)')}>do 60 dnů / po platnosti</span>
+            </div>
+            <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'}`)}>
+              {[['Technická prohlídka (STK)', fd.expiringStk, fd.stkExpCount, 'z registru vozidel'], ['Dálniční známky', fd.expiringVig, fd.vigExpCount, 'z eDalnice.cz']].map(([sub, rows, count, src], k) => (
+                <div key={k} style={S(`padding:14px 18px;${k === 0 && !mob ? 'border-right:1px solid var(--border)' : ''}`)}>
+                  <div style={S('display:flex;align-items:center;gap:8px;margin-bottom:10px')}>
+                    <span style={S('font-size:12.5px;font-weight:700')}>{sub}</span>
+                    {count > 0 && <span style={S('font-size:10.5px;font-weight:700;color:var(--star-ink);background:var(--star-soft);padding:2px 7px;border-radius:20px')}>{count}</span>}
+                    <span style={S('font-size:10.5px;color:var(--ink3);margin-left:auto')}>{src}</span>
+                  </div>
+                  {rows.length ? rows.map((r, i) => (
+                    <Hov key={i} onClick={r.onClick} base="display:flex;align-items:center;gap:10px;padding:8px 9px;border-radius:9px;cursor:pointer" hover="background:var(--canvas)">
+                      <span style={S(`width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${r.color}`)}></span>
+                      <div style={S('flex:1;min-width:0')}><div style={S('font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{r.plate} · {r.name}</div><div style={S('font-size:11px;color:var(--ink3);font-variant-numeric:tabular-nums')}>{r.date}</div></div>
+                      <span style={S(`font-size:10.5px;font-weight:700;color:${r.color};flex-shrink:0`)}>{r.label}</span>
+                    </Hov>
+                  )) : <div style={S('display:flex;align-items:center;gap:7px;font-size:12px;color:var(--green);padding:6px 2px')}><span style={S('display:flex')}>{ic('check', 14, 2.4)}</span>Vše v pořádku</div>}
+                </div>
+              ))}
             </div>
           </div>
 
@@ -1997,6 +2043,16 @@ function VehicleDetail({ vm }) {
             <div style={S('font-size:15px;font-weight:700;margin-bottom:14px')}>Přiřazení & lokalita</div>
             <div style={S('display:flex;flex-direction:column;gap:13px')}>
               {vd.assign.map((x, i) => <div key={i} style={S('display:flex;align-items:center;gap:12px')}><div style={S(`width:36px;height:36px;border-radius:9px;background:${x.bg};color:${x.color};display:flex;align-items:center;justify-content:center;flex-shrink:0`)}>{x.icon}</div><div><div style={S('font-size:11.5px;color:var(--ink3)')}>{x.k}</div><div style={S('font-size:13.5px;font-weight:600')}>{x.v}</div></div></div>)}
+            </div>
+            <div style={S('font-size:13px;font-weight:700;margin:18px 0 12px')}>Platnost a kontroly</div>
+            <div style={S('display:flex;flex-direction:column;gap:13px')}>
+              {vd.compliance.map((x, i) => (
+                <div key={i} style={S('display:flex;align-items:center;gap:12px')}>
+                  <div style={S(`width:36px;height:36px;border-radius:9px;background:${x.status ? x.status.bg : '#EEF2F9'};color:${x.status ? x.status.color : 'var(--ink3)'};display:flex;align-items:center;justify-content:center;flex-shrink:0`)}>{x.icon}</div>
+                  <div style={S('flex:1;min-width:0')}><div style={S('font-size:11.5px;color:var(--ink3)')}>{x.k} <span style={S('opacity:.7')}>· {x.sub}</span></div><div style={S('font-size:13.5px;font-weight:600')}>{x.v}</div></div>
+                  {x.status && <span style={S(`font-size:10.5px;font-weight:700;color:${x.status.color};background:${x.status.bg};padding:3px 9px;border-radius:20px;flex-shrink:0;white-space:nowrap`)}>{x.status.label}</span>}
+                </div>
+              ))}
             </div>
           </div>
         </div>

@@ -31,6 +31,25 @@ export const vehicleTypeCat = (druh) => {
 }
 export const vehicleTypeOrder = ['Osobní vozidla', 'Motocykly', 'Tahače a návěsy', 'Nákladní vozidla', 'Přívěsy', 'Traktory a stroje']
 
+// --- STK a dálniční známka (ukázková data; na BE: STK z registru vozidel, známka z eDalnice.cz) ---
+// Veřejné CORS API jako u ARES neexistuje → na produkci přes B2B API / server-side ověření.
+const _vseed = (id) => parseInt(String(id).replace(/\D/g, '') || '1', 10)
+const _fmtD = (d) => `${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}`
+export const vehicleStk = (v) => {
+  // STK platí 2 roky → většina v budoucnu, pár končících/prošlých (vůči dnešku)
+  const d = new Date(); d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() + ((_vseed(v.id) * 37) % 760) - 30) // -30 .. +729 dní
+  return _fmtD(d)
+}
+export const vehicleVignette = (v) => {
+  // dálniční známku má jen vozidlo do 3,5 t (osobní, užitkové, speciální); motocykl ne, nad 3,5 t platí mýto
+  if (!/osobní|speciální|do 3,5/.test(v.druh || '')) return null
+  const s = _vseed(v.id)
+  const d = new Date(); d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() + ((s * 53) % 430) - 40) // -40 .. +389 dní
+  return { country: 'CZ', type: ['roční', 'roční', '30denní', '10denní'][s % 4], validTo: _fmtD(d) }
+}
+
 export const vehiclesData = [
   {"id": "v1", "plate": "1S13018", "brand": "BMW", "model": "třída 320", "year": 1999, "driver": "—", "fleet": "f1", "insurer": "—", "status": "nocasco", "premium": 0, "renewal": "—", "fuel": "Benzín", "vin": "WBAAM110X0JM40943", "mileage": "—", "value": "—", "druh": "osobní automobil", "tp": "AP571194", "power": "110 kW", "engine": "1991 ccm", "weight": "1865 kg", "seats": "5", "firstReg": "1. 1. 1999", "povLimit": "100/100 mil. Kč", "order": "1", "cov": {"pov": true, "hav": false, "skla": false, "asist": false, "zavaz": false}, "prihlaska": "#1", "financing": {"active": false, "type": "own", "typeLabel": "Vlastní zdroje (hotovost)", "owner": "Jiří Tošovský s.r.o."}},
   {"id": "v2", "plate": "9S93113", "brand": "Mitsubishi", "model": "Lancer", "year": 2009, "driver": "—", "fleet": "f1", "insurer": "—", "status": "nocasco", "premium": 0, "renewal": "—", "fuel": "Benzín", "vin": "JMBSNCZ4A9U000626", "mileage": "—", "value": "—", "druh": "osobní automobil", "tp": "UD521942", "power": "217 kW", "engine": "1998 ccm", "weight": "2040 kg", "seats": "5", "firstReg": "1. 1. 2009", "povLimit": "100/100 mil. Kč", "order": "2", "cov": {"pov": true, "hav": false, "skla": false, "asist": false, "zavaz": false}, "prihlaska": "#2", "financing": {"active": false, "type": "own", "typeLabel": "Vlastní zdroje (hotovost)", "owner": "Jiří Tošovský s.r.o."}},
