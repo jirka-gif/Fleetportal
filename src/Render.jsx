@@ -8,6 +8,47 @@ const ic = (name, size = 18, sw = 1.8) => <Icon name={name} size={size} sw={sw} 
 const LOGO = '/fleet-portal/tosovsky-logo.png'
 const STAR_LOGO = '/fleet-portal/petrisk-logo.svg'
 
+// Fancy custom dropdown — nahrazuje nativní <select> napříč portálem.
+// onChange dostává { target: { value } }, takže je drop-in za <select> (vm handlery beze změny).
+// options: pole stringů nebo { v, l } / { value, label }. width="auto" = inline (filtry).
+function Select({ value, onChange, options = [], placeholder = 'Vyberte…', width, height = 42, size = 13.5, menuWidth, disabled }) {
+  const [open, setOpen] = useState(false)
+  const opts = options.map((o) => (o && typeof o === 'object')
+    ? { value: o.v ?? o.value, label: o.l ?? o.label ?? String(o.v ?? o.value) }
+    : { value: o, label: String(o) })
+  const sel = opts.find((o) => o.value === value)
+  const inline = width === 'auto'
+  const r = height >= 42 ? 10 : 9
+  return (
+    <div style={{ position: 'relative', display: inline ? 'inline-block' : 'block', width: inline ? 'auto' : (width || '100%'), verticalAlign: 'middle' }}>
+      <Hov onClick={() => !disabled && setOpen((o) => !o)}
+        base={`display:${inline ? 'inline-flex' : 'flex'};align-items:center;gap:8px;width:${inline ? 'auto' : '100%'};height:${height}px;padding:0 ${inline ? '12px' : '13px'};background:${disabled ? 'var(--canvas)' : '#fff'};border:1px solid ${open ? 'var(--blue)' : 'var(--border2)'};border-radius:${r}px;cursor:${disabled ? 'default' : 'pointer'};font-family:inherit;font-size:${size}px;font-weight:600;color:${sel ? 'var(--ink)' : 'var(--ink3)'};outline:none;transition:border-color .14s,box-shadow .14s;${open ? 'box-shadow:0 0 0 3.5px rgba(79,111,255,.13)' : ''}`}
+        hover={open || disabled ? '' : 'border-color:#C9D2E3'}>
+        <span style={{ flex: inline ? '0 1 auto' : 1, minWidth: 0, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sel ? sel.label : placeholder}</span>
+        <span style={{ display: 'flex', flexShrink: 0, color: 'var(--ink3)', transition: 'transform .16s', transform: open ? 'rotate(180deg)' : 'none' }}>{ic('chevron', 15)}</span>
+      </Hov>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 9000 }} />
+          <div style={S(`position:absolute;z-index:9001;top:calc(100% + 6px);left:0;${inline ? `min-width:${menuWidth || 210}px;` : 'right:0;'}background:#fff;border:1px solid var(--border2);border-radius:12px;box-shadow:0 18px 44px rgba(15,23,42,.18),0 2px 8px rgba(15,23,42,.06);padding:6px;max-height:300px;overflow-y:auto;animation:popIn .14s cubic-bezier(.2,.9,.3,1)`)}>
+            {opts.map((o, i) => {
+              const on = o.value === value
+              return (
+                <Hov key={i} onClick={() => { onChange({ target: { value: o.value } }); setOpen(false) }}
+                  base={`display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:8px;font-size:${size}px;font-weight:${on ? 700 : 500};color:${on ? 'var(--blue-ink)' : 'var(--ink)'};background:${on ? 'var(--blue-soft)' : 'transparent'};cursor:pointer;white-space:nowrap;transition:background .1s`}
+                  hover={on ? '' : 'background:var(--canvas)'}>
+                  <span style={{ flex: 1 }}>{o.label}</span>
+                  <span style={{ display: 'flex', flexShrink: 0, width: 15, color: 'var(--blue)', opacity: on ? 1 : 0 }}>{ic('check', 15, 2.4)}</span>
+                </Hov>
+              )
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 // Export button with an XLS / CSV / PDF dropdown — exports the given rows.
 function ExportMenu({ filename, title, columns, rows, variant }) {
   const [open, setOpen] = useState(false)
@@ -245,9 +286,7 @@ function UnsubscribeModal({ vm }) {
 
               <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px')}>
                 <div><div style={S('font-size:11.5px;font-weight:600;color:var(--ink2);margin-bottom:5px')}>Důvod odhlášení</div>
-                  <select value={vm.unsubReason} onChange={vm.setUnsubReason} style={S('width:100%;height:42px;border:1px solid var(--border2);border-radius:9px;padding:0 12px;font-size:13.5px;font-family:inherit;outline:none;background:#fff;cursor:pointer')}>
-                    {vm.unsubReasons.map((o, i) => <option key={i} value={o}>{o}</option>)}
-                  </select>
+                  <Select value={vm.unsubReason} onChange={vm.setUnsubReason} options={vm.unsubReasons} />
                 </div>
                 <div><div style={S('font-size:11.5px;font-weight:600;color:var(--ink2);margin-bottom:5px')}>Datum odhlášení</div>
                   <input value={vm.unsubDate} onChange={vm.setUnsubDate} style={S('width:100%;height:42px;border:1px solid var(--border2);border-radius:9px;padding:0 12px;font-size:13.5px;font-family:inherit;outline:none')} />
@@ -304,9 +343,7 @@ function CostModal({ vm }) {
             <>
               <div style={S('display:grid;grid-template-columns:1fr;gap:14px')}>
                 <div><div style={S('font-size:11.5px;font-weight:600;color:var(--ink2);margin-bottom:5px')}>Druh nákladu</div>
-                  <select value={vm.costType} onChange={vm.setCostType} style={S('width:100%;height:42px;border:1px solid var(--border2);border-radius:9px;padding:0 12px;font-size:13.5px;font-family:inherit;outline:none;background:#fff;cursor:pointer')}>
-                    {vm.costTypes.map((o, i) => <option key={i} value={o}>{o}</option>)}
-                  </select>
+                  <Select value={vm.costType} onChange={vm.setCostType} options={vm.costTypes} />
                 </div>
                 <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:14px')}>
                   <div><div style={S('font-size:11.5px;font-weight:600;color:var(--ink2);margin-bottom:5px')}>Částka (Kč)</div>
@@ -938,9 +975,7 @@ function NewFleetModal({ vm }) {
           </div>
           <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px')}>
             <div style={S(fieldWrap)}><span style={S(label)}>Pojišťovna</span>
-              <select value={nf.insurer} onChange={nf.onInsurer} style={S(input + ';cursor:pointer')}>
-                {nf.insurerOpts.map((o, i) => <option key={i} value={o}>{o}</option>)}
-              </select>
+              <Select value={nf.insurer} onChange={nf.onInsurer} options={nf.insurerOpts} />
             </div>
             <div style={S(fieldWrap)}><span style={S(label)}>Platnost od</span><input value={nf.start} onChange={nf.onStart} style={S(input)} /></div>
             <div style={S(fieldWrap)}><span style={S(label)}>Počet vozidel</span><input value={nf.vehicles} onChange={nf.onVehicles} placeholder="0" style={S(input + ';font-variant-numeric:tabular-nums')} /></div>
@@ -1559,9 +1594,7 @@ function Vehicles({ vm }) {
           <input value={vm.vfQuery} onChange={vm.onVfQuery} placeholder="Hledat SPZ, model, řidiče…" style={S('border:none;outline:none;font-size:13.5px;font-family:inherit;flex:1;background:transparent;color:var(--ink)')} />
         </div>
         {vm.vFilters.map((fl, i) => (
-          <select key={i} value={fl.value} onChange={fl.onChange} style={S('height:38px;padding:0 10px;background:#fff;border:1px solid var(--border);border-radius:10px;font-size:13px;font-weight:500;font-family:inherit;color:var(--ink2);cursor:pointer')}>
-            {fl.options.map((o, k) => <option key={k} value={o.v}>{o.l}</option>)}
-          </select>
+          <Select key={i} value={fl.value} onChange={fl.onChange} options={fl.options} width="auto" height={38} size={13} />
         ))}
         <div style={{ flex: 1 }}></div>
         <ExportMenu {...vm.vehiclesExport} />
@@ -3042,9 +3075,8 @@ function AddVehicleWizard({ vm }) {
                 <span style={S('color:var(--blue);display:flex;flex-shrink:0')}>{ic('fleets', 18)}</span>
                 <div style={S('flex:1;min-width:0')}>
                   <div style={S('font-size:11.5px;font-weight:600;color:var(--blue-ink);margin-bottom:4px')}>Vozový park</div>
-                  <select value={avm.fleetId} onChange={avm.onFleetChange} style={S('width:100%;max-width:360px;height:38px;border:1px solid var(--border2);border-radius:9px;padding:0 12px;font-size:13.5px;font-family:inherit;outline:none;background:#fff;color:var(--ink);cursor:pointer')}>
-                    {avm.fleetOptions.map((o, i) => <option key={i} value={o.v}>{o.l}</option>)}
-                  </select>
+                  <div style={{ maxWidth: 360 }}><Select value={avm.fleetId} onChange={avm.onFleetChange} options={avm.fleetOptions} height={40} /></div>
+                  <div style={S('font-size:11px;color:var(--blue-ink);opacity:.75;margin-top:5px')}>Předvyplněno podle druhu vozidla z registru — lze změnit.</div>
                 </div>
               </div>
               <div style={S('margin-top:18px;font-size:13.5px;font-weight:700;margin-bottom:10px')}>Pojistník a začátek pojištění</div>

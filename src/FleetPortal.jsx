@@ -1167,7 +1167,9 @@ export default function FleetPortal() {
   const addVehicleVM = () => {
     if (!state.av) return {}
     const step = state.avStep; const done = step > 3
-    const f = allFleets.find((x) => x.id === state.avFleet) || allFleets[0]
+    // Druh vozidla se tahá z registru → podle něj se předvyplní správný vozový park.
+    const derivedFleet = allFleets.find((x) => /osob/i.test(x.name)) || allFleets[0]
+    const f = allFleets.find((x) => x.id === state.avFleet) || derivedFleet
     const labels = ['Zadání vozidla', 'Údaje o vozidle', 'Pojistné krytí']
     const steps = [1, 2, 3].map((i) => ({ color: i <= step ? 'var(--blue)' : '#E8E8EB' }))
     const m = state.avMethod
@@ -1188,9 +1190,9 @@ export default function FleetPortal() {
     })
     const loaded = { brand: 'Škoda', model: 'Octavia Combi 2.0 TDI', plate: m === 'vin' ? '—' : (state.avInput || '5SK 8841').toUpperCase(), vin: 'TMBJJ7NE5P0123456' }
     const fieldVals = [
-      ['Značka', 'Škoda', 1], ['Model', 'Octavia Combi', 1], ['Rok výroby', '2023', 1],
-      ['Palivo', 'Diesel', 1], ['Objem / výkon', '1 968 cm³ / 110 kW', 1], ['Převodovka', 'Automat DSG', 1],
-      ['SPZ', loaded.plate, 0], ['VIN', loaded.vin, 1], ['Hodnota vozidla', '640 000 Kč', 0],
+      ['Značka', 'Škoda', 1], ['Model', 'Octavia Combi', 1], ['Druh vozidla', 'Osobní automobil', 1],
+      ['Rok výroby', '2023', 1], ['Palivo', 'Diesel', 1], ['Objem / výkon', '1 968 cm³ / 110 kW', 1],
+      ['Převodovka', 'Automat DSG', 1], ['SPZ', loaded.plate, 0], ['VIN', loaded.vin, 1], ['Hodnota vozidla', '640 000 Kč', 0],
     ]
     const fields = fieldVals.map(([label, value, locked]) => ({ label, value, bg: locked ? '#F7F8FA' : '#fff' }))
     const coverDefs = [
