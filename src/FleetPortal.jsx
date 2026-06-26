@@ -400,12 +400,20 @@ export default function FleetPortal() {
     const asistCount = vehiclesData.filter((v) => v.cov && v.cov.asist).length
     const povOnly = totalVehicles - havCount
 
-    // KPI — reálné počty krytí (bez sparkline/trendu; v sestavě není pojistné ani škody)
+    // Globální agregáty pro majitele (souhrn napříč všemi parky; shodné se stránkou Škody)
+    const claimsTotal = claimsData.length
+    const claimsOpen = claimsData.filter((c) => c.status !== 'closed').length
+    const claimsReserve = claimsData.reduce((a, c) => a + (c.estimate || 0), 0)
+    const financedCount = vehiclesData.filter((v) => v.financing && v.financing.active).length
+    const stkExpCount = vehiclesData.filter((v) => { const d = dueInfo(vehicleStk(v)); return d && d.days <= 60 }).length
+    const vigExpCount = vehiclesData.filter((v) => { const vg = vehicleVignette(v); if (!vg) return false; const d = dueInfo(vg.validTo); return d && d.days <= 60 }).length
+
+    // KPI — hlavní globální ukazatele majitele flotily
     const kpis = [
       { value: String(totalVehicles), label: 'Vozidel celkem', note: `${typeCats.length} typů · ${allFleets.length} ${allFleets.length === 1 ? 'park' : 'parky'}` },
-      { value: String(havCount), label: 'S havarijním pojištěním', note: 'plné krytí' },
-      { value: String(povOnly), label: 'Pouze povinné ručení', note: 'základní krytí' },
-      { value: String(sklaCount), label: 'Pojištění skel', note: 'doplňkové krytí' },
+      { value: String(havCount), label: 'S havarijním pojištěním', note: `${povOnly} jen povinné ručení` },
+      { value: String(claimsTotal), label: 'Škody (12 měsíců)', note: claimsOpen ? `${claimsOpen} otevřených` : 'vše uzavřeno' },
+      { value: String(financedCount), label: 'Financováno', note: 'úvěr / leasing' },
     ]
 
     // graf: vozidla podle TYPU vozidla (reálné, z druhu)
@@ -418,13 +426,15 @@ export default function FleetPortal() {
     const brandDonut = `conic-gradient(${segs.join(',')})`
     const brandLegend = brandsData.map((b) => ({ name: b.name, color: b.color, count: b.count, pct: b.pct }))
 
-    // rychlý přehled = krytí flotily (reálné)
+    // Rychlý přehled = co vyžaduje pozornost majitele (globálně napříč parky)
     const finEnd = financingEnding(90)
+    const amberGreen = (n) => n ? { color: 'var(--amber)', bg: 'var(--amber-soft)' } : { color: 'var(--green)', bg: 'var(--green-soft)' }
+    const starGreen = (n) => n ? { color: 'var(--star)', bg: 'var(--star-soft)' } : { color: 'var(--green)', bg: 'var(--green-soft)' }
     const quickStats = [
-      { icon: ic('banknote', 18), color: finEnd.length ? 'var(--star)' : 'var(--green)', bg: finEnd.length ? 'var(--star-soft)' : 'var(--green-soft)', label: 'Končící financování', sub: 'smlouvy do 90 dnů', value: String(finEnd.length), onClick: () => navigate('financing') },
-      { icon: ic('shield', 18), color: 'var(--blue)', bg: 'var(--blue-soft)', label: 'Povinné ručení', sub: 'všechna vozidla', value: String(totalVehicles) },
-      { icon: ic('car', 18), color: 'var(--green)', bg: 'var(--green-soft)', label: 'Havarijní pojištění', sub: 'plné krytí', value: String(havCount) },
-      { icon: ic('glass', 18), color: 'var(--purple)', bg: 'var(--purple-soft)', label: 'Pojištění skel', sub: 'doplňkové krytí', value: String(sklaCount) },
+      { icon: ic('alert', 18), ...starGreen(claimsOpen), label: 'Otevřené škody', sub: claimsReserve ? `rezervy ${czk(claimsReserve)}` : 'v likvidaci', value: String(claimsOpen), onClick: () => navigate('claims') },
+      { icon: ic('banknote', 18), ...starGreen(finEnd.length), label: 'Končící financování', sub: 'smlouvy do 90 dnů', value: String(finEnd.length), onClick: () => navigate('financing') },
+      { icon: ic('check2', 18), ...amberGreen(stkExpCount), label: 'Končící STK', sub: 'do 60 dnů / po platnosti', value: String(stkExpCount), onClick: () => navigate('vehicles') },
+      { icon: ic('doc2', 18), ...amberGreen(vigExpCount), label: 'Končící dálniční známky', sub: 'do 60 dnů / po platnosti', value: String(vigExpCount), onClick: () => navigate('vehicles') },
     ]
 
     // karty vozových parků (lokalit) — hav dopočítán z vozidel parku
