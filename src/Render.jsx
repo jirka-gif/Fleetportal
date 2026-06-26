@@ -3065,10 +3065,34 @@ function AddVehicleWizard({ vm }) {
                 <div style={{ flex: 1 }}><div style={S('font-size:16px;font-weight:800;letter-spacing:-.3px')}>{avm.loaded.brand} {avm.loaded.model}</div><div style={S('font-size:12.5px;color:var(--ink3)')}>{avm.loaded.plate} · VIN {avm.loaded.vin}</div></div>
                 <span style={S('font-size:11.5px;font-weight:700;color:var(--green);background:#fff;border:1px solid var(--green-soft);padding:4px 10px;border-radius:20px')}>Ověřeno v registru</span>
               </div>
+              <div style={S('display:flex;align-items:center;gap:8px;margin-bottom:10px')}>
+                <span style={S('font-size:13.5px;font-weight:700')}>Údaje z registru vozidel</span>
+                <span style={S('display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;color:var(--green);background:var(--green-soft);padding:2px 8px;border-radius:20px')}>{ic('lock', 11, 2.4)} needitovatelné</span>
+              </div>
               <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px')}>
-                {avm.fields.map((f, i) => (
-                  <div key={i}><div style={S('font-size:11.5px;font-weight:600;color:var(--ink2);margin-bottom:5px')}>{f.label}</div><input defaultValue={f.value} style={S(`width:100%;height:40px;border:1px solid var(--border2);border-radius:9px;padding:0 12px;font-size:13.5px;font-family:inherit;outline:none;background:${f.bg}`)} /></div>
+                {avm.regFields.map((f, i) => (
+                  <div key={i}><div style={S('font-size:11.5px;font-weight:600;color:var(--ink2);margin-bottom:5px')}>{f.label}</div><div style={S('width:100%;height:40px;border:1px solid var(--border);border-radius:9px;padding:0 12px;font-size:13.5px;display:flex;align-items:center;background:#F4F6F9;color:var(--ink2);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{f.value}</div></div>
                 ))}
+              </div>
+              <div style={S('display:flex;align-items:center;gap:8px;margin-top:18px;margin-bottom:10px')}>
+                <span style={S('font-size:13.5px;font-weight:700')}>Údaje k doplnění</span>
+                <span style={S('font-size:10.5px;font-weight:700;color:var(--blue-ink);background:var(--blue-soft);padding:2px 8px;border-radius:20px')}>lze upravit</span>
+              </div>
+              <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px')}>
+                <div>
+                  <div style={S('font-size:11.5px;font-weight:600;color:var(--ink2);margin-bottom:5px')}>SPZ</div>
+                  <input value={avm.plate} onChange={avm.onPlate} style={S('width:100%;height:40px;border:1px solid var(--border2);border-radius:9px;padding:0 12px;font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums;font-family:inherit;outline:none')} />
+                </div>
+                <div>
+                  <div style={S('display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px')}>
+                    <span style={S('font-size:11.5px;font-weight:600;color:var(--ink2)')}>Hodnota vozidla</span>
+                    <Hov onClick={avm.pricing === 'loading' ? undefined : avm.runValuation} base={`display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:7px;cursor:${avm.pricing === 'loading' ? 'default' : 'pointer'};color:#fff;background:linear-gradient(135deg,#4F6FFF,#6D5EF6);box-shadow:0 4px 12px -3px rgba(79,111,255,.5)`} hover={avm.pricing === 'loading' ? '' : 'filter:brightness(1.07)'}>
+                      <span style={S('display:flex')}>{ic('sparkle', 13)}</span>{avm.pricing === 'loading' ? 'Oceňuji…' : avm.pricing === 'done' ? 'Přecenit AI' : 'Ocenit AI'}
+                    </Hov>
+                  </div>
+                  <input value={avm.value} onChange={avm.onValue} style={S(`width:100%;height:40px;border:1px solid ${avm.pricing === 'done' ? 'var(--blue)' : 'var(--border2)'};border-radius:9px;padding:0 12px;font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums;font-family:inherit;outline:none;${avm.pricing === 'done' ? 'box-shadow:0 0 0 3.5px rgba(79,111,255,.1)' : ''}`)} />
+                  {avm.pricing === 'done' && <div style={S('display:flex;align-items:center;gap:5px;font-size:11px;color:var(--blue-ink);margin-top:6px;line-height:1.4')}><span style={S('display:flex;flex-shrink:0;color:var(--purple)')}>{ic('sparkle', 12)}</span>{avm.priceNote}</div>}
+                </div>
               </div>
               <div style={S('margin-top:18px;font-size:13.5px;font-weight:700;margin-bottom:10px')}>Zařazení do flotily</div>
               <div style={S('display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--blue-soft);border-radius:11px')}>

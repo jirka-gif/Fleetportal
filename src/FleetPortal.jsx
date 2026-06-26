@@ -108,6 +108,7 @@ export default function FleetPortal() {
     avCover: { pr: true, hav: true, skla: true, uraz: false, zavazadla: false, zver: true, nahradni: false, strojni: false, gap: false, zivel: false, asist: true, prac: false },
     avHavRozsah: 'allrisk', avHavSpoluucast: '5% / 5 000 Kč', avPrLimit: '100 / 100 mil. Kč', avUziti: 'Běžné užití',
     avPojistnik: 'Jiří Tošovský s.r.o.', avStart: '1. 7. 2026', avOwnerSame: true, avOperatorSame: true, avOwner: '', avOperator: '',
+    avPlate: '', avValue: '', avPricing: 'idle',
     vf: { fleet: 'all', type: 'all', brand: 'all', fuel: 'all', insurer: 'all', status: 'all', q: '' },
     selected: {},
     pref: { renewal: true, claim: true, docs: true, email: true, sms: false },
@@ -1204,12 +1205,12 @@ export default function FleetPortal() {
       }
     })
     const loaded = { brand: 'Škoda', model: 'Octavia Combi 2.0 TDI', plate: m === 'vin' ? '—' : (state.avInput || '5SK 8841').toUpperCase(), vin: 'TMBJJ7NE5P0123456' }
-    const fieldVals = [
-      ['Značka', 'Škoda', 1], ['Model', 'Octavia Combi', 1], ['Druh vozidla', 'Osobní automobil', 1],
-      ['Rok výroby', '2023', 1], ['Palivo', 'Diesel', 1], ['Objem / výkon', '1 968 cm³ / 110 kW', 1],
-      ['Převodovka', 'Automat DSG', 1], ['SPZ', loaded.plate, 0], ['VIN', loaded.vin, 1], ['Hodnota vozidla', '640 000 Kč', 0],
-    ]
-    const fields = fieldVals.map(([label, value, locked]) => ({ label, value, bg: locked ? '#F7F8FA' : '#fff' }))
+    // Údaje z registru → read-only. Editovatelné (SPZ, hodnota) jsou zvlášť.
+    const regFields = [
+      ['Značka', 'Škoda'], ['Model', 'Octavia Combi'], ['Druh vozidla', 'Osobní automobil'],
+      ['Rok výroby', '2023'], ['Palivo', 'Diesel'], ['Objem / výkon', '1 968 cm³ / 110 kW'],
+      ['Převodovka', 'Automat DSG'], ['VIN', loaded.vin],
+    ].map(([label, value]) => ({ label, value }))
     const coverDefs = [
       ['pr', 'Povinné ručení', 'Zákonné pojištění odpovědnosti', [['Limit', state.avPrLimit]]],
       ['hav', 'Havarijní pojištění', 'All-risk krytí vozidla', [['Rozsah', 'All-risk'], ['Spoluúčast', state.avHavSpoluucast]]],
@@ -1269,7 +1270,13 @@ export default function FleetPortal() {
         load: () => setState({ avLoaded: true, avStep: 2 }), loadLabel: 'Načíst z registru',
         uploadIcon: ic('upload', 22), infoIcon: ic('info', 16), checkBadge: ic('check', 16, 2.5),
         bigCar: ic('car', 26), bigCheck: ic('check', 30, 2.5),
-        loaded, fields, covers, coverCount, estimate,
+        loaded, regFields, covers, coverCount, estimate,
+        // SPZ + hodnota vozidla jsou editovatelné; cena má AI ocenění.
+        plate: state.avPlate || loaded.plate, onPlate: (e) => setState({ avPlate: e.target.value.toUpperCase() }),
+        value: state.avValue || '640 000 Kč', onValue: (e) => setState({ avValue: e.target.value }),
+        pricing: state.avPricing,
+        runValuation: () => { setState({ avPricing: 'loading' }); setTimeout(() => setState({ avPricing: 'done', avValue: '612 000 Kč' }), 900) },
+        priceNote: 'Tržní odhad AI · rozpětí 585–640 tis. Kč — dle stáří, výbavy, nájezdu a aktuálního trhu.',
         back: () => (step === 1 || done) ? setState({ av: false }) : setState((s) => ({ avStep: s.avStep - 1 })),
         backStyle: `font-size:13px;font-weight:600;color:var(--ink3);cursor:pointer;${(step === 1 || done) ? 'visibility:hidden' : ''}`,
         next: () => { if (done) { setState({ av: false }); showToast(`${loaded.brand} ${loaded.model} přidáno do parku ${f.name}.`); return } setState((s) => ({ avStep: s.avStep + 1 })) },
