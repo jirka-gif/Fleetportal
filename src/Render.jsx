@@ -1292,33 +1292,6 @@ function Dashboard({ vm }) {
             </div>
           </div>
 
-          {/* FLEET PARKS */}
-          <div>
-            <div style={S('display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:14px')}>
-              <div style={S('font-size:16px;font-weight:650;letter-spacing:-.3px')}>Vozové parky</div>
-              <div style={S('display:flex;align-items:center;gap:14px')}>
-                <Hov as="span" onClick={vm.goParks} base="display:flex;align-items:center;gap:4px;font-size:13px;font-weight:600;color:var(--blue);cursor:pointer;white-space:nowrap" hover="color:var(--blue-ink)">{vm.parkCount > 1 ? 'Zobrazit všechny' : 'Otevřít park'} <span style={S('display:flex')}>{ic('arrow', 14)}</span></Hov>
-                <Hov onClick={vm.openNewFleet} base="display:flex;align-items:center;gap:6px;height:34px;padding:0 13px;background:var(--blue-soft);color:var(--blue-ink);border:1px solid var(--blue);border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap" hover="background:var(--blue);color:#fff">{ic('plus', 15)} Nový vozový park</Hov>
-              </div>
-            </div>
-            <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:16px')}>
-              {vm.dashFleets.map((f) => (
-                <div key={f.id} onClick={f.onClick} style={S(`${CARD};padding:18px;cursor:pointer`)}>
-                  <div style={S('display:flex;align-items:center;gap:11px;margin-bottom:16px')}>
-                    <div style={S('width:38px;height:38px;border-radius:11px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic('fleets', 19)}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}><div style={S('font-size:14px;font-weight:650;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{f.name}</div><div style={S('font-size:11.5px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{f.vehicles} vozidel</div></div>
-                    <span style={S('display:flex;color:var(--ink3)')}>{ic('chevron', 16)}</span>
-                  </div>
-                  <div style={S('display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-bottom:14px')}>
-                    <div><div style={S('font-size:18px;font-weight:700;letter-spacing:-.5px;line-height:1')}>{f.hav}</div><div style={S('font-size:11px;color:var(--ink3);margin-top:3px')}>s havarijním</div></div>
-                    <div style={S('text-align:right')}><div style={S('font-size:15px;font-weight:700;line-height:1;color:var(--blue)')}>{f.havPct}%</div><div style={S('font-size:9.5px;color:var(--ink3);margin-top:3px')}>krytí</div></div>
-                  </div>
-                  <div style={S('height:6px;border-radius:6px;background:var(--canvas);overflow:hidden')}><div style={S(`height:100%;width:${f.havPct}%;border-radius:6px;background:linear-gradient(90deg,#4F6FFF,#6D5EF6)`)}></div></div>
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* ACTIVITY */}
           <div style={S(`${CARD};overflow:hidden`)}>
             <div style={S('display:flex;align-items:center;justify-content:space-between;padding:18px 22px 14px')}><span style={S('font-size:16px;font-weight:650;letter-spacing:-.3px')}>Nejnovější vozidla ve flotile</span></div>

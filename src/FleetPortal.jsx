@@ -408,12 +408,15 @@ export default function FleetPortal() {
     const stkExpCount = vehiclesData.filter((v) => { const d = dueInfo(vehicleStk(v)); return d && d.days <= 60 }).length
     const vigExpCount = vehiclesData.filter((v) => { const vg = vehicleVignette(v); if (!vg) return false; const d = dueInfo(vg.validTo); return d && d.days <= 60 }).length
 
-    // KPI — hlavní globální ukazatele majitele flotily
+    // KPI — souhrn flotily pro majitele
+    const driverCount = driversData.length
+    const driverActive = driversData.filter((d) => d.status === 'active').length
+    const financedPct = Math.round(financedCount / (totalVehicles || 1) * 100)
     const kpis = [
       { value: String(totalVehicles), label: 'Vozidel celkem', note: `${typeCats.length} typů · ${allFleets.length} ${allFleets.length === 1 ? 'park' : 'parky'}` },
-      { value: String(havCount), label: 'S havarijním pojištěním', note: `${povOnly} jen povinné ručení` },
-      { value: String(claimsTotal), label: 'Škody (12 měsíců)', note: claimsOpen ? `${claimsOpen} otevřených` : 'vše uzavřeno' },
-      { value: String(financedCount), label: 'Financováno', note: 'úvěr / leasing' },
+      { value: '—', label: 'Roční pojistné', note: 'čeká na napojení' },
+      { value: String(driverCount), label: 'Řidičů', note: `${driverActive} aktivních` },
+      { value: String(financedCount), label: 'Financováno', note: `${financedPct} % vozidel · úvěr / leasing` },
     ]
 
     // graf: vozidla podle TYPU vozidla (reálné, z druhu)
