@@ -1673,6 +1673,53 @@ function BrandMark({ brand }) {
   return <div style={{ width: 96, height: 96, borderRadius: 24, background: `hsl(${h} 50% 90%)`, color: `hsl(${h} 42% 36%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, fontWeight: 800, letterSpacing: '.5px' }}>{initials}</div>
 }
 
+function FinancingCard({ f }) {
+  if (!f || !f.active) {
+    return (
+      <div style={S(`${CARD};padding:20px`)}>
+        <div style={S('display:flex;align-items:center;gap:11px')}>
+          <div style={S('width:40px;height:40px;border-radius:11px;background:#EEF2F9;color:var(--ink2);display:flex;align-items:center;justify-content:center')}>{ic('banknote', 20)}</div>
+          <div style={{ flex: 1 }}><div style={S('font-size:15px;font-weight:700')}>Financování</div><div style={S('font-size:12.5px;color:var(--ink3)')}>Vlastní zdroje (hotovost)</div></div>
+          <span style={S('font-size:11.5px;font-weight:600;color:var(--ink2);background:#EEF2F9;padding:4px 11px;border-radius:20px')}>Bez financování</span>
+        </div>
+        <div style={S('font-size:13px;color:var(--ink3);margin-top:14px;line-height:1.5')}>Vozidlo je v majetku společnosti, pořízeno z vlastních zdrojů. Není zatíženo úvěrem ani leasingem.</div>
+      </div>
+    )
+  }
+  const isOp = f.type === 'operating_lease'
+  const color = isOp ? 'var(--purple)' : 'var(--blue)'
+  const bg = isOp ? 'var(--purple-soft)' : 'var(--blue-soft)'
+  const terms = [['Poskytovatel', f.provider], ['Číslo smlouvy', f.contractNo], ['Začátek financování', f.startDate], ['Konec', f.endDate], ['Doba', `${f.termMonths} měsíců`], ['Pořizovací cena', f.price], ['Akontace', `${f.downPayment}${f.downPaymentPct ? ` · ${f.downPaymentPct} %` : ''}`], ['Financovaná částka', f.financedAmount]]
+  if (f.interestRate) terms.push(['Úroková sazba', f.interestRate])
+  if (f.residualValue) terms.push(['Zůstatková cena', f.residualValue])
+  if (f.mileageLimit) terms.push(['Limit nájezdu', f.mileageLimit])
+  terms.push(['Celkové náklady', f.totalCost])
+  return (
+    <div style={S(`${CARD};padding:22px`)}>
+      <div style={S('display:flex;align-items:center;gap:11px;margin-bottom:18px')}>
+        <div style={S(`width:40px;height:40px;border-radius:11px;background:${bg};color:${color};display:flex;align-items:center;justify-content:center`)}>{ic('banknote', 20)}</div>
+        <div style={{ flex: 1 }}><div style={S('font-size:15px;font-weight:700')}>Financování</div><div style={S('font-size:12.5px;color:var(--ink3)')}>{f.provider}</div></div>
+        <span style={S(`font-size:12px;font-weight:600;color:${color};background:${bg};padding:5px 12px;border-radius:20px`)}>{f.typeLabel}</span>
+      </div>
+      <div style={S(`display:flex;align-items:flex-end;gap:24px;flex-wrap:wrap;padding:16px 18px;background:${bg};border-radius:13px;margin-bottom:18px`)}>
+        <div><div style={S('font-size:12px;color:var(--ink3)')}>Měsíční splátka</div><div style={S(`font-size:26px;font-weight:800;letter-spacing:-.6px;color:${color}`)}>{f.monthlyPayment}</div></div>
+        {isOp && <><div><div style={S('font-size:11.5px;color:var(--ink3)')}>z toho financování</div><div style={S('font-size:15px;font-weight:700;margin-top:2px')}>{f.financeMonthly}</div></div><div><div style={S('font-size:11.5px;color:var(--ink3)')}>z toho služby</div><div style={S('font-size:15px;font-weight:700;margin-top:2px')}>{f.servicesMonthly}</div></div></>}
+      </div>
+      <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:13px 18px')}>
+        {terms.map((t, i) => <div key={i}><div style={S('font-size:11.5px;color:var(--ink3)')}>{t[0]}</div><div style={S('font-size:13.5px;font-weight:600;margin-top:1px;font-variant-numeric:tabular-nums')}>{t[1]}</div></div>)}
+      </div>
+      {isOp && f.services && (
+        <div style={S('margin-top:18px;padding-top:18px;border-top:1px solid var(--border)')}>
+          <div style={S('font-size:13.5px;font-weight:700;margin-bottom:12px')}>Zahrnuté služby (měsíčně)</div>
+          <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:2px 28px')}>
+            {f.services.map((s, i) => <div key={i} style={S('display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:6px 0;border-bottom:1px solid var(--border)')}><span style={S('color:var(--ink2)')}>{s.name}</span><span style={S('font-weight:600;font-variant-numeric:tabular-nums')}>{s.amount}</span></div>)}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function VehicleDetail({ vm }) {
   const vd = vm.vd
   const mob = vm.vp.isMobile
@@ -1685,6 +1732,7 @@ function VehicleDetail({ vm }) {
           <div style={S('height:190px;background:linear-gradient(135deg,#EEF1F6,#E2E7EF);display:flex;align-items:center;justify-content:center;position:relative')}>
             <BrandMark brand={vd.brand} />
             <span style={{ position: 'absolute', top: 12, left: 12, ...S(vd.chipStyle) }}>{vd.statusLabel}</span>
+            <span style={{ position: 'absolute', top: 12, right: 12, ...S(`font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;display:inline-flex;align-items:center;gap:5px;${vd.financing.active ? (vd.financing.type === 'operating_lease' ? 'color:var(--purple);background:var(--purple-soft)' : 'color:var(--blue-ink);background:var(--blue-soft)') : 'color:var(--ink2);background:#EEF2F9'}`) }}><span style={S(`width:6px;height:6px;border-radius:50%;background:${vd.financing.active ? (vd.financing.type === 'operating_lease' ? 'var(--purple)' : 'var(--blue)') : 'var(--ink3)'}`)}></span>{vd.financing.active ? vd.financing.typeLabel : 'Vlastní zdroje'}</span>
           </div>
           <div style={S('padding:18px')}>
             <div style={S('font-size:13px;color:var(--ink3)')}>{vd.fleetName}</div>
@@ -1727,6 +1775,7 @@ function VehicleDetail({ vm }) {
       </div>
 
       {vd.isOverview && (
+        <>
         <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:14px`)}>
           <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
             <div style={S('font-size:15px;font-weight:700;margin-bottom:14px')}>Specifikace vozidla</div>
@@ -1741,6 +1790,8 @@ function VehicleDetail({ vm }) {
             </div>
           </div>
         </div>
+        <div style={S('margin-top:14px')}><FinancingCard f={vd.financing} /></div>
+        </>
       )}
 
       {vd.isInsurance && (
