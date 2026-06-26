@@ -1213,10 +1213,10 @@ function Dashboard({ vm }) {
           <div style={S(`${CARD};padding:8px 8px 10px`)}>
             <div style={S('padding:14px 14px 12px;font-size:15px;font-weight:650;letter-spacing:-.3px')}>Rychlý přehled</div>
             {vm.quickStats.map((q, i) => (
-              <Hov key={i} base="display:flex;align-items:center;gap:13px;padding:11px 14px;border-radius:13px;cursor:pointer" hover="background:var(--canvas)">
+              <Hov key={i} onClick={q.onClick} base="display:flex;align-items:center;gap:13px;padding:11px 14px;border-radius:13px;cursor:pointer" hover="background:var(--canvas)">
                 <div style={S(`width:38px;height:38px;border-radius:11px;background:${q.bg};color:${q.color};display:flex;align-items:center;justify-content:center;flex-shrink:0`)}>{q.icon}</div>
                 <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:600;line-height:1.25')}>{q.label}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{q.sub}</div></div>
-                <div style={S('font-size:20px;font-weight:700;letter-spacing:-.5px;flex-shrink:0')}>{q.value}</div>
+                <div style={S(`font-size:20px;font-weight:700;letter-spacing:-.5px;flex-shrink:0;${q.onClick && q.value !== '0' ? 'color:var(--star)' : ''}`)}>{q.value}</div>
               </Hov>
             ))}
             <Hov as="div" onClick={() => nav('vehicles')} base="display:flex;align-items:center;justify-content:center;gap:5px;margin:6px 6px 2px;padding:9px;border-radius:11px;font-size:12.5px;font-weight:600;color:var(--blue);cursor:pointer" hover="background:var(--blue-soft)">Zobrazit všechny</Hov>
@@ -1675,8 +1675,15 @@ function BrandMark({ brand }) {
 }
 
 function Financing({ vm }) {
+  const plural = vm.finEndingCount === 1 ? 'smlouva' : vm.finEndingCount >= 2 && vm.finEndingCount <= 4 ? 'smlouvy' : 'smluv'
   return (
     <div>
+      {vm.finEndingCount > 0 && (
+        <div style={S('display:flex;align-items:center;gap:13px;padding:14px 18px;background:var(--star-soft);border:1px solid rgba(239,68,68,.22);border-radius:14px;margin-bottom:18px')}>
+          <div style={S('width:38px;height:38px;border-radius:11px;background:#fff;color:var(--star);display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic('alert', 20)}</div>
+          <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:700;color:var(--star-ink)')}>{vm.finEndingCount} {plural} financování končí do 90 dnů</div><div style={S('font-size:12px;color:var(--ink2);margin-top:1px')}>Doporučujeme včas řešit refinancování nebo obměnu vozidla — končící smlouvy jsou v seznamu níže nahoře a označené.</div></div>
+        </div>
+      )}
       <KpiRow items={vm.finStats} mb="22px" />
 
       <div style={S('font-size:15px;font-weight:700;margin-bottom:12px')}>Podle typu financování</div>
@@ -1724,7 +1731,7 @@ function Financing({ vm }) {
               <div style={S('width:130px')}><span style={S(`display:inline-flex;font-size:11px;font-weight:700;color:${r.typeColor};background:${r.typeBg};padding:3px 10px;border-radius:20px`)}>{r.typeShort}</span></div>
               <div style={S('width:200px;font-size:12.5px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.provider}</div>
               <div style={S('width:130px;text-align:right;font-size:13.5px;font-weight:700;font-variant-numeric:tabular-nums')}>{r.monthly}</div>
-              <div style={S('width:110px;font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums')}>{r.endDate}</div>
+              <div style={S('width:110px')}><div style={S('font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums')}>{r.endDate}</div>{r.endingSoon ? <span style={S('display:inline-flex;font-size:10px;font-weight:700;color:var(--star);background:var(--star-soft);padding:1px 7px;border-radius:6px;margin-top:3px')}>{r.daysToEnd === 0 ? 'končí dnes' : `končí za ${r.daysToEnd} dní`}</span> : null}</div>
               <span style={S('width:18px;flex-shrink:0;color:var(--ink3);display:flex')}>{ic('arrow', 16)}</span>
             </Hov>
           ))}

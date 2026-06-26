@@ -16,6 +16,19 @@ const ROOT_STYLE =
   "font-family:'Hanken Grotesk',system-ui,sans-serif"
 
 const MONTHS = ['Čvc', 'Srp', 'Zář', 'Říj', 'Lis', 'Pro', 'Led', 'Úno', 'Bře', 'Dub', 'Kvě', 'Čvn']
+const parseCzDate = (s) => { const p = String(s || '').split('. '); return p.length === 3 ? new Date(+p[2], +p[1] - 1, +p[0]) : null }
+// Financování končící do `days` dnů od dneška (reálné new Date).
+const financingEnding = (days = 90) => {
+  const now = new Date(); now.setHours(0, 0, 0, 0)
+  const out = []
+  vehiclesData.forEach((v) => {
+    if (!v.financing || !v.financing.active) return
+    const d = parseCzDate(v.financing.endDate); if (!d) return
+    const dd = Math.round((d - now) / 86400000)
+    if (dd >= 0 && dd <= days) out.push({ v, daysToEnd: dd })
+  })
+  return out.sort((a, b) => a.daysToEnd - b.daysToEnd)
+}
 const INS_COLORS = { Kooperativa: '#2058C9', Allianz: '#16A34A', 'ČPP': '#C2780C', Generali: '#8B5CF6', UNIQA: '#0EA5A5', 'ČSOB': '#9B0E25' }
 const DEFAULT_BONUS = [{ threshold: 30, rate: 15 }, { threshold: 40, rate: 10 }, { threshold: 50, rate: 5 }]
 const INSURER_CODE = { Kooperativa: '7720', Allianz: '4055', 'ČPP': '0019', Generali: '5544', UNIQA: '2401', 'ČSOB': '8830', 'ČSOB Poj.': '8830' }
@@ -374,11 +387,12 @@ export default function FleetPortal() {
     const brandLegend = brandsData.map((b) => ({ name: b.name, color: b.color, count: b.count, pct: b.pct }))
 
     // rychlý přehled = krytí flotily (reálné)
+    const finEnd = financingEnding(90)
     const quickStats = [
+      { icon: ic('banknote', 18), color: finEnd.length ? 'var(--star)' : 'var(--green)', bg: finEnd.length ? 'var(--star-soft)' : 'var(--green-soft)', label: 'Končící financování', sub: 'smlouvy do 90 dnů', value: String(finEnd.length), onClick: () => navigate('financing') },
       { icon: ic('shield', 18), color: 'var(--blue)', bg: 'var(--blue-soft)', label: 'Povinné ručení', sub: 'všechna vozidla', value: String(totalVehicles) },
       { icon: ic('car', 18), color: 'var(--green)', bg: 'var(--green-soft)', label: 'Havarijní pojištění', sub: 'plné krytí', value: String(havCount) },
       { icon: ic('glass', 18), color: 'var(--purple)', bg: 'var(--purple-soft)', label: 'Pojištění skel', sub: 'doplňkové krytí', value: String(sklaCount) },
-      { icon: ic('wrench', 18), color: 'var(--amber)', bg: 'var(--amber-soft)', label: 'Asistenční služby', sub: 'doplňkové krytí', value: String(asistCount) },
     ]
 
     // fleet karty — reálné; místo pojistného podíl havarijního krytí
@@ -1057,17 +1071,24 @@ export default function FleetPortal() {
     const totalMonthly = fin.reduce((a, v) => a + num(v.financing.monthlyPayment), 0)
     const totalFinanced = fin.reduce((a, v) => a + num(v.financing.financedAmount), 0)
     const typeMeta = { bank_loan: ['Úvěr', 'var(--blue)', 'var(--blue-soft)'], finance_lease: ['Fin. leasing', 'var(--green)', 'var(--green-soft)'], operating_lease: ['Op. leasing', 'var(--purple)', 'var(--purple-soft)'] }
+    const ending = financingEnding(90)
+    const endMap = Object.fromEntries(ending.map((x) => [x.v.id, x.daysToEnd]))
     const finRows = fin.map((v) => {
       const tm = typeMeta[v.financing.type]
-      return { id: v.id, vehicle: `${v.brand} ${v.model}`, plate: v.plate, provider: v.financing.provider, monthly: v.financing.monthlyPayment, endDate: v.financing.endDate, typeShort: tm[0], typeColor: tm[1], typeBg: tm[2], onClick: () => openVehicle(v.id) }
-    }).sort((a, b) => a.typeShort.localeCompare(b.typeShort) || b.id.localeCompare(a.id))
+      const dte = endMap[v.id]
+      return { id: v.id, vehicle: `${v.brand} ${v.model}`, plate: v.plate, provider: v.financing.provider, monthly: v.financing.monthlyPayment, endDate: v.financing.endDate, daysToEnd: dte === undefined ? null : dte, endingSoon: Object.prototype.hasOwnProperty.call(endMap, v.id), typeShort: tm[0], typeColor: tm[1], typeBg: tm[2], onClick: () => openVehicle(v.id) }
+    }).sort((a, b) => {
+      if (a.endingSoon !== b.endingSoon) return a.endingSoon ? -1 : 1
+      if (a.endingSoon && b.endingSoon) return a.daysToEnd - b.daysToEnd
+      return a.typeShort.localeCompare(b.typeShort) || b.id.localeCompare(a.id)
+    })
     const finStats = [
       { value: String(fin.length), label: 'Financovaných vozidel', note: `z ${vehiclesData.length} celkem` },
       { value: fmt(totalMonthly), label: 'Měsíční splátky celkem' },
       { value: milF(totalFinanced), unit: 'mil. Kč', label: 'Objem financování' },
-      { value: String(own), label: 'Z vlastních zdrojů' },
+      { value: String(ending.length), label: 'Končí do 90 dnů', note: ending.length ? 'vyžadují řešení' : 'žádné' },
     ]
-    return { finStats, finByType, finProviders, finRows, finTotalMonthly: fmt(totalMonthly) }
+    return { finStats, finByType, finProviders, finRows, finTotalMonthly: fmt(totalMonthly), finEndingCount: ending.length }
   }
 
   const settingsVM = () => {
