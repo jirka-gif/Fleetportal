@@ -3079,11 +3079,28 @@ function AddVehicleWizard({ vm }) {
                   <div style={S('font-size:11px;color:var(--blue-ink);opacity:.75;margin-top:5px')}>Lokalita / pobočka, kam vozidlo patří — předvyplněn park klienta, lze změnit.</div>
                 </div>
               </div>
-              <div style={S('margin-top:18px;font-size:13.5px;font-weight:700;margin-bottom:10px')}>Pojistník a začátek pojištění</div>
-              <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px')}>
-                <div><div style={S('font-size:11.5px;font-weight:600;color:var(--ink2);margin-bottom:5px')}>Pojistník</div><input defaultValue="Jiří Tošovský s.r.o." style={S('width:100%;height:40px;border:1px solid var(--border2);border-radius:9px;padding:0 12px;font-size:13.5px;font-family:inherit;outline:none')} /></div>
-                <div><div style={S('font-size:11.5px;font-weight:600;color:var(--ink2);margin-bottom:5px')}>Začátek pojištění</div><input defaultValue="1. 7. 2026" style={S('width:100%;height:40px;border:1px solid var(--border2);border-radius:9px;padding:0 12px;font-size:13.5px;font-family:inherit;outline:none')} /></div>
-                <div><div style={S('font-size:11.5px;font-weight:600;color:var(--ink2);margin-bottom:5px')}>Užití vozidla</div><div style={S('width:100%;height:40px;border:1px solid var(--border2);border-radius:9px;padding:0 12px;font-size:13.5px;display:flex;align-items:center;justify-content:space-between;color:var(--ink)')}>{vm.avUziti}<span style={S('color:var(--ink3);display:flex')}>{ic('chevron', 16)}</span></div></div>
+              <div style={S('margin-top:18px;font-size:13.5px;font-weight:700;margin-bottom:10px')}>Pojistník, vlastník a provozovatel</div>
+              <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px')}>
+                <div><div style={S('font-size:11.5px;font-weight:600;color:var(--ink2);margin-bottom:5px')}>Pojistník</div><input value={avm.pojistnik} onChange={avm.onPojistnik} style={S('width:100%;height:40px;border:1px solid var(--border2);border-radius:9px;padding:0 12px;font-size:13.5px;font-family:inherit;outline:none')} /></div>
+                <div><div style={S('font-size:11.5px;font-weight:600;color:var(--ink2);margin-bottom:5px')}>Začátek pojištění</div><input value={avm.start} onChange={avm.onStart} style={S('width:100%;height:40px;border:1px solid var(--border2);border-radius:9px;padding:0 12px;font-size:13.5px;font-family:inherit;outline:none')} /></div>
+                <div><div style={S('font-size:11.5px;font-weight:600;color:var(--ink2);margin-bottom:5px')}>Užití vozidla</div><Select value={avm.uziti} onChange={avm.onUziti} options={avm.uzitiOptions} height={40} /></div>
+              </div>
+              <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:12px')}>
+                {[['Vlastník vozidla', avm.ownerSame, avm.toggleOwnerSame, avm.owner, avm.onOwner, 'Např. Raiffeisen‑Leasing, s.r.o.'],
+                  ['Provozovatel vozidla', avm.operatorSame, avm.toggleOperatorSame, avm.operator, avm.onOperator, 'Osoba zapsaná v technickém průkazu']].map(([lbl, same, tog, val, onVal, ph], i) => (
+                  <div key={i}>
+                    <div style={S('display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px')}>
+                      <span style={S('font-size:11.5px;font-weight:600;color:var(--ink2)')}>{lbl}</span>
+                      <Hov onClick={tog} base={`display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;cursor:pointer;color:${same ? 'var(--blue-ink)' : 'var(--ink3)'}`} hover="color:var(--ink)">
+                        <span style={S(`width:15px;height:15px;border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1.5px solid ${same ? 'var(--blue)' : '#CFCFD4'};background:${same ? 'var(--blue)' : '#fff'};color:#fff`)}>{same ? ic('check', 11, 2.8) : null}</span>
+                        Shodný s pojistníkem
+                      </Hov>
+                    </div>
+                    {same
+                      ? <div style={S('width:100%;min-height:40px;border:1px dashed var(--border2);border-radius:9px;padding:9px 12px;font-size:13px;color:var(--ink3);background:var(--canvas);display:flex;align-items:center')}>{avm.pojistnik || '—'}</div>
+                      : <input value={val} onChange={onVal} placeholder={ph} autoFocus style={S('width:100%;height:40px;border:1px solid var(--blue);border-radius:9px;padding:0 12px;font-size:13.5px;font-family:inherit;outline:none;box-shadow:0 0 0 3.5px rgba(79,111,255,.12)')} />}
+                  </div>
+                ))}
               </div>
             </>
           )}
