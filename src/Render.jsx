@@ -1687,7 +1687,7 @@ function Financing({ vm }) {
               <div style={S(`width:42px;height:42px;border-radius:11px;background:${t.bg};color:${t.color};display:flex;align-items:center;justify-content:center`)}>{t.icon}</div>
               <div style={{ flex: 1, minWidth: 0 }}><div style={S('font-size:14px;font-weight:700')}>{t.label}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{t.monthlyF} / měsíc</div></div>
             </div>
-            <div style={S('display:flex;align-items:baseline;gap:7px')}><span style={S(`font-size:28px;font-weight:800;letter-spacing:-1px;color:${t.color}`)}>{t.count}</span><span style={S('font-size:12px;color:var(--ink3)')}>vozidel · {t.pct} %</span></div>
+            <div style={S('display:flex;align-items:baseline;gap:7px')}><span style={S(`font-size:28px;font-weight:800;letter-spacing:-1px;color:${t.color}`)}>{t.count}</span><span style={S('font-size:12px;color:var(--ink3)')}>vozidel · {t.pct} % parku</span></div>
             <div style={S('height:6px;border-radius:6px;background:#EEF2F9;overflow:hidden;margin-top:12px')}><div style={S(`height:100%;width:${t.pct}%;border-radius:6px;background:${t.color}`)}></div></div>
           </div>
         ))}

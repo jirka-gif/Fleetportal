@@ -1049,7 +1049,7 @@ export default function FleetPortal() {
     ]
     const finByType = TYPES.map((t) => {
       const list = fin.filter((v) => v.financing.type === t.key)
-      return { ...t, count: list.length, monthlyF: fmt(list.reduce((a, v) => a + num(v.financing.monthlyPayment), 0)), pct: fin.length ? Math.round(list.length / fin.length * 100) : 0 }
+      return { ...t, count: list.length, monthlyF: fmt(list.reduce((a, v) => a + num(v.financing.monthlyPayment), 0)), pct: Math.round(list.length / vehiclesData.length * 100) }
     })
     const provMap = {}
     fin.forEach((v) => { const p = v.financing.provider; if (!provMap[p]) provMap[p] = { count: 0, monthly: 0, type: v.financing.typeLabel }; provMap[p].count++; provMap[p].monthly += num(v.financing.monthlyPayment) })
