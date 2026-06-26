@@ -1,4 +1,4 @@
-import React, { useState, Suspense } from 'react'
+import React, { useState, useEffect, useRef, Suspense } from 'react'
 import { css as S, Hov, Icon, InsurerLogo, exportData } from './helpers.jsx'
 
 // Mapa škod (Leaflet) je těžká a jen na dashboardu → lazy-load do vlastního chunku.
@@ -43,6 +43,115 @@ function Select({ value, onChange, options = [], placeholder = 'Vyberte…', wid
               )
             })}
           </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// Právní formy z ARES (kód → zkratka)
+const ARES_PF = { '100': 'Podnikatel FO', '101': 'OSVČ / podnikající FO', '102': 'Podnikatel FO', '111': 'v.o.s.', '112': 's.r.o.', '113': 'k.s.', '115': 'společnost', '121': 'a.s.', '141': 'evropská společnost', '145': 'odštěpný závod', '151': 'odštěpný závod', '205': 'družstvo', '301': 'státní podnik', '331': 'příspěvková organizace', '352': 'územní celek', '421': 'zahraniční osoba', '706': 'spolek', '751': 'OSVČ' }
+const aresLabel = (pf) => ARES_PF[pf] || 'ekonomický subjekt'
+
+// Input s napojením na ARES — našeptává firmy/OSVČ podle názvu nebo IČO.
+function AresInput({ value, onChange, onSelect, placeholder, height = 40 }) {
+  const [results, setResults] = useState([])
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const lastPick = useRef('')
+  useEffect(() => {
+    const q = (value || '').trim()
+    if (q.length < 3 || q === lastPick.current) { setOpen(false); setLoading(false); return }
+    setLoading(true)
+    const t = setTimeout(async () => {
+      try {
+        const isIco = /^\d{8}$/.test(q)
+        let subs = []
+        if (isIco) {
+          const r = await fetch('https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/' + q)
+          if (r.ok) { const j = await r.json(); subs = [j] }
+        } else {
+          const r = await fetch('https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/vyhledat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ obchodniJmeno: q, pocet: 8, start: 0 }) })
+          if (r.ok) { const j = await r.json(); subs = j.ekonomickeSubjekty || [] }
+        }
+        setResults(subs.map((x) => ({ ico: x.ico, name: x.obchodniJmeno, sidlo: x.sidlo && x.sidlo.textovaAdresa, pf: x.pravniForma })))
+        setOpen(true)
+      } catch { setResults([]); setOpen(false) }
+      setLoading(false)
+    }, 320)
+    return () => clearTimeout(t)
+  }, [value])
+  const pick = (s) => { lastPick.current = s.name; onSelect(s); setOpen(false) }
+  const inputCss = `width:100%;height:${height}px;border:1px solid var(--border2);border-radius:9px;padding:0 38px 0 12px;font-size:13.5px;font-weight:500;font-family:inherit;outline:none`
+  return (
+    <div style={{ position: 'relative' }}>
+      <input value={value} onChange={(e) => { lastPick.current = ''; onChange(e) }} placeholder={placeholder} style={S(inputCss)} />
+      <span style={S('position:absolute;right:11px;top:50%;transform:translateY(-50%);display:flex;color:var(--ink3);pointer-events:none')}>
+        {loading ? <span style={S('width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--blue);border-radius:50%;display:block;animation:aresSpin .7s linear infinite')} /> : ic('search', 15)}
+      </span>
+      {open && results.length > 0 && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 9000 }} />
+          <div style={S('position:absolute;z-index:9001;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid var(--border2);border-radius:12px;box-shadow:0 18px 44px rgba(15,23,42,.18),0 2px 8px rgba(15,23,42,.06);padding:6px;max-height:300px;overflow-y:auto;animation:popIn .14s cubic-bezier(.2,.9,.3,1)')}>
+            <div style={S('display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.5px;padding:4px 9px 6px')}>{ic('shield', 12)} ARES · registr ekonomických subjektů</div>
+            {results.map((s, i) => (
+              <Hov key={i} onClick={() => pick(s)} base="display:block;padding:8px 11px;border-radius:8px;cursor:pointer" hover="background:var(--canvas)">
+                <div style={S('display:flex;align-items:center;gap:8px')}>
+                  <span style={S('font-size:13px;font-weight:600;color:var(--ink);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{s.name}</span>
+                  <span style={S('font-size:10px;font-weight:700;color:var(--blue-ink);background:var(--blue-soft);padding:2px 7px;border-radius:5px;flex-shrink:0')}>{aresLabel(s.pf)}</span>
+                </div>
+                <div style={S('font-size:11px;color:var(--ink3);margin-top:2px;font-variant-numeric:tabular-nums')}>IČO {s.ico}{s.sidlo ? ' · ' + s.sidlo : ''}</div>
+              </Hov>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// Subjekt (vlastník / provozovatel) — shodný s pojistníkem / firma (ARES) / fyzická osoba.
+function SubjectField({ label, subj, pojistnik }) {
+  const seg = (k, txt) => {
+    const on = subj.kind === k
+    return <Hov onClick={() => subj.setKind(k)} base={`flex:1;text-align:center;padding:6px 8px;border-radius:7px;font-size:11.5px;font-weight:600;cursor:pointer;color:${on ? 'var(--blue-ink)' : 'var(--ink3)'};background:${on ? '#fff' : 'transparent'};box-shadow:${on ? '0 1px 3px rgba(15,23,42,.1)' : 'none'}`} hover={on ? '' : 'color:var(--ink)'}>{txt}</Hov>
+  }
+  const inputCss = 'width:100%;height:40px;border:1px solid var(--border2);border-radius:9px;padding:0 12px;font-size:13.5px;font-weight:500;font-family:inherit;outline:none'
+  return (
+    <div>
+      <div style={S('display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px')}>
+        <span style={S('font-size:11.5px;font-weight:600;color:var(--ink2)')}>{label}</span>
+        <Hov onClick={subj.toggleSame} base={`display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;cursor:pointer;color:${subj.same ? 'var(--blue-ink)' : 'var(--ink3)'}`} hover="color:var(--ink)">
+          <span style={S(`width:15px;height:15px;border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1.5px solid ${subj.same ? 'var(--blue)' : '#CFCFD4'};background:${subj.same ? 'var(--blue)' : '#fff'};color:#fff`)}>{subj.same ? ic('check', 11, 2.8) : null}</span>
+          Shodný s pojistníkem
+        </Hov>
+      </div>
+      {subj.same ? (
+        <div style={S('width:100%;min-height:40px;border:1px dashed var(--border2);border-radius:9px;padding:9px 12px;font-size:13px;color:var(--ink3);background:var(--canvas);display:flex;align-items:center')}>{pojistnik || '—'}</div>
+      ) : (
+        <>
+          <div style={S('display:flex;gap:3px;padding:3px;background:#EEF1F6;border-radius:9px;margin-bottom:8px')}>
+            {seg('firma', 'Firma / OSVČ')}
+            {seg('osoba', 'Fyzická osoba')}
+          </div>
+          {subj.kind === 'osoba' ? (
+            <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:8px')}>
+              <input value={subj.name} onChange={subj.onName} placeholder="Jméno a příjmení" style={S(inputCss)} />
+              <input value={subj.birth} onChange={subj.onBirth} placeholder="Datum narození" style={S(inputCss)} />
+            </div>
+          ) : (
+            <>
+              <AresInput value={subj.name} onChange={subj.onName} onSelect={subj.onPick} placeholder="Začněte psát název firmy nebo IČO…" />
+              {subj.ico ? (
+                <div style={S('display:flex;align-items:center;gap:6px;font-size:11px;color:var(--green);margin-top:6px;line-height:1.4')}>
+                  <span style={S('display:flex;flex-shrink:0')}>{ic('check', 12, 2.6)}</span>
+                  <span><b style={S('color:var(--green)')}>Ověřeno v ARES</b> · IČO {subj.ico}{subj.addr ? ' · ' + subj.addr : ''}</span>
+                </div>
+              ) : (
+                <div style={S('font-size:11px;color:var(--ink3);margin-top:6px')}>Napište název nebo IČO — dotáhneme z ARES.</div>
+              )}
+            </>
+          )}
         </>
       )}
     </div>
@@ -3109,22 +3218,9 @@ function AddVehicleWizard({ vm }) {
                 <div><div style={S('font-size:11.5px;font-weight:600;color:var(--ink2);margin-bottom:5px')}>Začátek pojištění</div><input value={avm.start} onChange={avm.onStart} style={S('width:100%;height:40px;border:1px solid var(--border2);border-radius:9px;padding:0 12px;font-size:13.5px;font-family:inherit;outline:none')} /></div>
                 <div><div style={S('font-size:11.5px;font-weight:600;color:var(--ink2);margin-bottom:5px')}>Užití vozidla</div><Select value={avm.uziti} onChange={avm.onUziti} options={avm.uzitiOptions} height={40} /></div>
               </div>
-              <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:12px')}>
-                {[['Vlastník vozidla', avm.ownerSame, avm.toggleOwnerSame, avm.owner, avm.onOwner, 'Např. Raiffeisen‑Leasing, s.r.o.'],
-                  ['Provozovatel vozidla', avm.operatorSame, avm.toggleOperatorSame, avm.operator, avm.onOperator, 'Osoba zapsaná v technickém průkazu']].map(([lbl, same, tog, val, onVal, ph], i) => (
-                  <div key={i}>
-                    <div style={S('display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px')}>
-                      <span style={S('font-size:11.5px;font-weight:600;color:var(--ink2)')}>{lbl}</span>
-                      <Hov onClick={tog} base={`display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;cursor:pointer;color:${same ? 'var(--blue-ink)' : 'var(--ink3)'}`} hover="color:var(--ink)">
-                        <span style={S(`width:15px;height:15px;border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1.5px solid ${same ? 'var(--blue)' : '#CFCFD4'};background:${same ? 'var(--blue)' : '#fff'};color:#fff`)}>{same ? ic('check', 11, 2.8) : null}</span>
-                        Shodný s pojistníkem
-                      </Hov>
-                    </div>
-                    {same
-                      ? <div style={S('width:100%;min-height:40px;border:1px dashed var(--border2);border-radius:9px;padding:9px 12px;font-size:13px;color:var(--ink3);background:var(--canvas);display:flex;align-items:center')}>{avm.pojistnik || '—'}</div>
-                      : <input value={val} onChange={onVal} placeholder={ph} autoFocus style={S('width:100%;height:40px;border:1px solid var(--blue);border-radius:9px;padding:0 12px;font-size:13.5px;font-family:inherit;outline:none;box-shadow:0 0 0 3.5px rgba(79,111,255,.12)')} />}
-                  </div>
-                ))}
+              <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin-top:12px')}>
+                <SubjectField label="Vlastník vozidla" subj={avm.ownerSubj} pojistnik={avm.pojistnik} />
+                <SubjectField label="Provozovatel vozidla" subj={avm.operatorSubj} pojistnik={avm.pojistnik} />
               </div>
             </>
           )}

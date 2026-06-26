@@ -107,7 +107,9 @@ export default function FleetPortal() {
     av: false, avStep: 1, avMethod: 'spz', avInput: '', avLoaded: false, avLoading: false, avFleet: 'f1',
     avCover: { pr: true, hav: true, skla: true, uraz: false, zavazadla: false, zver: true, nahradni: false, strojni: false, gap: false, zivel: false, asist: true, prac: false },
     avHavRozsah: 'allrisk', avHavSpoluucast: '5% / 5 000 Kč', avPrLimit: '100 / 100 mil. Kč', avUziti: 'Běžné užití',
-    avPojistnik: 'Jiří Tošovský s.r.o.', avStart: '1. 7. 2026', avOwnerSame: true, avOperatorSame: true, avOwner: '', avOperator: '',
+    avPojistnik: 'Jiří Tošovský s.r.o.', avStart: '1. 7. 2026',
+    avOwnerSame: true, avOwner: '', avOwnerKind: 'firma', avOwnerIco: '', avOwnerAddr: '', avOwnerBirth: '',
+    avOperatorSame: true, avOperator: '', avOperatorKind: 'firma', avOperatorIco: '', avOperatorAddr: '', avOperatorBirth: '',
     avPlate: '', avValue: '', avPricing: 'idle',
     vf: { fleet: 'all', type: 'all', brand: 'all', fuel: 'all', insurer: 'all', status: 'all', q: '' },
     selected: {},
@@ -158,6 +160,19 @@ export default function FleetPortal() {
     }
   }
   const setVf = (k, v) => setState((s) => ({ vf: { ...s.vf, [k]: v } }))
+  // Vlastník / provozovatel vozidla (wizard) — subjekt s napojením na ARES.
+  const subjBundle = (key) => ({
+    same: state['av' + key + 'Same'],
+    toggleSame: () => setState((s) => ({ ['av' + key + 'Same']: !s['av' + key + 'Same'] })),
+    kind: state['av' + key + 'Kind'],
+    setKind: (k) => setState({ ['av' + key + 'Kind']: k, ['av' + key + 'Ico']: '', ['av' + key + 'Addr']: '' }),
+    name: state['av' + key],
+    onName: (e) => setState({ ['av' + key]: e.target.value, ['av' + key + 'Ico']: '', ['av' + key + 'Addr']: '' }),
+    ico: state['av' + key + 'Ico'], addr: state['av' + key + 'Addr'],
+    birth: state['av' + key + 'Birth'], onBirth: (e) => setState({ ['av' + key + 'Birth']: e.target.value }),
+    // výběr z ARES → dotáhne název, IČO a sídlo
+    onPick: (subj) => setState({ ['av' + key]: subj.name, ['av' + key + 'Ico']: subj.ico, ['av' + key + 'Addr']: subj.sidlo || '' }),
+  })
   const toggleSel = (id) => setState((s) => { const n = { ...s.selected }; if (n[id]) delete n[id]; else n[id] = true; return { selected: n } })
 
   const aiReply = (q) => {
@@ -1258,10 +1273,7 @@ export default function FleetPortal() {
         start: state.avStart, onStart: (e) => setState({ avStart: e.target.value }),
         uziti: state.avUziti, onUziti: (e) => setState({ avUziti: e.target.value }),
         uzitiOptions: ['Běžné užití', 'Taxi / přeprava osob', 'Autoškola', 'Půjčovna / sdílení vozidel', 'Vozidlo IZS', 'Přeprava nebezpečných věcí (ADR)'],
-        ownerSame: state.avOwnerSame, toggleOwnerSame: () => setState((s) => ({ avOwnerSame: !s.avOwnerSame })),
-        owner: state.avOwner, onOwner: (e) => setState({ avOwner: e.target.value }),
-        operatorSame: state.avOperatorSame, toggleOperatorSame: () => setState((s) => ({ avOperatorSame: !s.avOperatorSame })),
-        operator: state.avOperator, onOperator: (e) => setState({ avOperator: e.target.value }),
+        ownerSubj: subjBundle('Owner'), operatorSubj: subjBundle('Operator'),
         stepLabel: done ? 'Hotovo' : `Krok ${step} ze 3 · ${labels[step - 1]}`, steps,
         s1: step === 1, s2: step === 2, s3: step === 3, isDone: done,
         methods, isUpload: m === 'doklad', isField: m !== 'doklad',
