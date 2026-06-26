@@ -164,6 +164,7 @@ export default function Render({ vm }) {
             {vm.isDrivers && <Drivers vm={vm} />}
             {vm.isDriverDetail && <DriverDetail vm={vm} />}
             {vm.isClaimDetail && <ClaimDetail vm={vm} />}
+            {vm.isFinancing && <Financing vm={vm} />}
             {vm.isInsurance && <EmptyState icon="shield" title="Detail pojistného krytí se připravuje" sub="Pojistné smlouvy, pojišťovny a roční pojistné se zobrazí po napojení portálu na systém pojišťovny. Sjednané krytí jednotlivých vozidel (povinné ručení / havarijní / skla / asistence) najdete v detailu vozidla." />}
             {vm.isInsuranceDetail && <InsuranceDetail vm={vm} />}
             {vm.isClaims && <Claims vm={vm} />}
@@ -1671,6 +1672,66 @@ function BrandMark({ brand }) {
   const initials = brand.replace(/[^A-Za-zÁ-Žá-ž0-9]/g, ' ').trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 3).toUpperCase()
   let h = 0; for (let i = 0; i < brand.length; i++) h = (h * 31 + brand.charCodeAt(i)) % 360
   return <div style={{ width: 96, height: 96, borderRadius: 24, background: `hsl(${h} 50% 90%)`, color: `hsl(${h} 42% 36%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, fontWeight: 800, letterSpacing: '.5px' }}>{initials}</div>
+}
+
+function Financing({ vm }) {
+  return (
+    <div>
+      <KpiRow items={vm.finStats} mb="22px" />
+
+      <div style={S('font-size:15px;font-weight:700;margin-bottom:12px')}>Podle typu financování</div>
+      <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin-bottom:22px')}>
+        {vm.finByType.map((t, i) => (
+          <div key={i} style={S(`${CARD};padding:20px`)}>
+            <div style={S('display:flex;align-items:center;gap:11px;margin-bottom:16px')}>
+              <div style={S(`width:42px;height:42px;border-radius:11px;background:${t.bg};color:${t.color};display:flex;align-items:center;justify-content:center`)}>{t.icon}</div>
+              <div style={{ flex: 1, minWidth: 0 }}><div style={S('font-size:14px;font-weight:700')}>{t.label}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{t.monthlyF} / měsíc</div></div>
+            </div>
+            <div style={S('display:flex;align-items:baseline;gap:7px')}><span style={S(`font-size:28px;font-weight:800;letter-spacing:-1px;color:${t.color}`)}>{t.count}</span><span style={S('font-size:12px;color:var(--ink3)')}>vozidel · {t.pct} %</span></div>
+            <div style={S('height:6px;border-radius:6px;background:#EEF2F9;overflow:hidden;margin-top:12px')}><div style={S(`height:100%;width:${t.pct}%;border-radius:6px;background:${t.color}`)}></div></div>
+          </div>
+        ))}
+      </div>
+
+      <div style={S('font-size:15px;font-weight:700;margin-bottom:12px')}>Podle poskytovatele</div>
+      <div style={S(`${CARD};padding:8px 20px;margin-bottom:22px`)}>
+        {vm.finProviders.map((p, i) => (
+          <div key={i} style={S(`display:flex;align-items:center;gap:13px;padding:13px 0;${i < vm.finProviders.length - 1 ? 'border-bottom:1px solid var(--border);' : ''}`)}>
+            <div style={S('width:36px;height:36px;border-radius:10px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic('banknote', 17)}</div>
+            <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:650')}>{p.name}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{p.type}</div></div>
+            <div style={S('text-align:right')}><div style={S('font-size:15px;font-weight:700')}>{p.count} <span style={S('font-size:11.5px;font-weight:500;color:var(--ink3)')}>vozidel</span></div><div style={S('font-size:11.5px;color:var(--ink3);font-variant-numeric:tabular-nums')}>{p.monthlyF} / měs</div></div>
+          </div>
+        ))}
+      </div>
+
+      <div style={S('display:flex;align-items:center;gap:9px;margin-bottom:12px')}><span style={S('font-size:15px;font-weight:700')}>Financovaná vozidla</span><span style={S('font-size:11.5px;font-weight:700;color:var(--ink2);background:#EEF2F9;padding:2px 8px;border-radius:20px')}>{vm.finRows.length}</span></div>
+      <div style={S(`${CARD};overflow:hidden`)}>
+        <HScroll minW={900}>
+          <div style={S('display:flex;align-items:center;gap:14px;padding:13px 22px;border-bottom:1px solid var(--border);background:#F7FAFE;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.5px')}>
+            <div style={S('flex:1;min-width:0')}>Vozidlo</div>
+            <div style={S('width:130px')}>Typ</div>
+            <div style={S('width:200px')}>Poskytovatel</div>
+            <div style={S('width:130px;text-align:right')}>Měsíční splátka</div>
+            <div style={S('width:110px')}>Konec</div>
+            <div style={S('width:18px;flex-shrink:0')}></div>
+          </div>
+          {vm.finRows.map((r) => (
+            <Hov key={r.id} onClick={r.onClick} base="display:flex;align-items:center;gap:14px;padding:13px 22px;border-bottom:1px solid var(--border);cursor:pointer" hover="background:#F2F6FC">
+              <div style={S('flex:1;min-width:0;display:flex;align-items:center;gap:11px')}>
+                <div style={S('width:40px;height:34px;border-radius:8px;background:#EEF2F9;color:var(--ink3);display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic('car', 17)}</div>
+                <div style={S('min-width:0')}><div style={S('font-size:13.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{r.vehicle}</div><div style={S('font-size:11.5px;color:var(--ink3);font-variant-numeric:tabular-nums')}>{r.plate}</div></div>
+              </div>
+              <div style={S('width:130px')}><span style={S(`display:inline-flex;font-size:11px;font-weight:700;color:${r.typeColor};background:${r.typeBg};padding:3px 10px;border-radius:20px`)}>{r.typeShort}</span></div>
+              <div style={S('width:200px;font-size:12.5px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.provider}</div>
+              <div style={S('width:130px;text-align:right;font-size:13.5px;font-weight:700;font-variant-numeric:tabular-nums')}>{r.monthly}</div>
+              <div style={S('width:110px;font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums')}>{r.endDate}</div>
+              <span style={S('width:18px;flex-shrink:0;color:var(--ink3);display:flex')}>{ic('arrow', 16)}</span>
+            </Hov>
+          ))}
+        </HScroll>
+      </div>
+    </div>
+  )
 }
 
 function FinancingCard({ f }) {

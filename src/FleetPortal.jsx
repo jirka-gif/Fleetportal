@@ -200,6 +200,7 @@ export default function FleetPortal() {
       ['vehicles', 'Vozidla', 'car', '335'],
       ['drivers', 'Řidiči', 'users', String(driversData.length)],
       ['insurance', 'Pojištění', 'shield', null],
+      ['financing', 'Financování', 'banknote', String(vehiclesData.filter((v) => v.financing && v.financing.active).length)],
       ['claims', 'Škody', 'alert', String(claimsData.filter((c) => c.status !== 'closed').length) || null],
       ['documents', 'Dokumenty', 'file', null],
       ['bonifikace', 'Bonifikace', 'percent', null],
@@ -224,6 +225,7 @@ export default function FleetPortal() {
       vehicles: ['Vozidla', '335 vozidel celkem'],
       drivers: ['Řidiči', `${driversData.length} řidičů vozového parku`],
       insurance: ['Pojištění', 'Smlouvy a krytí napříč parky'],
+      financing: ['Financování', 'Přehled financování vozového parku'],
       claims: ['Škody', `${claimsData.filter((c) => c.status !== 'closed').length} otevřených · ${claimsData.filter((c) => c.status === 'closed').length} uzavřených`],
       documents: ['Dokumenty', 'Centrální úložiště dokumentů'],
       'documents-detail': ['Pojistné smlouvy', 'Flotilové smlouvy a jejich dokumenty'],
@@ -273,7 +275,7 @@ export default function FleetPortal() {
       nav, pageTitle: title, pageSubtitle: sub, route: r,
       isDashboard: r === 'dashboard', isFleets: r === 'fleets', isFleetDetail: r === 'fleet-detail',
       isVehicles: r === 'vehicles', isVehicleDetail: r === 'vehicle-detail',
-      isInsurance: r === 'insurance', isInsuranceDetail: r === 'insurance-detail', isClaims: r === 'claims', isDocuments: r === 'documents', isAnalytics: r === 'analytics', isContacts: r === 'contacts', isSettings: r === 'settings', isDrivers: r === 'drivers', isDriverDetail: r === 'driver-detail',
+      isInsurance: r === 'insurance', isInsuranceDetail: r === 'insurance-detail', isClaims: r === 'claims', isDocuments: r === 'documents', isAnalytics: r === 'analytics', isContacts: r === 'contacts', isSettings: r === 'settings', isDrivers: r === 'drivers', isDriverDetail: r === 'driver-detail', isFinancing: r === 'financing',
       isDocumentsDetail: r === 'documents-detail',
       openDocCat: (cat) => navigate('documents-detail', { docCat: cat, docOpen: {} }), goDocuments: () => navigate('documents'),
       docPreview: state.docPreview, closeDocPreview: () => setState({ docPreview: null }),
@@ -1033,6 +1035,41 @@ export default function FleetPortal() {
     return { dd: { ...d, statusLabel: sm.label, statusC: sm.c, statusBg: sm.bg, vehicles, claims, personal, employment, idDocs, files, goDrivers: () => navigate('drivers') } }
   }
 
+  const financingVM = () => {
+    if (state.route !== 'financing') return {}
+    const num = (s) => parseInt(String(s || '').replace(/[^\d]/g, ''), 10) || 0
+    const fmt = (n) => n.toLocaleString('cs-CZ') + ' Kč'
+    const milF = (n) => (n / 1e6).toFixed(1).replace('.', ',')
+    const fin = vehiclesData.filter((v) => v.financing && v.financing.active)
+    const own = vehiclesData.length - fin.length
+    const TYPES = [
+      { key: 'bank_loan', label: 'Účelový úvěr', color: 'var(--blue)', bg: 'var(--blue-soft)', icon: ic('banknote', 22) },
+      { key: 'finance_lease', label: 'Finanční leasing', color: 'var(--green)', bg: 'var(--green-soft)', icon: ic('refresh', 22) },
+      { key: 'operating_lease', label: 'Operativní leasing', color: 'var(--purple)', bg: 'var(--purple-soft)', icon: ic('car', 22) },
+    ]
+    const finByType = TYPES.map((t) => {
+      const list = fin.filter((v) => v.financing.type === t.key)
+      return { ...t, count: list.length, monthlyF: fmt(list.reduce((a, v) => a + num(v.financing.monthlyPayment), 0)), pct: fin.length ? Math.round(list.length / fin.length * 100) : 0 }
+    })
+    const provMap = {}
+    fin.forEach((v) => { const p = v.financing.provider; if (!provMap[p]) provMap[p] = { count: 0, monthly: 0, type: v.financing.typeLabel }; provMap[p].count++; provMap[p].monthly += num(v.financing.monthlyPayment) })
+    const finProviders = Object.entries(provMap).map(([name, x]) => ({ name, type: x.type, count: x.count, monthlyF: fmt(x.monthly) })).sort((a, b) => b.count - a.count)
+    const totalMonthly = fin.reduce((a, v) => a + num(v.financing.monthlyPayment), 0)
+    const totalFinanced = fin.reduce((a, v) => a + num(v.financing.financedAmount), 0)
+    const typeMeta = { bank_loan: ['Úvěr', 'var(--blue)', 'var(--blue-soft)'], finance_lease: ['Fin. leasing', 'var(--green)', 'var(--green-soft)'], operating_lease: ['Op. leasing', 'var(--purple)', 'var(--purple-soft)'] }
+    const finRows = fin.map((v) => {
+      const tm = typeMeta[v.financing.type]
+      return { id: v.id, vehicle: `${v.brand} ${v.model}`, plate: v.plate, provider: v.financing.provider, monthly: v.financing.monthlyPayment, endDate: v.financing.endDate, typeShort: tm[0], typeColor: tm[1], typeBg: tm[2], onClick: () => openVehicle(v.id) }
+    }).sort((a, b) => a.typeShort.localeCompare(b.typeShort) || b.id.localeCompare(a.id))
+    const finStats = [
+      { value: String(fin.length), label: 'Financovaných vozidel', note: `z ${vehiclesData.length} celkem` },
+      { value: fmt(totalMonthly), label: 'Měsíční splátky celkem' },
+      { value: milF(totalFinanced), unit: 'mil. Kč', label: 'Objem financování' },
+      { value: String(own), label: 'Z vlastních zdrojů' },
+    ]
+    return { finStats, finByType, finProviders, finRows, finTotalMonthly: fmt(totalMonthly) }
+  }
+
   const settingsVM = () => {
     if (state.route !== 'settings') return {}
     const p = state.pref
@@ -1310,7 +1347,7 @@ export default function FleetPortal() {
 
   const vm = {
     ...shellVM(), ...dashboardVM(), ...fleetsVM(), ...fleetDetailVM(), ...vehiclesVM(), ...vehicleDetailVM(),
-    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...wizardVM(), ...addVehicleVM(),
+    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...wizardVM(), ...addVehicleVM(),
   }
 
   return <Render vm={vm} />
