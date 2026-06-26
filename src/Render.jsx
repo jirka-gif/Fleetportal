@@ -1504,11 +1504,6 @@ function FleetDetail({ vm }) {
             <Hov onClick={vm.openAddVehicle} base="height:38px;padding:0 15px;background:linear-gradient(180deg,#2C6AE0,#1D50BD);color:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(32,88,201,.30);display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;cursor:pointer" hover="background:linear-gradient(180deg,#2655C4,#163E92);transform:translateY(-1px);box-shadow:0 6px 16px rgba(32,88,201,.42)">{ic('plus', 15)} Přidat vozidlo do flotily</Hov>
           </div>
         </div>
-        <div style={S(`display:grid;grid-template-columns:repeat(auto-fit,minmax(${mob ? '120px' : '150px'},1fr));gap:0;margin-top:20px;border:1px solid var(--border);border-radius:12px;overflow:hidden`)}>
-          {fd.stats.map((s, i) => (
-            <div key={i} style={S('padding:14px 16px;border-right:1px solid var(--border)')}><div style={S('font-size:11.5px;color:var(--ink3)')}>{s.label}</div><div style={S(`font-size:19px;font-weight:800;letter-spacing:-.5px;margin-top:3px;color:${s.color}`)}>{s.value}</div></div>
-          ))}
-        </div>
       </div>
 
       <div style={S('display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:20px')}>
@@ -1530,6 +1525,44 @@ function FleetDetail({ vm }) {
                 )) : <div style={S('font-size:12.5px;color:var(--ink3)')}>Žádné záznamy.</div>}
               </div>
             ))}
+          </div>
+
+          {/* Škody parku — rozpad celkem / podle druhu / podle vozidla / podle řidiče */}
+          <div style={S('display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:2px 0 12px')}>
+            <span style={S('font-size:15px;font-weight:700')}>Škody parku</span>
+            <span style={S('font-size:12.5px;color:var(--ink3)')}><b style={S('color:var(--ink)')}>{fd.claimTotal}</b> událostí · {fd.claimOpen} otevřených · odhadní hodnota <b style={S('color:var(--ink)')}>{fd.claimCostF}</b></span>
+          </div>
+          <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : 'repeat(3,1fr)'};gap:14px;margin-bottom:14px`)}>
+            {/* podle druhu škody */}
+            <div style={S(`${CARD};padding:18px`)}>
+              <div style={S('font-size:13.5px;font-weight:700;margin-bottom:14px')}>Podle druhu škody</div>
+              {fd.claimsByRisk.length ? fd.claimsByRisk.map((r, i) => (
+                <div key={i} style={S('margin-bottom:11px')}>
+                  <div style={S('display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px')}><span style={S('font-weight:600')}>{r.label}</span><span style={S('color:var(--ink3)')}><b style={S('color:var(--ink)')}>{r.count}</b> · {r.pct}%</span></div>
+                  <div style={S('height:6px;background:#EEF2F9;border-radius:4px;overflow:hidden')}><div style={S(`height:100%;width:${r.pct}%;background:${r.color};border-radius:4px`)}></div></div>
+                </div>
+              )) : <div style={S('font-size:12.5px;color:var(--ink3)')}>Žádné škody.</div>}
+            </div>
+            {/* podle vozidla */}
+            <div style={S(`${CARD};padding:18px`)}>
+              <div style={S('display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px')}><span style={S('font-size:13.5px;font-weight:700')}>Podle vozidla</span><span style={S('font-size:11px;color:var(--ink3)')}>počet · odhad</span></div>
+              {fd.claimsByVehicle.length ? fd.claimsByVehicle.map((r, i) => (
+                <Hov key={i} onClick={r.onClick} base="display:block;padding:6px 0;cursor:pointer" hover="opacity:.75">
+                  <div style={S('display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px')}><span style={S('font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{r.plate} · {r.name}</span><span style={S('font-size:11px;color:var(--ink3);flex-shrink:0')}><b style={S('color:var(--ink)')}>{r.count}×</b> · {r.costF}</span></div>
+                  <div style={S('height:5px;background:#EEF2F9;border-radius:4px;overflow:hidden')}><div style={S(`height:100%;width:${r.pct}%;background:var(--star);border-radius:4px`)}></div></div>
+                </Hov>
+              )) : <div style={S('font-size:12.5px;color:var(--ink3)')}>Žádné škody.</div>}
+            </div>
+            {/* podle řidiče */}
+            <div style={S(`${CARD};padding:18px`)}>
+              <div style={S('display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px')}><span style={S('font-size:13.5px;font-weight:700')}>Podle řidiče</span><span style={S('font-size:11px;color:var(--ink3)')}>počet · odhad</span></div>
+              {fd.claimsByDriver.length ? fd.claimsByDriver.map((r, i) => (
+                <div key={i} style={S('padding:6px 0')}>
+                  <div style={S('display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px')}><span style={S(`font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${r.driver.startsWith('Nepřiřazen') ? 'color:var(--ink3)' : ''}`)}>{r.driver}</span><span style={S('font-size:11px;color:var(--ink3);flex-shrink:0')}><b style={S('color:var(--ink)')}>{r.count}×</b> · {r.costF}</span></div>
+                  <div style={S('height:5px;background:#EEF2F9;border-radius:4px;overflow:hidden')}><div style={S(`height:100%;width:${r.pct}%;background:var(--purple);border-radius:4px`)}></div></div>
+                </div>
+              )) : <div style={S('font-size:12.5px;color:var(--ink3)')}>Žádné škody.</div>}
+            </div>
           </div>
 
           {/* roční pojistné + palivo */}

@@ -571,7 +571,23 @@ export default function FleetPortal() {
       return { label: r.label, icon: ic(r.icon, 18), bg: r.bg, color: r.color, count, coverage: pv.length ? Math.round(count / pv.length * 100) : 0, premium, premiumF: czk(premium) }
     }).filter((r) => r.count > 0)
     const riskTotalF = czk(riskRows.reduce((a, b) => a + b.premium, 0))
-    const fleetClaims = claimsData.filter((c) => { const cv = vehiclesData.find((x) => x.id === c.vId); return cv && cv.fleet === f.id }).map(buildClaimRow)
+    const parkClaimsRaw = claimsData.filter((c) => { const cv = vehiclesData.find((x) => x.id === c.vId); return cv && cv.fleet === f.id })
+    const fleetClaims = parkClaimsRaw.map(buildClaimRow)
+    // Rozpad škod: celkem / podle rizika / podle vozidla / podle řidiče
+    const claimTotal = parkClaimsRaw.length
+    const claimCost = parkClaimsRaw.reduce((a, c) => a + (c.estimate || 0), 0)
+    const claimPayout = parkClaimsRaw.reduce((a, c) => a + (c.payout || 0), 0)
+    const claimOpen = parkClaimsRaw.filter((c) => !['closed', 'settled', 'rejected'].includes(c.status)).length
+    const riskDef = { POV: { label: 'Povinné ručení', color: 'var(--blue)' }, HAV: { label: 'Havarijní', color: 'var(--star)' }, Skla: { label: 'Pojištění skel', color: '#0E9AA6' }, Odp: { label: 'Odpovědnost', color: 'var(--amber)' } }
+    const claimsByRisk = ['HAV', 'POV', 'Skla', 'Odp'].map((k) => ({ key: k, label: riskDef[k].label, color: riskDef[k].color, count: parkClaimsRaw.filter((c) => c.risk === k).length })).filter((r) => r.count).map((r) => ({ ...r, pct: Math.round(r.count / (claimTotal || 1) * 100) }))
+    const grpVeh = {}
+    parkClaimsRaw.forEach((c) => { if (!grpVeh[c.vId]) grpVeh[c.vId] = { count: 0, cost: 0 }; grpVeh[c.vId].count++; grpVeh[c.vId].cost += c.estimate || 0 })
+    const maxVehClaims = Math.max(1, ...Object.values(grpVeh).map((x) => x.count))
+    const claimsByVehicle = Object.entries(grpVeh).map(([vid, x]) => { const cv = vehiclesData.find((z) => z.id === vid) || {}; return { vid, plate: cv.plate || '—', name: `${cv.brand || ''} ${cv.model || ''}`.trim() || '—', count: x.count, costF: czk(x.cost), pct: Math.round(x.count / maxVehClaims * 100), onClick: () => openVehicle(vid) } }).sort((a, b) => b.count - a.count).slice(0, 6)
+    const grpDrv = {}
+    parkClaimsRaw.forEach((c) => { const cv = vehiclesData.find((z) => z.id === c.vId); const drv = (cv && cv.driver && cv.driver !== '—') ? cv.driver : 'Nepřiřazený řidič'; if (!grpDrv[drv]) grpDrv[drv] = { count: 0, cost: 0 }; grpDrv[drv].count++; grpDrv[drv].cost += c.estimate || 0 })
+    const maxDrvClaims = Math.max(1, ...Object.values(grpDrv).map((x) => x.count))
+    const claimsByDriver = Object.entries(grpDrv).map(([driver, x]) => ({ driver, count: x.count, costF: czk(x.cost), pct: Math.round(x.count / maxDrvClaims * 100) })).sort((a, b) => b.count - a.count).slice(0, 6)
 
     const otherMap = {
       insurance: ['Pojištění parku', 'Souhrn všech smluv a krytí v tomto parku — přejděte do modulu Pojištění pro detailní práci se smlouvami.', ic('shield', 24)],
@@ -585,6 +601,7 @@ export default function FleetPortal() {
       fd: {
         name: f.name, address: f.address || '', singlePark: allFleets.length === 1, manager: f.manager, policy: f.policy || '—', policyStart: f.policyStart || '—', stats,
         typeBreakdown, coverBreakdown, finBreakdown, financedCount, premiumYear: '—',
+        claimTotal, claimCostF: czk(claimCost), claimPayoutF: czk(claimPayout), claimOpen, claimsByRisk, claimsByVehicle, claimsByDriver,
         expiringStk, expiringVig, stkExpCount: stkAll.length, vigExpCount: vigAll.length,
         line: lp.line, area: lp.area, donut, insurerLegend, fuel, evPct, evDonut, claimBars, claims: f.claims,
         vehicles: fleetVehicles, vehicleCount: fleetVehicles.length, goVehiclesTab: () => setState({ fleetTab: 'vehicles' }),
