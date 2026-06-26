@@ -1080,14 +1080,14 @@ function KpiRow({ items, mb }) {
 }
 
 const PARK_KPIS = [
-  { value: '335', label: 'Vozidel celkem', note: 'napříč 6 kategoriemi' },
-  { value: '6', label: 'Kategorií parku', note: 'druhů vozidel' },
+  { value: '335', label: 'Vozidel celkem', note: 'napříč 6 typy vozidel' },
+  { value: '6', label: 'Typů vozidel', note: 'dle druhu z registru' },
   { value: '115', label: 'S havarijním', note: 'plné krytí' },
   { value: '220', label: 'Pouze povinné ručení', note: 'základní krytí' },
 ]
 
 const VEHICLE_KPIS = [
-  { value: '335', label: 'Vozidel celkem', note: 'napříč 6 kategoriemi' },
+  { value: '335', label: 'Vozidel celkem', note: 'napříč 6 typy vozidel' },
   { value: '115', label: 'S havarijním pojištěním', note: 'plné krytí' },
   { value: '220', label: 'Pouze povinné ručení', note: 'základní krytí' },
   { value: '27', label: 'Pojištění skel', note: 'doplňkové krytí' },
@@ -1145,7 +1145,7 @@ function Dashboard({ vm }) {
             {/* dual bar chart */}
             <div style={S(`${CARD};padding:22px`)}>
               <div style={S('margin-bottom:18px')}>
-                <div style={S('font-size:16px;font-weight:650;letter-spacing:-.3px')}>Vozidla podle kategorie</div>
+                <div style={S('font-size:16px;font-weight:650;letter-spacing:-.3px')}>Vozidla podle typu</div>
                 <div style={S('font-size:12.5px;color:var(--ink3);margin-top:2px')}>Rozložení flotily · {vm.totalVehicles} vozidel</div>
               </div>
               <div style={S('display:flex;align-items:flex-end;gap:14px;height:176px;padding-top:6px')}>
@@ -1185,7 +1185,7 @@ function Dashboard({ vm }) {
 
           {/* FLEET PARKS */}
           <div>
-            <SectionHead title="Vozové parky" action="Zobrazit všechny" onAction={() => nav('fleets')} />
+            <SectionHead title="Vozové parky" action={vm.parkCount > 1 ? 'Zobrazit všechny' : 'Otevřít park'} onAction={vm.goParks} />
             <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:16px')}>
               {vm.dashFleets.map((f) => (
                 <div key={f.id} onClick={f.onClick} style={S(`${CARD};padding:18px;cursor:pointer`)}>
@@ -1372,14 +1372,14 @@ function FleetDetail({ vm }) {
   const mob = vm.vp.isMobile
   return (
     <div>
-      <Hov onClick={vm.goFleets} base="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink3);cursor:pointer;margin-bottom:14px" hover="color:var(--ink)"><span style={S('transform:rotate(180deg);display:flex')}>{ic('arrow', 16)}</span> Vozové parky</Hov>
+      {!fd.singlePark && <Hov onClick={vm.goFleets} base="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink3);cursor:pointer;margin-bottom:14px" hover="color:var(--ink)"><span style={S('transform:rotate(180deg);display:flex')}>{ic('arrow', 16)}</span> Vozové parky</Hov>}
       <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:22px 24px;margin-bottom:16px')}>
         <div style={S('display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px')}>
           <div style={S('display:flex;gap:16px;align-items:center')}>
             <div style={S('width:56px;height:56px;border-radius:14px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center')}>{ic('fleets', 28)}</div>
             <div>
               <div style={S('font-size:22px;font-weight:800;letter-spacing:-.5px')}>{fd.name}</div>
-              <div style={S('font-size:13px;color:var(--ink3);margin-top:3px')}>Fleet manager <span style={S('color:var(--ink2);font-weight:600')}>{fd.manager}</span> · Odpovědný makléř <span style={S('color:var(--ink2);font-weight:600')}>Petr Kmoch, Petrisk a.s.</span></div>
+              <div style={S('font-size:13px;color:var(--ink3);margin-top:3px')}>{fd.address ? <span style={S('color:var(--ink2);font-weight:600')}>{fd.address}</span> : <>Fleet manager <span style={S('color:var(--ink2);font-weight:600')}>{fd.manager}</span></>} · Odpovědný makléř <span style={S('color:var(--ink2);font-weight:600')}>Petr Kmoch, Petrisk a.s.</span></div>
               <div style={S('display:inline-flex;align-items:center;gap:8px;margin-top:9px;padding:5px 11px;background:var(--blue-soft);border-radius:8px;font-size:12.5px;color:var(--blue-ink)')}><span style={S('display:flex')}>{ic('doc2', 15)}</span>Flotilová smlouva č. <span style={S('font-weight:700;font-variant-numeric:tabular-nums')}>{fd.policy}</span> · platná od {fd.policyStart}</div>
             </div>
           </div>
@@ -1623,7 +1623,7 @@ function Vehicles({ vm }) {
           <div style={S('width:46px;flex-shrink:0')}></div>
           <div style={S('width:96px;flex-shrink:0')}>SPZ</div>
           <div style={S('flex:1')}>Vozidlo / řidič</div>
-          <div style={S('width:120px')}>Park</div>
+          <div style={S('width:120px')}>Typ</div>
           <div style={S('width:110px')}>Pojišťovna</div>
           <div style={S('width:90px;text-align:right')}>Pojistné</div>
           <div style={S('width:96px')}>Obnova</div>
@@ -1635,7 +1635,7 @@ function Vehicles({ vm }) {
             <div onClick={v.onClick} style={S('width:46px;height:34px;border-radius:7px;background:#EEF2F9;color:var(--ink3);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer')}>{ic('car', 17)}</div>
             <div onClick={v.onClick} style={S('width:96px;flex-shrink:0;font-weight:700;font-size:13px;font-variant-numeric:tabular-nums;cursor:pointer')}>{v.plate}</div>
             <div onClick={v.onClick} style={S('flex:1;min-width:0;cursor:pointer')}><div style={S('font-size:13.5px;font-weight:600')}>{v.brand} {v.model}</div><div style={S('font-size:12px;color:var(--ink3)')}>{v.driver} · {v.year} · {v.fuel}</div><div style={S('font-size:11px;color:var(--ink3);font-variant-numeric:tabular-nums;line-height:1.35')}>VIN {v.vin} · Přihláška {v.prihlaska}</div></div>
-            <div style={S('width:120px;font-size:12.5px;color:var(--ink2)')}>{v.fleetName}</div>
+            <div style={S('width:120px;font-size:12.5px;color:var(--ink2)')}>{v.typeName}</div>
             <div style={S('width:110px;font-size:12.5px;color:var(--ink2)')}>{v.insurer}</div>
             <div style={S('width:90px;text-align:right;font-weight:700;font-size:13px;font-variant-numeric:tabular-nums')}>{v.premiumF}</div>
             <div style={S('width:96px;font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums')}>{v.renewal}</div>
@@ -1671,7 +1671,7 @@ function EndedVehiclesTable({ rows, count, showPark = true }) {
             <div style={S('width:46px;flex-shrink:0')}></div>
             <div style={S('width:96px;flex-shrink:0')}>SPZ</div>
             <div style={S('flex:1;min-width:0')}>Vozidlo</div>
-            {showPark && <div style={S('width:120px')}>Park</div>}
+            {showPark && <div style={S('width:120px')}>Typ</div>}
             <div style={S('width:110px')}>Pojišťovna</div>
             <div style={S('width:96px')}>Ukončeno</div>
             <div style={S('width:150px')}>Důvod</div>
@@ -1681,7 +1681,7 @@ function EndedVehiclesTable({ rows, count, showPark = true }) {
               <div style={S('width:46px;height:34px;border-radius:7px;background:#EEF2F9;color:var(--ink3);display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic('car', 17)}</div>
               <div style={S('width:96px;flex-shrink:0;font-weight:700;font-size:13px;font-variant-numeric:tabular-nums')}>{v.plate}</div>
               <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:600')}>{v.brand} {v.model}</div><div style={S('font-size:12px;color:var(--ink3)')}>{v.driver} · {v.year} · {v.fuel}</div></div>
-              {showPark && <div style={S('width:120px;font-size:12.5px;color:var(--ink2)')}>{v.fleetName}</div>}
+              {showPark && <div style={S('width:120px;font-size:12.5px;color:var(--ink2)')}>{v.typeName}</div>}
               <div style={S('width:110px;font-size:12.5px;color:var(--ink2)')}>{v.insurer}</div>
               <div style={S('width:96px;font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums')}>{v.endedDate}</div>
               <div style={S('width:150px;font-size:12.5px;color:var(--ink2)')}>{v.endReason}</div>
@@ -3076,7 +3076,7 @@ function AddVehicleWizard({ vm }) {
                 <div style={S('flex:1;min-width:0')}>
                   <div style={S('font-size:11.5px;font-weight:600;color:var(--blue-ink);margin-bottom:4px')}>Vozový park</div>
                   <div style={{ maxWidth: 360 }}><Select value={avm.fleetId} onChange={avm.onFleetChange} options={avm.fleetOptions} height={40} /></div>
-                  <div style={S('font-size:11px;color:var(--blue-ink);opacity:.75;margin-top:5px')}>Předvyplněno podle druhu vozidla z registru — lze změnit.</div>
+                  <div style={S('font-size:11px;color:var(--blue-ink);opacity:.75;margin-top:5px')}>Lokalita / pobočka, kam vozidlo patří — předvyplněn park klienta, lze změnit.</div>
                 </div>
               </div>
               <div style={S('margin-top:18px;font-size:13.5px;font-weight:700;margin-bottom:10px')}>Pojistník a začátek pojištění</div>

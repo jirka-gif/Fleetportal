@@ -3,10 +3,16 @@ import { Icon, czk, linePath, useViewport } from './helpers.jsx'
 import Render from './Render.jsx'
 import {
   insurersData, brandsData, fleetsData, vehiclesData, claimsData, greenCards, driversData,
-  statusMeta, claimStatusMeta, fleetName, statusChip,
+  statusMeta, claimStatusMeta, fleetName, statusChip, vehicleTypeCat, vehicleTypeOrder,
 } from './data.js'
 
 const ic = (name, size = 18, sw = 1.8) => <Icon name={name} size={size} sw={sw} />
+
+// Typy vozidel (z druhu vozidla) — kategorie pro grafy a filtry. Park = lokalita, tohle je typ.
+const typeCats = vehicleTypeOrder.map((name, i) => {
+  const vs = vehiclesData.filter((v) => vehicleTypeCat(v.druh) === name)
+  return { id: 't' + (i + 1), name, vehicles: vs.length, hav: vs.filter((v) => v.cov && v.cov.hav).length }
+}).filter((c) => c.vehicles > 0)
 
 const ROOT_STYLE =
   "--star:#C8102E;--star-soft:#FDECEE;--star-ink:#9B0E25;--blue:#2058C9;--blue-soft:#EAF0FC;" +
@@ -101,7 +107,7 @@ export default function FleetPortal() {
     av: false, avStep: 1, avMethod: 'spz', avInput: '', avLoaded: false, avLoading: false, avFleet: 'f1',
     avCover: { pr: true, hav: true, skla: true, uraz: false, zavazadla: false, zver: true, nahradni: false, strojni: false, gap: false, zivel: false, asist: true, prac: false },
     avHavRozsah: 'allrisk', avHavSpoluucast: '5% / 5 000 Kč', avPrLimit: '100 / 100 mil. Kč', avUziti: 'Běžné užití',
-    vf: { fleet: 'all', brand: 'all', fuel: 'all', insurer: 'all', status: 'all', q: '' },
+    vf: { fleet: 'all', type: 'all', brand: 'all', fuel: 'all', insurer: 'all', status: 'all', q: '' },
     selected: {},
     pref: { renewal: true, claim: true, docs: true, email: true, sms: false },
     cwType: 'Havárie', cwVehicle: 'v1',
@@ -119,6 +125,8 @@ export default function FleetPortal() {
   // ---------- ACTIONS ----------
   const navigate = (route, patch) => setState({ route, ...(patch || {}), search: false, notif: false, companyMenu: false, sidebar: false })
   const openFleet = (id) => navigate('fleet-detail', { fleetId: id, fleetTab: 'overview' })
+  // Vozové parky: když je jen jeden, přeskoč dlaždice a jdi rovnou na jeho detail.
+  const goParks = () => allFleets.length === 1 ? openFleet(allFleets[0].id) : navigate('fleets')
   const openVehicle = (id) => navigate('vehicle-detail', { vehicleId: id, vehicleTab: 'overview' })
   const openDriver = (id) => navigate('driver-detail', { driverId: id })
   const openClaim = (id) => navigate('claim-detail', { claimId: id })
@@ -158,7 +166,7 @@ export default function FleetPortal() {
     if (l.includes('škod') || l.includes('damage') || l.includes('nehod')) return 'Spustil jsem průvodce nahlášením škody. Vyberte vozidlo a popište událost — zbytek doplním z dat parku.'
     if (l.includes('claim') || l.includes('událost')) return 'Aktuálně je 9 otevřených událostí. Nejvyšší odhad: Audi A6 — odcizení kol, 58 000 Kč (Generali, v likvidaci).'
     if (l.includes('úspor') || l.includes('saving')) return 'Oproti loňsku šetříte 1,84 mil. Kč (−11 %). Konsolidací havarijního u Kooperativy lze ušetřit dalších ~320 000 Kč ročně.'
-    return 'Rozumím. Pracuji s daty 335 vozidel napříč 6 kategoriemi. Zkuste např. „Najdi vozidla bez GAP" nebo „Který park stojí nejvíc?".'
+    return `Rozumím. Pracuji s daty 335 vozidel (${typeCats.length} typů) ve ${allFleets.length === 1 ? 'vozovém parku ' + allFleets[0].name : allFleets.length + ' vozových parcích'}. Zkuste např. „Najdi vozidla bez GAP" nebo „Kolik máme tahačů?".`
   }
   const sendAi = (t) => {
     const q = (typeof t === 'string' ? t : state.aiInput).trim()
@@ -226,7 +234,7 @@ export default function FleetPortal() {
       const on = activeRoute === id
       return {
         id, label, icon: ic(icon, 20), iconColor: on ? '#fff' : 'var(--side-fg)',
-        onClick: () => navigate(id),
+        onClick: () => id === 'fleets' ? goParks() : navigate(id),
         style: `position:relative;display:flex;align-items:center;gap:13px;padding:11px 13px;margin:3px 0;border-radius:14px;font-size:14px;font-weight:${on ? '600' : '500'};cursor:pointer;letter-spacing:-.1px;transition:background .16s ease,color .16s ease,box-shadow .16s ease;color:${on ? '#fff' : 'var(--side-fg)'};background:${on ? 'linear-gradient(135deg,#4F6FFF 0%,#6D5EF6 100%)' : 'transparent'};box-shadow:${on ? '0 10px 24px -8px rgba(79,111,255,.7)' : 'none'}`,
         hover: on ? '' : 'background:var(--side-hover);color:var(--side-strong)',
         badge, badgeStyle: `font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;color:${on ? '#fff' : 'var(--side-fg)'};background:rgba(255,255,255,${on ? '.22' : '.07'});padding:2px 8px;border-radius:20px`,
@@ -234,7 +242,7 @@ export default function FleetPortal() {
     })
     const titles = {
       dashboard: ['Přehled', 'Souhrn vozového parku Jiří Tošovský s.r.o.'],
-      fleets: ['Vozové parky', '6 kategorií · 335 vozidel'],
+      fleets: ['Vozové parky', `${allFleets.length} ${allFleets.length === 1 ? 'lokalita' : allFleets.length < 5 ? 'lokality' : 'lokalit'} · 335 vozidel`],
       vehicles: ['Vozidla', '335 vozidel celkem'],
       drivers: ['Řidiči', `${driversData.length} řidičů vozového parku`],
       insurance: ['Pojištění', 'Smlouvy a krytí napříč parky'],
@@ -248,7 +256,7 @@ export default function FleetPortal() {
       settings: ['Nastavení', 'Profil a předvolby portálu'],
     }
     let title, sub
-    if (r === 'fleet-detail') { const f = allFleets.find((x) => x.id === state.fleetId); title = f.name; sub = `Fleet manager · ${f.manager} · ${f.vehicles} vozidel` }
+    if (r === 'fleet-detail') { const f = allFleets.find((x) => x.id === state.fleetId); title = f.name; sub = `${f.address ? f.address + ' · ' : ''}${f.vehicles} vozidel` }
     else if (r === 'vehicle-detail') { const v = vehiclesData.find((x) => x.id === state.vehicleId); title = `${v.brand} ${v.model}`; sub = `${v.plate} · ${fleetName(v.fleet)}` }
     else if (r === 'bonifikace-detail') { const f = allFleets.find((x) => x.id === state.fleetId) || allFleets[0]; title = `Bonifikace · ${f.insurers[0]}`; sub = `Flotilová smlouva č. ${f.policy || '—'}` }
     else if (r === 'documents-detail') { const tm = { zk: ['Zelené karty', 'Zelená karta ke každému vozidlu'], orv: ['Technické průkazy', 'Osvědčení o registraci vozidla (ORV)'], faktury: ['Faktury', 'Faktury za pojištění'] }; const t = tm[state.docCat] || ['Pojistné smlouvy', 'Flotilové smlouvy a jejich dokumenty']; title = t[0]; sub = t[1] }
@@ -345,7 +353,7 @@ export default function FleetPortal() {
         const dr = DRIVERS.find((d) => d.id === s.driverSel)
         return { vehOverrides: { ...s.vehOverrides, [vid]: { ...(s.vehOverrides[vid] || {}), driver: dr.name } }, driverDone: true }
       }),
-      goFleets: () => navigate('fleets'),
+      goFleets: goParks,
       openClaimWizard: () => setState({ claimWizard: true, claimStep: 1, claimData: {} }),
       av: state.av, openAddVehicle: () => setState({ av: true, avStep: 1, avMethod: 'spz', avInput: '', avLoaded: false, avFleet: state.fleetId }),
       ...newFleetVM(),
@@ -370,15 +378,15 @@ export default function FleetPortal() {
 
     // KPI — reálné počty krytí (bez sparkline/trendu; v sestavě není pojistné ani škody)
     const kpis = [
-      { value: String(totalVehicles), label: 'Vozidel celkem', note: `napříč ${fleetsData.length} kategoriemi` },
+      { value: String(totalVehicles), label: 'Vozidel celkem', note: `${typeCats.length} typů · ${allFleets.length} ${allFleets.length === 1 ? 'park' : 'parky'}` },
       { value: String(havCount), label: 'S havarijním pojištěním', note: 'plné krytí' },
       { value: String(povOnly), label: 'Pouze povinné ručení', note: 'základní krytí' },
       { value: String(sklaCount), label: 'Pojištění skel', note: 'doplňkové krytí' },
     ]
 
-    // graf: vozidla podle kategorie (reálné)
-    const catMax = Math.max(...fleetsData.map((f) => f.vehicles), 1)
-    const catBars = fleetsData.map((f) => ({ label: f.name, short: f.name.split(' ')[0], n: f.vehicles, h: Math.round(f.vehicles / catMax * 100) }))
+    // graf: vozidla podle TYPU vozidla (reálné, z druhu)
+    const catMax = Math.max(...typeCats.map((c) => c.vehicles), 1)
+    const catBars = typeCats.map((c) => ({ label: c.name, short: c.name.split(' ')[0], n: c.vehicles, h: Math.round(c.vehicles / catMax * 100) }))
 
     // donut: vozidla podle značky (reálné z brandsData)
     let acc = 0
@@ -395,19 +403,22 @@ export default function FleetPortal() {
       { icon: ic('glass', 18), color: 'var(--purple)', bg: 'var(--purple-soft)', label: 'Pojištění skel', sub: 'doplňkové krytí', value: String(sklaCount) },
     ]
 
-    // fleet karty — reálné; místo pojistného podíl havarijního krytí
-    const dashFleets = fleetsData.map((f) => ({
-      id: f.id, name: f.name, vehicles: f.vehicles, hav: f.hav || 0,
-      havPct: Math.round((f.hav || 0) / (f.vehicles || 1) * 100),
-      onClick: () => navigate('fleet-detail', { fleetId: f.id, fleetTab: 'overview' }),
-    }))
+    // karty vozových parků (lokalit) — hav dopočítán z vozidel parku
+    const dashFleets = allFleets.map((f) => {
+      const fv = vehiclesData.filter((v) => v.fleet === f.id)
+      const fhav = fv.filter((v) => v.cov && v.cov.hav).length
+      return {
+        id: f.id, name: f.name, vehicles: fv.length, hav: fhav,
+        havPct: Math.round(fhav / (fv.length || 1) * 100),
+        onClick: () => navigate('fleet-detail', { fleetId: f.id, fleetTab: 'overview' }),
+      }
+    })
 
     // nejnovější vozidla ve flotile (reálné, dle roku uvedení)
-    const catLabelById = Object.fromEntries(fleetsData.map((f) => [f.id, f.name]))
     const activity = [...vehiclesData].filter((v) => typeof v.year === 'number').sort((a, b) => b.year - a.year).slice(0, 7).map((v) => ({
       actor: `${v.brand} ${v.model} (${v.plate})`,
       action: `${v.druh} · uvedeno do provozu ${v.year}`,
-      time: catLabelById[v.fleet] || '',
+      time: vehicleTypeCat(v.druh),
       color: v.cov && v.cov.hav ? 'var(--green)' : 'var(--blue)',
       cat: v.cov && v.cov.hav ? 'Havarijní' : 'Povinné ručení',
       catColor: v.cov && v.cov.hav ? 'var(--green)' : 'var(--blue)',
@@ -420,7 +431,7 @@ export default function FleetPortal() {
       { name: 'Seznam technických průkazů', meta: `PDF · ${totalVehicles} vozidel`, color: 'var(--purple)' },
     ]
 
-    return { kpis, catBars, brandDonut, brandLegend, quickStats, dashFleets, activity, dashDocs, totalVehicles, havCount, navigate }
+    return { kpis, catBars, brandDonut, brandLegend, quickStats, dashFleets, activity, dashDocs, totalVehicles, havCount, navigate, goParks, parkCount: allFleets.length }
   }
 
   const fleetsVM = () => {
@@ -461,7 +472,7 @@ export default function FleetPortal() {
     const fvehAll = vehiclesData.filter((v) => v.fleet === f.id)
     const fskla = fvehAll.filter((v) => v.cov && v.cov.skla).length
     const summary = [
-      { label: 'Vozidel celkem', value: String(f.vehicles), sub: 'v kategorii', color: 'var(--ink)' },
+      { label: 'Vozidel celkem', value: String(f.vehicles), sub: 'v parku', color: 'var(--ink)' },
       { label: 'S havarijním', value: String(fhav), sub: 'plné krytí', color: 'var(--green)' },
       { label: 'Pouze povinné ručení', value: String(f.vehicles - fhav), sub: 'základní krytí', color: 'var(--ink)' },
       { label: 'Pojištění skel', value: String(fskla), sub: 'doplňkové krytí', color: 'var(--blue)' },
@@ -498,7 +509,7 @@ export default function FleetPortal() {
     })
     const fleetEnded = vehiclesData.filter((v) => v.fleet === f.id && v.status === 'ended').map((v) => ({
       id: v.id, plate: v.plate, brand: v.brand, model: v.model, driver: v.driver, year: v.year, fuel: v.fuel,
-      fleetName: fleetName(v.fleet), insurer: v.insurer, premiumF: czk(v.premium), endedDate: v.endedDate, endReason: v.endReason,
+      fleetName: fleetName(v.fleet), typeName: vehicleTypeCat(v.druh), insurer: v.insurer, premiumF: czk(v.premium), endedDate: v.endedDate, endReason: v.endReason,
       statusLabel: statusMeta[v.status].label, chipStyle: statusChip(v.status), onClick: () => openVehicle(v.id),
     }))
 
@@ -527,7 +538,7 @@ export default function FleetPortal() {
     const o = otherMap[tab] || ['', '', null]
     return {
       fd: {
-        name: f.name, manager: f.manager, policy: f.policy || '—', policyStart: f.policyStart || '—', stats, summary, line: lp.line, area: lp.area, donut, insurerLegend, fuel, evPct, evDonut, claimBars, claims: f.claims,
+        name: f.name, address: f.address || '', singlePark: allFleets.length === 1, manager: f.manager, policy: f.policy || '—', policyStart: f.policyStart || '—', stats, summary, line: lp.line, area: lp.area, donut, insurerLegend, fuel, evPct, evDonut, claimBars, claims: f.claims,
         vehicles: fleetVehicles, vehicleCount: fleetVehicles.length, goVehiclesTab: () => setState({ fleetTab: 'vehicles' }),
         endedVehicles: fleetEnded, endedCount: fleetEnded.length,
         insurersExport: { filename: `pojistitele-${f.id}`, title: `Pojistitelé – ${f.name}`, columns: [{ key: 'pojistitel', label: 'Pojistitel' }, { key: 'smlouva', label: 'Číslo pojistné smlouvy' }, { key: 'vozidla', label: 'Vozidla' }, { key: 'objem', label: 'Objem pojistného' }], rows: parkInsurers.map((p) => ({ pojistitel: p.name, smlouva: p.policy, vozidla: p.count, objem: p.premiumF })) },
@@ -554,7 +565,9 @@ export default function FleetPortal() {
     const vf = state.vf
     const opt = (all, arr) => [{ v: 'all', l: all }, ...arr.map((x) => ({ v: x, l: x }))]
     const vFilters = [
-      { value: vf.fleet, onChange: (e) => setVf('fleet', e.target.value), options: [{ v: 'all', l: 'Všechny parky' }, ...fleetsData.map((f) => ({ v: f.id, l: f.name }))] },
+      // Park (lokalita) — filtr jen když má firma víc parků; jinak je nadbytečný.
+      ...(allFleets.length > 1 ? [{ value: vf.fleet, onChange: (e) => setVf('fleet', e.target.value), options: [{ v: 'all', l: 'Všechny parky' }, ...allFleets.map((f) => ({ v: f.id, l: f.name }))] }] : []),
+      { value: vf.type, onChange: (e) => setVf('type', e.target.value), options: [{ v: 'all', l: 'Všechny typy' }, ...typeCats.map((c) => ({ v: c.name, l: c.name }))] },
       { value: vf.brand, onChange: (e) => setVf('brand', e.target.value), options: opt('Všechny značky', [...new Set(vehiclesData.map((v) => v.brand))]) },
       { value: vf.fuel, onChange: (e) => setVf('fuel', e.target.value), options: opt('Palivo', [...new Set(vehiclesData.map((v) => v.fuel))]) },
       { value: vf.insurer, onChange: (e) => setVf('insurer', e.target.value), options: opt('Pojišťovna', [...new Set(vehiclesData.map((v) => v.insurer))]) },
@@ -563,6 +576,7 @@ export default function FleetPortal() {
     const q = vf.q.toLowerCase()
     const matchBase = (v) => {
       if (vf.fleet !== 'all' && v.fleet !== vf.fleet) return false
+      if (vf.type !== 'all' && vehicleTypeCat(v.druh) !== vf.type) return false
       if (vf.brand !== 'all' && v.brand !== vf.brand) return false
       if (vf.fuel !== 'all' && v.fuel !== vf.fuel) return false
       if (vf.insurer !== 'all' && v.insurer !== vf.insurer) return false
@@ -572,7 +586,7 @@ export default function FleetPortal() {
     const rows = vehiclesData.filter((v) => v.status !== 'ended' && matchBase(v) && (vf.status === 'all' || v.status === vf.status))
     const endedRows = vehiclesData.filter((v) => v.status === 'ended' && matchBase(v)).map((v) => ({
       id: v.id, plate: v.plate, brand: v.brand, model: v.model, driver: v.driver, year: v.year, fuel: v.fuel,
-      fleetName: fleetName(v.fleet), insurer: v.insurer, premiumF: czk(v.premium), endedDate: v.endedDate, endReason: v.endReason,
+      fleetName: fleetName(v.fleet), typeName: vehicleTypeCat(v.druh), insurer: v.insurer, premiumF: czk(v.premium), endedDate: v.endedDate, endReason: v.endReason,
       statusLabel: statusMeta[v.status].label, chipStyle: statusChip(v.status), onClick: () => openVehicle(v.id),
     }))
     const sel = state.selected
@@ -583,7 +597,7 @@ export default function FleetPortal() {
       return {
         id: v.id, plate: v.plate, brand: v.brand, model: v.model, driver: v.driver, year: v.year, fuel: v.fuel,
         vin: v.vin, prihlaska: v.prihlaska,
-        fleetName: fleetName(v.fleet), insurer: v.insurer, premiumF: czk(v.premium), renewal: v.renewal,
+        fleetName: fleetName(v.fleet), typeName: vehicleTypeCat(v.druh), insurer: v.insurer, premiumF: czk(v.premium), renewal: v.renewal,
         statusLabel: statusMeta[v.status].label, chipStyle: statusChip(v.status),
         onClick: () => openVehicle(v.id),
         toggle: (e) => { e.stopPropagation(); toggleSel(v.id) },
@@ -1167,9 +1181,9 @@ export default function FleetPortal() {
   const addVehicleVM = () => {
     if (!state.av) return {}
     const step = state.avStep; const done = step > 3
-    // Druh vozidla se tahá z registru → podle něj se předvyplní správný vozový park.
-    const derivedFleet = allFleets.find((x) => /osob/i.test(x.name)) || allFleets[0]
-    const f = allFleets.find((x) => x.id === state.avFleet) || derivedFleet
+    // Druh vozidla se tahá z registru (samostatné pole). Vozový park = lokalita;
+    // předvyplní se park klienta (když má jen jeden), lze změnit.
+    const f = allFleets.find((x) => x.id === state.avFleet) || allFleets[0]
     const labels = ['Zadání vozidla', 'Údaje o vozidle', 'Pojistné krytí']
     const steps = [1, 2, 3].map((i) => ({ color: i <= step ? 'var(--blue)' : '#E8E8EB' }))
     const m = state.avMethod
