@@ -1311,11 +1311,13 @@ function DashWidget({ id, vm, nav }) {
     </div>
   )
   if (id === 'claimsMap') return (
-    <div style={S(`${CARD};padding:18px 18px 16px;height:100%;box-sizing:border-box`)}>
+    <div style={S(`${CARD};padding:18px 18px 16px;height:100%;box-sizing:border-box;display:flex;flex-direction:column`)}>
       <SectionHead title="Mapa škod" action="Zobrazit mapu" onAction={() => nav('claims')} />
-      <Suspense fallback={<div style={S('height:180px;border-radius:14px;border:1px solid var(--border);background:linear-gradient(110deg,#F1F5FB 30%,#E8EEF7 50%,#F1F5FB 70%);background-size:200% 100%;animation:pulse 1.4s ease-in-out infinite')}></div>}>
-        <ClaimsMap height={180} />
-      </Suspense>
+      <div style={S('flex:1;min-height:200px;display:flex;flex-direction:column')}>
+        <Suspense fallback={<div style={S('flex:1;min-height:200px;border-radius:14px;border:1px solid var(--border);background:linear-gradient(110deg,#F1F5FB 30%,#E8EEF7 50%,#F1F5FB 70%);background-size:200% 100%;animation:pulse 1.4s ease-in-out infinite')}></div>}>
+          <ClaimsMap height="100%" />
+        </Suspense>
+      </div>
     </div>
   )
   if (id === 'activity') return (
