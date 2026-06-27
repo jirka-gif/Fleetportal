@@ -23,7 +23,7 @@ function Select({ value, onChange, options = [], placeholder = 'Vyberte…', wid
     <div style={{ position: 'relative', display: inline ? 'inline-block' : 'block', width: inline ? 'auto' : (width || '100%'), verticalAlign: 'middle' }}>
       <Hov onClick={() => !disabled && setOpen((o) => !o)}
         base={`display:${inline ? 'inline-flex' : 'flex'};align-items:center;gap:8px;width:${inline ? 'auto' : '100%'};height:${height}px;padding:0 ${inline ? '12px' : '13px'};background:${disabled ? 'var(--canvas)' : '#fff'};border:1px solid ${open ? 'var(--blue)' : 'var(--border2)'};border-radius:${r}px;cursor:${disabled ? 'default' : 'pointer'};font-family:inherit;font-size:${size}px;font-weight:600;color:${sel ? 'var(--ink)' : 'var(--ink3)'};outline:none;transition:border-color .14s,box-shadow .14s;${open ? 'box-shadow:0 0 0 3.5px rgba(79,111,255,.13)' : ''}`}
-        hover={open || disabled ? '' : 'border-color:#C9D2E3'}>
+        hover={open || disabled ? '' : 'border:1px solid #C9D2E3'}>
         <span style={{ flex: inline ? '0 1 auto' : 1, minWidth: 0, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sel ? sel.label : placeholder}</span>
         <span style={{ display: 'flex', flexShrink: 0, color: 'var(--ink3)', transition: 'transform .16s', transform: open ? 'rotate(180deg)' : 'none' }}>{ic('chevron', 15)}</span>
       </Hov>
@@ -257,7 +257,7 @@ export default function Render({ vm }) {
           {mob ? (
             <Hov onClick={vm.openSearch} base="width:40px;height:40px;flex-shrink:0;border-radius:12px;border:1px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink2)" hover="background:var(--canvas)">{ic('search', 18)}</Hov>
           ) : (
-            <Hov onClick={vm.openSearch} base="display:flex;align-items:center;gap:10px;height:42px;width:380px;padding:0 14px;background:#fff;border:1px solid var(--border2);border-radius:13px;cursor:text;color:var(--ink3);transition:box-shadow .15s ease,border-color .15s ease" hover="box-shadow:0 0 0 4px rgba(79,111,255,.1);border-color:var(--blue)">
+            <Hov onClick={vm.openSearch} base="display:flex;align-items:center;gap:10px;height:42px;width:380px;padding:0 14px;background:#fff;border:1px solid var(--border2);border-radius:13px;cursor:text;color:var(--ink3);transition:box-shadow .15s ease,border-color .15s ease" hover="box-shadow:0 0 0 4px rgba(79,111,255,.1);border:1px solid var(--blue)">
               <span style={{ display: 'flex' }}>{ic('search', 17)}</span>
               <span style={S('flex:1;font-size:13.5px')}>Hledat vozidlo, SPZ, řidiče, smlouvu…</span>
               <span style={S('font-size:11px;font-weight:600;background:var(--canvas);border:1px solid var(--border2);border-radius:7px;padding:2px 7px;color:var(--ink2)')}>⌘K</span>
@@ -1137,6 +1137,38 @@ function SectionHead({ title, sub, action, onAction }) {
   )
 }
 
+// Sloupcový graf trendu škod s tooltipem konkrétního měsíce při najetí myší.
+function ClaimTrendChart({ data }) {
+  const [hi, setHi] = useState(null)
+  return (
+    <div style={S('display:flex;align-items:flex-end;gap:7px;height:130px;position:relative')}>
+      {data.map((b, i) => {
+        const on = hi === i
+        const pos = i < 2 ? 'left:0' : i > data.length - 3 ? 'right:0' : 'left:50%;transform:translateX(-50%)'
+        return (
+          <div key={i} onMouseEnter={() => setHi(i)} onMouseLeave={() => setHi(null)} style={S('flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end;cursor:pointer;position:relative')}>
+            <div style={S(`width:100%;height:${b.h};background:${on ? 'var(--blue)' : b.color};border-radius:4px;min-height:3px;transition:background .12s`)}></div>
+            <span style={S(`font-size:9.5px;font-weight:${on ? 700 : 400};color:${on ? 'var(--blue-ink)' : 'var(--ink3)'}`)}>{b.label}</span>
+            {on && (
+              <div style={S(`position:absolute;bottom:calc(100% + 9px);z-index:30;${pos};background:#0F172A;border-radius:12px;padding:11px 13px;width:184px;box-shadow:0 16px 40px rgba(15,23,42,.32);pointer-events:none`)}>
+                <div style={S('font-size:12.5px;font-weight:700;color:#fff;text-transform:capitalize;margin-bottom:8px')}>{b.monthFull}</div>
+                {[['Nahlášeno', String(b.count)], ['Otevřené', String(b.open)], ['Odhadní hodnota', b.costF]].map(([k, v], j) => (
+                  <div key={j} style={S('display:flex;justify-content:space-between;gap:10px;font-size:11.5px;color:rgba(255,255,255,.7);margin-bottom:3px')}><span>{k}</span><span style={S('color:#fff;font-weight:700;white-space:nowrap')}>{v}</span></div>
+                ))}
+                {b.risks.length > 0 && (
+                  <div style={S('margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.14);display:flex;flex-direction:column;gap:5px')}>
+                    {b.risks.map((r, j) => <div key={j} style={S('display:flex;align-items:center;gap:7px;font-size:11px')}><span style={S(`width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${r.color}`)}></span><span style={S('flex:1;color:rgba(255,255,255,.78)')}>{r.label}</span><span style={S('color:#fff;font-weight:600')}>{r.count}</span></div>)}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function EmptyState({ icon = 'info', title, sub }) {
   return (
     <div style={S(`${CARD};padding:56px 28px;text-align:center;display:flex;flex-direction:column;align-items:center`)}>
@@ -1448,7 +1480,7 @@ function FleetDetail({ vm }) {
           </div>
           <div style={S('display:flex;gap:8px;flex-wrap:wrap')}>
             <ExportMenu {...fd.export} variant="header" />
-            <Hov onClick={vm.openNewFleet} base="height:38px;padding:0 14px;background:#fff;color:var(--ink);border:1px solid var(--border2);border-radius:10px;display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;cursor:pointer" hover="border-color:var(--blue);color:var(--blue)">{ic('plus', 15)} Nový vozový park</Hov>
+            <Hov onClick={vm.openNewFleet} base="height:38px;padding:0 14px;background:#fff;color:var(--ink);border:1px solid var(--border2);border-radius:10px;display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;cursor:pointer" hover="border:1px solid var(--blue);color:var(--blue)">{ic('plus', 15)} Nový vozový park</Hov>
             <Hov onClick={vm.openAddVehicle} base="height:38px;padding:0 15px;background:linear-gradient(180deg,#2C6AE0,#1D50BD);color:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(32,88,201,.30);display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;cursor:pointer" hover="background:linear-gradient(180deg,#2655C4,#163E92);transform:translateY(-1px);box-shadow:0 6px 16px rgba(32,88,201,.42)">{ic('plus', 15)} Přidat vozidlo do flotily</Hov>
           </div>
         </div>
@@ -2515,9 +2547,7 @@ function Claims({ vm }) {
         </div>
         <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:20px')}>
           <div style={S('display:flex;align-items:center;justify-content:space-between;margin-bottom:14px')}><div style={S('font-size:15px;font-weight:700')}>Trend nahlášených</div><span style={S('font-size:12px;color:var(--ink3)')}>{vm.claimRows.length} událostí celkem</span></div>
-          <div style={S('display:flex;align-items:flex-end;gap:7px;height:130px')}>
-            {vm.claimTrend.map((b, i) => <div key={i} style={S('flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end')}><div style={S(`width:100%;height:${b.h};background:${b.color};border-radius:4px;min-height:3px`)}></div><span style={S('font-size:9.5px;color:var(--ink3)')}>{b.label}</span></div>)}
-          </div>
+          <ClaimTrendChart data={vm.claimTrend} />
         </div>
       </div>
       <ClaimsTable rows={vm.claimRows} title="Všechny škody" />
@@ -2904,7 +2934,7 @@ function DriverDetail({ vm }) {
       <div style={S('font-size:15px;font-weight:700;margin-bottom:12px')}>Přidělená vozidla <span style={S('font-size:12.5px;font-weight:600;color:var(--ink3)')}>· {d.vehicles.length}</span></div>
       <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-bottom:20px')}>
         {d.vehicles.map((v) => (
-          <Hov key={v.id} onClick={v.onClick} base={`${CARD};padding:15px;cursor:pointer;display:flex;align-items:center;gap:12px`} hover="border-color:var(--blue)">
+          <Hov key={v.id} onClick={v.onClick} base={`${CARD};padding:15px;cursor:pointer;display:flex;align-items:center;gap:12px`} hover="border:1px solid var(--blue)">
             <div style={S('width:40px;height:40px;border-radius:10px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic('car', 19)}</div>
             <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{v.brand} {v.model}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{v.plate} · {v.druh}</div></div>
             <span style={S('color:var(--ink3);display:flex')}>{ic('arrow', 15)}</span>

@@ -931,14 +931,21 @@ export default function FleetPortal() {
     const cfArr = Object.entries(grp).sort((a, b) => b[1] - a[1])
     const cfMax = Math.max(...cfArr.map((x) => x[1]), 1)
     const claimsByFleet = cfArr.map(([name, count], i) => ({ name, count, color: PAL[i % PAL.length], w: Math.round(count / cfMax * 100) + '%' }))
-    // měsíční trend nahlášení (reálný)
+    // měsíční trend nahlášení (reálný) — s detaily pro tooltip
     const parseD = (s) => { const p = String(s).split('. '); return p.length === 3 ? new Date(+p[2], +p[1] - 1, +p[0]) : null }
-    const buckets = {}
-    cd.forEach((c) => { const d = parseD(c.date); if (d) { const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; buckets[k] = (buckets[k] || 0) + 1 } })
-    const keys = Object.keys(buckets).sort().slice(-12)
-    const ctMax = Math.max(...keys.map((k) => buckets[k]), 1)
+    const riskLabel = { POV: 'Povinné ručení', HAV: 'Havarijní', Skla: 'Pojištění skel', Odp: 'Odpovědnost' }
+    const riskColor = { POV: 'var(--blue)', HAV: 'var(--star)', Skla: '#0E9AA6', Odp: 'var(--amber)' }
+    const md = {}
+    cd.forEach((c) => { const d = parseD(c.date); if (!d) return; const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; if (!md[k]) md[k] = { count: 0, cost: 0, open: 0, byRisk: {} }; md[k].count++; md[k].cost += c.estimate || 0; if (c.status !== 'closed') md[k].open++; md[k].byRisk[c.risk] = (md[k].byRisk[c.risk] || 0) + 1 })
+    const keys = Object.keys(md).sort().slice(-12)
+    const ctMax = Math.max(...keys.map((k) => md[k].count), 1)
     const MN = ['Led', 'Úno', 'Bře', 'Dub', 'Kvě', 'Čvn', 'Čvc', 'Srp', 'Zář', 'Říj', 'Lis', 'Pro']
-    const claimTrend = keys.map((k) => ({ h: Math.round(buckets[k] / ctMax * 100) + '%', color: '#6D8BFF', label: MN[+k.split('-')[1] - 1] }))
+    const FULLMN = ['leden', 'únor', 'březen', 'duben', 'květen', 'červen', 'červenec', 'srpen', 'září', 'říjen', 'listopad', 'prosinec']
+    const claimTrend = keys.map((k) => {
+      const m = md[k]; const [y, mo] = k.split('-'); const mi = +mo - 1
+      const risks = Object.entries(m.byRisk).sort((a, b) => b[1] - a[1]).map(([r, n]) => ({ label: riskLabel[r] || r, color: riskColor[r] || 'var(--ink3)', count: n }))
+      return { h: Math.round(m.count / ctMax * 100) + '%', color: '#6D8BFF', label: MN[mi], monthFull: `${FULLMN[mi]} ${y}`, count: m.count, open: m.open, costF: czk(m.cost), risks }
+    })
     const claimRows = claimsData.map(buildClaimRow)
     const claimsExport = { filename: 'skody', title: 'Škody', columns: CLAIM_EXPORT_COLS, rows: claimRows.map(claimExportRow) }
     return { claimStats, claimsByFleet, claimTrend, claimRows, claimsExport }
