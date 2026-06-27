@@ -114,6 +114,40 @@ const loadDash = () => {
 }
 const saveDash = (arr) => { try { localStorage.setItem(DASH_KEY, JSON.stringify(arr)) } catch (e) { /* localStorage nedostupné */ } }
 
+// --- KPI dlaždice na dashboardu (katalog, uživatel vybere max 8 a srovná) ---
+const KPI_CATALOG = [
+  { id: 'vehicles', label: 'Vozidel celkem' },
+  { id: 'hav', label: 'S havarijním pojištěním' },
+  { id: 'pov', label: 'Pouze povinné ručení' },
+  { id: 'skla', label: 'Pojištění skel' },
+  { id: 'asist', label: 'Asistenční služby' },
+  { id: 'claims', label: 'Škody (12 měsíců)' },
+  { id: 'claimsOpen', label: 'Otevřené škody' },
+  { id: 'financed', label: 'Financováno' },
+  { id: 'finEnding', label: 'Končící financování' },
+  { id: 'finVolume', label: 'Objem financování' },
+  { id: 'stk', label: 'Končící STK' },
+  { id: 'vignette', label: 'Končící dálniční známky' },
+  { id: 'drivers', label: 'Řidičů' },
+  { id: 'premium', label: 'Roční pojistné' },
+]
+const KPI_MAX = 8
+const KPI_DEFAULT_ON = ['vehicles', 'premium', 'drivers', 'financed']
+const KPI_DEFAULT = KPI_CATALOG.map((k) => ({ id: k.id, on: KPI_DEFAULT_ON.includes(k.id) }))
+const KPI_KEY = 'fleetportal.kpi.v1'
+const loadKpi = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(KPI_KEY) || 'null')
+    if (!Array.isArray(saved)) return KPI_DEFAULT
+    const known = Object.fromEntries(KPI_CATALOG.map((k) => [k.id, k]))
+    const out = saved.filter((s) => s && known[s.id]).map((s) => ({ id: s.id, on: !!s.on }))
+    KPI_CATALOG.forEach((k) => { if (!out.some((o) => o.id === k.id)) out.push({ id: k.id, on: false }) })
+    let n = 0; out.forEach((o) => { if (o.on) { n++; if (n > KPI_MAX) o.on = false } })
+    return out.length ? out : KPI_DEFAULT
+  } catch { return KPI_DEFAULT }
+}
+const saveKpi = (arr) => { try { localStorage.setItem(KPI_KEY, JSON.stringify(arr)) } catch (e) { /* nedostupné */ } }
+
 const INS_COLORS = { Kooperativa: '#2058C9', Allianz: '#16A34A', 'ČPP': '#C2780C', Generali: '#8B5CF6', UNIQA: '#0EA5A5', 'ČSOB': '#9B0E25' }
 const DEFAULT_BONUS = [{ threshold: 30, rate: 15 }, { threshold: 40, rate: 10 }, { threshold: 50, rate: 5 }]
 const INSURER_CODE = { Kooperativa: '7720', Allianz: '4055', 'ČPP': '0019', Generali: '5544', UNIQA: '2401', 'ČSOB': '8830', 'ČSOB Poj.': '8830' }
@@ -168,7 +202,7 @@ const POJISTNIK = { name: 'Jiří Tošovský s.r.o.', ico: '02043858' }
 
 export default function FleetPortal() {
   const [state, setStateRaw] = useState(() => ({
-    dash: loadDash(),
+    dash: loadDash(), kpi: loadKpi(),
     route: 'dashboard',
     fleetId: 'f1', vehicleId: 'v1',
     fleetTab: 'overview', vehicleTab: 'overview', fleetsView: 'grid', finTab: 'prehled', rfq: null, rfqs: SEED_RFQS,
@@ -243,6 +277,12 @@ export default function FleetPortal() {
   const setDashWidth = (id, wv) => setDash(state.dash.map((w) => w.id === id ? { ...w, w: wv } : w))
   const moveDashWidget = (from, to) => { if (from === to || to < 0 || to >= state.dash.length) return; const a = [...state.dash]; const [m] = a.splice(from, 1); a.splice(to, 0, m); setDash(a) }
   const resetDash = () => setDash(DASH_DEFAULT)
+  // KPI dlaždice (výběr max 8 + řazení)
+  const setKpi = (arr) => { saveKpi(arr); setState({ kpi: arr }) }
+  const kpiOn = () => state.kpi.filter((k) => k.on).length
+  const toggleKpi = (id) => { const cur = state.kpi.find((k) => k.id === id); if (cur && !cur.on && kpiOn() >= KPI_MAX) return; setKpi(state.kpi.map((k) => k.id === id ? { ...k, on: !k.on } : k)) }
+  const moveKpi = (from, to) => { if (from === to || to < 0 || to >= state.kpi.length) return; const a = [...state.kpi]; const [m] = a.splice(from, 1); a.splice(to, 0, m); setKpi(a) }
+  const resetKpi = () => setKpi(KPI_DEFAULT)
   const acceptOffer = (rfqId, partnerId) => {
     setState((s) => ({ rfqs: s.rfqs.map((x) => x.id === rfqId ? { ...x, status: 'accepted', accepted: partnerId } : x) }))
     const o = (state.rfqs.find((x) => x.id === rfqId) || {}).offers || []
@@ -1621,8 +1661,43 @@ export default function FleetPortal() {
     }
   }
 
+  // Hodnoty KPI dlaždic (počítají se jen na dashboardu a v nastavení)
+  const kpiNeed = state.route === 'dashboard' || state.route === 'settings'
+  const kpiVals = !kpiNeed ? {} : (() => {
+    const total = vehiclesData.length
+    const hav = vehiclesData.filter((v) => v.cov && v.cov.hav).length
+    const skla = vehiclesData.filter((v) => v.cov && v.cov.skla).length
+    const asist = vehiclesData.filter((v) => v.cov && v.cov.asist).length
+    const cT = claimsData.length
+    const cO = claimsData.filter((c) => c.status !== 'closed').length
+    const reserve = claimsData.reduce((a, c) => a + (c.estimate || 0), 0)
+    const financed = vehiclesData.filter((v) => v.financing && v.financing.active).length
+    const finVol = vehiclesData.filter((v) => v.financing && v.financing.active).reduce((a, v) => a + parseInt(String(v.financing.financedAmount || '').replace(/[^\d]/g, ''), 10) || 0, 0)
+    const stk = vehiclesData.filter((v) => { const d = dueInfo(vehicleStk(v)); return d && d.days <= 60 }).length
+    const vig = vehiclesData.filter((v) => { const vg = vehicleVignette(v); if (!vg) return false; const d = dueInfo(vg.validTo); return d && d.days <= 60 }).length
+    return {
+      vehicles: { value: String(total), note: `${typeCats.length} typů · ${allFleets.length} ${allFleets.length === 1 ? 'park' : 'parky'}` },
+      hav: { value: String(hav), note: 'plné krytí' },
+      pov: { value: String(total - hav), note: 'základní krytí' },
+      skla: { value: String(skla), note: 'doplňkové krytí' },
+      asist: { value: String(asist), note: 'doplňkové krytí' },
+      claims: { value: String(cT), note: `${cO} otevřených` },
+      claimsOpen: { value: String(cO), note: `rezervy ${czk(reserve)}` },
+      financed: { value: String(financed), note: 'úvěr / leasing' },
+      finEnding: { value: String(financingEnding(90).length), note: 'smlouvy do 90 dnů' },
+      finVolume: { value: (finVol / 1e6).toFixed(1).replace('.', ','), unit: 'mil. Kč', note: 'financováno' },
+      stk: { value: String(stk), note: 'do 60 dnů / po platnosti' },
+      vignette: { value: String(vig), note: 'do 60 dnů / po platnosti' },
+      drivers: { value: String(driversData.length), note: `${driversData.filter((d) => d.status === 'active').length} aktivních` },
+      premium: { value: '—', note: 'čeká na napojení' },
+    }
+  })()
+  const kpiLabel = Object.fromEntries(KPI_CATALOG.map((k) => [k.id, k.label]))
+  const dashKpis = state.kpi.filter((k) => k.on).map((k) => ({ label: kpiLabel[k.id], ...(kpiVals[k.id] || { value: '—' }) }))
+
   const vm = {
     dash: state.dash, dashMeta: DASH_WIDGETS, toggleDashWidget, setDashWidth, moveDashWidget, resetDash,
+    kpi: state.kpi, kpiCatalog: KPI_CATALOG, kpiVals, kpiLabel, dashKpis, toggleKpi, moveKpi, resetKpi, kpiMax: KPI_MAX, kpiOnCount: state.kpi.filter((k) => k.on).length,
     ...shellVM(), ...dashboardVM(), ...fleetsVM(), ...fleetDetailVM(), ...vehiclesVM(), ...vehicleDetailVM(),
     ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(),
   }

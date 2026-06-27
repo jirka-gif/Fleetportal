@@ -1249,9 +1249,11 @@ const AN_KPIS = [
 
 // Jednotlivý dashboardový box — vykreslí se podle id z uživatelské konfigurace.
 function DashWidget({ id, vm, nav }) {
-  if (id === 'kpis') return <KpiRow items={vm.kpis} />
+  if (id === 'kpis') return vm.dashKpis.length
+    ? <KpiRow items={vm.dashKpis} />
+    : <Hov onClick={() => nav('settings')} base={`${CARD};padding:18px 20px;display:flex;align-items:center;gap:10px;cursor:pointer;color:var(--ink3);font-size:13px`} hover="border:1px solid var(--blue);color:var(--blue)">{ic('settings', 16)} Vyberte KPI dlaždice v Nastavení</Hov>
   if (id === 'byType') return (
-    <div style={S(`${CARD};padding:22px`)}>
+    <div style={S(`${CARD};padding:22px;height:100%;box-sizing:border-box`)}>
       <div style={S('margin-bottom:18px')}>
         <div style={S('font-size:16px;font-weight:650;letter-spacing:-.3px')}>Vozidla podle typu</div>
         <div style={S('font-size:12.5px;color:var(--ink3);margin-top:2px')}>Rozložení flotily · {vm.totalVehicles} vozidel</div>
@@ -1268,7 +1270,7 @@ function DashWidget({ id, vm, nav }) {
     </div>
   )
   if (id === 'byBrand') return (
-    <div style={S(`${CARD};padding:22px`)}>
+    <div style={S(`${CARD};padding:22px;height:100%;box-sizing:border-box`)}>
       <SectionHead title="Vozidla podle značky" sub="Top značky ve flotile" action="Všechna vozidla" onAction={() => nav('vehicles')} />
       <div style={S('display:flex;align-items:center;gap:16px')}>
         <div style={S(`position:relative;width:118px;height:118px;flex-shrink:0;border-radius:50%;background:${vm.brandDonut};box-shadow:0 10px 24px -10px rgba(15,23,42,.3)`)}>
@@ -1291,7 +1293,7 @@ function DashWidget({ id, vm, nav }) {
     </div>
   )
   if (id === 'attention') return (
-    <div style={S('position:relative;overflow:hidden;border-radius:20px;padding:18px;background:linear-gradient(150deg,#5F6FFF 0%,#6A60F8 45%,#785CFB 100%);box-shadow:0 22px 50px -18px rgba(108,94,246,.9)')}>
+    <div style={S('position:relative;overflow:hidden;border-radius:20px;padding:18px;height:100%;box-sizing:border-box;background:linear-gradient(150deg,#5F6FFF 0%,#6A60F8 45%,#785CFB 100%);box-shadow:0 22px 50px -18px rgba(108,94,246,.9)')}>
       <div style={S('position:absolute;top:-40px;right:-30px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.13);pointer-events:none')}></div>
       <div style={S('position:relative')}>
         <div style={S('display:flex;align-items:center;gap:11px;margin:4px 4px 12px')}>
@@ -1309,7 +1311,7 @@ function DashWidget({ id, vm, nav }) {
     </div>
   )
   if (id === 'claimsMap') return (
-    <div style={S(`${CARD};padding:18px 18px 16px`)}>
+    <div style={S(`${CARD};padding:18px 18px 16px;height:100%;box-sizing:border-box`)}>
       <SectionHead title="Mapa škod" action="Zobrazit mapu" onAction={() => nav('claims')} />
       <Suspense fallback={<div style={S('height:180px;border-radius:14px;border:1px solid var(--border);background:linear-gradient(110deg,#F1F5FB 30%,#E8EEF7 50%,#F1F5FB 70%);background-size:200% 100%;animation:pulse 1.4s ease-in-out infinite')}></div>}>
         <ClaimsMap height={180} />
@@ -1317,7 +1319,7 @@ function DashWidget({ id, vm, nav }) {
     </div>
   )
   if (id === 'activity') return (
-    <div style={S(`${CARD};overflow:hidden`)}>
+    <div style={S(`${CARD};overflow:hidden;height:100%;box-sizing:border-box`)}>
       <div style={S('display:flex;align-items:center;justify-content:space-between;padding:18px 22px 14px')}><span style={S('font-size:16px;font-weight:650;letter-spacing:-.3px')}>Nejnovější vozidla ve flotile</span></div>
       <div>
         {vm.activity.map((e, i) => (
@@ -1333,7 +1335,7 @@ function DashWidget({ id, vm, nav }) {
     </div>
   )
   if (id === 'docs') return (
-    <div style={S(`${CARD};padding:18px 18px 12px`)}>
+    <div style={S(`${CARD};padding:18px 18px 12px;height:100%;box-sizing:border-box`)}>
       <SectionHead title="Dokumenty" action="Zobrazit všechny" onAction={() => nav('documents')} />
       <div style={S('display:flex;flex-direction:column;gap:4px')}>
         {vm.dashDocs.map((d, i) => (
@@ -1369,7 +1371,7 @@ function Dashboard({ vm }) {
         )}
       </div>
 
-      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:18px;align-items:start`)}>
+      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:18px;align-items:stretch`)}>
         {widgets.map((w) => (
           <div key={w.id} style={{ gridColumn: (mob || w.w === 'full') ? '1 / -1' : 'auto', minWidth: 0 }}>
             <DashWidget id={w.id} vm={vm} nav={nav} />
@@ -3171,6 +3173,46 @@ function DashEditor({ vm }) {
   )
 }
 
+// Editor KPI dlaždic — výběr max 8 ukazatelů z katalogu + drag řazení.
+function KpiEditor({ vm }) {
+  const [drag, setDrag] = useState(null)
+  const [over, setOver] = useState(null)
+  const atMax = vm.kpiOnCount >= vm.kpiMax
+  return (
+    <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:22px;margin-bottom:14px')}>
+      <div style={S('display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px')}>
+        <div style={S('font-size:15px;font-weight:700')}>KPI dlaždice</div>
+        <Hov as="span" onClick={vm.resetKpi} base="font-size:12.5px;font-weight:600;color:var(--ink3);cursor:pointer" hover="color:var(--ink)">Obnovit výchozí</Hov>
+      </div>
+      <div style={S('font-size:12.5px;color:var(--ink3);margin-bottom:16px')}>Vyberte až {vm.kpiMax} ukazatelů a srovnejte je přetažením do pořadí — <b style={S('color:var(--ink2)')}>{vm.kpiOnCount} z {vm.kpiMax}</b> vybráno. Zobrazí se nahoře na přehledu.</div>
+      <div style={S('display:flex;flex-direction:column;gap:8px')}>
+        {vm.kpi.map((k, i) => {
+          const val = vm.kpiVals[k.id] || {}
+          const lockOff = !k.on && atMax
+          const isTarget = over === i && drag != null && drag !== i
+          return (
+            <div key={k.id} draggable
+              onDragStart={() => setDrag(i)}
+              onDragEnd={() => { setDrag(null); setOver(null) }}
+              onDragOver={(e) => { e.preventDefault(); if (over !== i) setOver(i) }}
+              onDrop={(e) => { e.preventDefault(); if (drag != null) vm.moveKpi(drag, i); setDrag(null); setOver(null) }}
+              style={S(`display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:12px;border:1px solid ${isTarget ? 'var(--blue)' : 'var(--border2)'};background:${k.on ? '#fff' : 'var(--canvas)'};opacity:${drag === i ? '.4' : '1'};transition:border-color .12s`)}>
+              <span style={S('display:flex;color:var(--ink3);cursor:grab')} title="Přetáhnout">{ic('menu', 17)}</span>
+              <div style={S('flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap')}>
+                <span style={S(`font-size:13.5px;font-weight:600;color:${k.on ? 'var(--ink)' : 'var(--ink3)'}`)}>{vm.kpiLabel[k.id]}</span>
+                <span style={S('font-size:11.5px;color:var(--ink3);font-variant-numeric:tabular-nums')}>{val.value}{val.unit ? ' ' + val.unit : ''}</span>
+              </div>
+              <Hov onClick={() => vm.toggleKpi(k.id)} base={`width:42px;height:24px;border-radius:20px;cursor:${lockOff ? 'default' : 'pointer'};display:flex;align-items:center;padding:2px;flex-shrink:0;opacity:${lockOff ? '.4' : '1'};background:${k.on ? 'var(--blue)' : '#CFD5E0'};justify-content:${k.on ? 'flex-end' : 'flex-start'};transition:background .15s`} hover="">
+                <span style={S('width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25)')}></span>
+              </Hov>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function Settings({ vm }) {
   return (
     <div style={S('max-width:760px')}>
@@ -3179,6 +3221,7 @@ function Settings({ vm }) {
         <div style={S('display:flex;align-items:center;gap:16px')}><div style={S('width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#4F6FFF,#6D5EF6);color:#fff;font-weight:700;font-size:20px;display:flex;align-items:center;justify-content:center')}>MK</div><div><div style={S('font-size:16px;font-weight:700')}>Martin Kovář</div><div style={S('font-size:13px;color:var(--ink3)')}>Fleet Manager · Jiří Tošovský s.r.o.</div><div style={S('font-size:13px;color:var(--blue);margin-top:3px')}>martin.kovar@tosovsky.cz</div></div></div>
       </div>
 
+      <KpiEditor vm={vm} />
       <DashEditor vm={vm} />
 
       <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:18px 22px;margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap')}>
