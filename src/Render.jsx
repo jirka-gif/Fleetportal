@@ -232,15 +232,6 @@ export default function Render({ vm }) {
             </Hov>
           ))}
         </div>
-        <div style={S('padding:0 12px 12px')}>
-          <Hov onClick={vm.toggleAI} base="position:relative;overflow:hidden;display:flex;align-items:center;gap:11px;padding:13px 14px;border-radius:16px;cursor:pointer;background:linear-gradient(135deg,#5F6FFF 0%,#785CFB 100%);box-shadow:0 16px 32px -12px rgba(108,94,246,.9);transition:transform .16s ease,box-shadow .16s ease" hover="transform:translateY(-2px);box-shadow:0 20px 40px -12px rgba(108,94,246,1)">
-            <div style={S('width:36px;height:36px;border-radius:12px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0')}>{ic('sparkle', 19)}</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={S('display:flex;align-items:center;gap:7px')}><span style={S('font-size:13.5px;font-weight:700;color:#fff;letter-spacing:-.2px')}>Ask Fleet AI</span><span style={S('font-size:8px;font-weight:800;letter-spacing:.7px;color:#fff;background:rgba(255,255,255,.26);padding:2px 5px;border-radius:5px')}>BETA</span></div>
-              <div style={S('font-size:11px;color:rgba(255,255,255,.82);margin-top:1px')}>AI asistent pro váš fleet</div>
-            </div>
-          </Hov>
-        </div>
         <div style={S('padding:16px 18px;border-top:1px solid var(--side-border)')}>
           <div style={S('font-size:9.5px;font-weight:700;letter-spacing:1px;color:var(--side-fg);text-transform:uppercase;margin-bottom:9px;opacity:.7')}>Spravuje · Powered by</div>
           <img src={STAR_LOGO} alt="Petrisk a.s." style={S('height:24px;width:auto;display:block;filter:brightness(0) invert(1);opacity:.92')} />
