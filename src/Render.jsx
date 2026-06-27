@@ -1247,10 +1247,112 @@ const AN_KPIS = [
   { value: '43 200', unit: 'Kč', label: 'Ø oprava', trend: '4 %', dir: 'up', trendColor: 'var(--star)', note: 'r/r', accent: '#EF4444', spark: [40, 41, 40, 42, 41, 43, 42, 43, 42, 43, 43, 43] },
 ]
 
+// Jednotlivý dashboardový box — vykreslí se podle id z uživatelské konfigurace.
+function DashWidget({ id, vm, nav }) {
+  if (id === 'kpis') return <KpiRow items={vm.kpis} />
+  if (id === 'byType') return (
+    <div style={S(`${CARD};padding:22px`)}>
+      <div style={S('margin-bottom:18px')}>
+        <div style={S('font-size:16px;font-weight:650;letter-spacing:-.3px')}>Vozidla podle typu</div>
+        <div style={S('font-size:12.5px;color:var(--ink3);margin-top:2px')}>Rozložení flotily · {vm.totalVehicles} vozidel</div>
+      </div>
+      <div style={S('display:flex;align-items:flex-end;gap:14px;height:176px;padding-top:6px')}>
+        {vm.catBars.map((d, i) => (
+          <div key={i} style={S('position:relative;flex:1;display:flex;flex-direction:column;align-items:center;gap:9px;height:100%;justify-content:flex-end')}>
+            <div style={S('font-size:13px;font-weight:700;color:var(--ink)')}>{d.n}</div>
+            <div title={`${d.label} · ${d.n}`} style={S(`width:100%;max-width:42px;height:${d.h}%;min-height:6px;border-radius:8px 8px 4px 4px;background:linear-gradient(180deg,#6D8BFF,#4F6FFF)`)}></div>
+            <span style={S('font-size:10.5px;color:var(--ink3);text-align:center;line-height:1.2')}>{d.short}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+  if (id === 'byBrand') return (
+    <div style={S(`${CARD};padding:22px`)}>
+      <SectionHead title="Vozidla podle značky" sub="Top značky ve flotile" action="Všechna vozidla" onAction={() => nav('vehicles')} />
+      <div style={S('display:flex;align-items:center;gap:16px')}>
+        <div style={S(`position:relative;width:118px;height:118px;flex-shrink:0;border-radius:50%;background:${vm.brandDonut};box-shadow:0 10px 24px -10px rgba(15,23,42,.3)`)}>
+          <div style={S('position:absolute;inset:21px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px var(--border)')}>
+            <div style={S('font-size:20px;font-weight:700;letter-spacing:-.5px')}>{vm.totalVehicles}</div>
+            <div style={S('font-size:10px;color:var(--ink3)')}>vozidel</div>
+          </div>
+        </div>
+        <div style={S('flex:1;display:flex;flex-direction:column;gap:9px;min-width:0')}>
+          {vm.brandLegend.map((it, idx) => (
+            <div key={idx} style={S('display:flex;align-items:center;gap:8px;font-size:12.5px')}>
+              <span style={S(`width:9px;height:9px;border-radius:3px;background:${it.color};flex-shrink:0`)}></span>
+              <span style={S('flex:1;color:var(--ink2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{it.name}</span>
+              <span style={S('color:var(--ink3);font-variant-numeric:tabular-nums')}>{it.count}×</span>
+              <span style={S('font-weight:700;width:34px;text-align:right;font-variant-numeric:tabular-nums')}>{it.pct}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+  if (id === 'attention') return (
+    <div style={S('position:relative;overflow:hidden;border-radius:20px;padding:18px;background:linear-gradient(150deg,#5F6FFF 0%,#6A60F8 45%,#785CFB 100%);box-shadow:0 22px 50px -18px rgba(108,94,246,.9)')}>
+      <div style={S('position:absolute;top:-40px;right:-30px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.13);pointer-events:none')}></div>
+      <div style={S('position:relative')}>
+        <div style={S('display:flex;align-items:center;gap:11px;margin:4px 4px 12px')}>
+          <div style={S('width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0')}>{ic('alert', 20)}</div>
+          <span style={S('font-size:15.5px;font-weight:700;color:#fff;letter-spacing:-.3px')}>Vyžaduje pozornost</span>
+        </div>
+        {vm.quickStats.map((q, i) => (
+          <Hov key={i} onClick={q.onClick} base="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:13px;cursor:pointer" hover="background:rgba(255,255,255,.12)">
+            <div style={S('width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.16);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{q.icon}</div>
+            <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:600;line-height:1.25;color:#fff')}>{q.label}</div><div style={S('font-size:11.5px;color:rgba(255,255,255,.72)')}>{q.sub}</div></div>
+            <div style={S('display:flex;align-items:center;gap:8px;flex-shrink:0')}><span style={S(`width:7px;height:7px;border-radius:50%;background:${q.value !== '0' ? q.color : 'rgba(255,255,255,.5)'}`)}></span><span style={S('font-size:20px;font-weight:700;letter-spacing:-.5px;color:#fff')}>{q.value}</span></div>
+          </Hov>
+        ))}
+      </div>
+    </div>
+  )
+  if (id === 'claimsMap') return (
+    <div style={S(`${CARD};padding:18px 18px 16px`)}>
+      <SectionHead title="Mapa škod" action="Zobrazit mapu" onAction={() => nav('claims')} />
+      <Suspense fallback={<div style={S('height:180px;border-radius:14px;border:1px solid var(--border);background:linear-gradient(110deg,#F1F5FB 30%,#E8EEF7 50%,#F1F5FB 70%);background-size:200% 100%;animation:pulse 1.4s ease-in-out infinite')}></div>}>
+        <ClaimsMap height={180} />
+      </Suspense>
+    </div>
+  )
+  if (id === 'activity') return (
+    <div style={S(`${CARD};overflow:hidden`)}>
+      <div style={S('display:flex;align-items:center;justify-content:space-between;padding:18px 22px 14px')}><span style={S('font-size:16px;font-weight:650;letter-spacing:-.3px')}>Nejnovější vozidla ve flotile</span></div>
+      <div>
+        {vm.activity.map((e, i) => (
+          <div key={i} style={S('display:flex;align-items:center;gap:14px;padding:13px 22px;border-top:1px solid var(--border)')}>
+            <span style={S(`width:8px;height:8px;border-radius:50%;background:${e.color};flex-shrink:0`)}></span>
+            <div style={S('flex:1;min-width:0')}><span style={S('font-size:13px;font-weight:650')}>{e.actor}</span> <span style={S('font-size:13px;color:var(--ink2)')}>{e.action}</span><div style={S('font-size:11.5px;color:var(--ink3);margin-top:1px')}>{e.time}</div></div>
+            <span style={S(`font-size:11px;font-weight:600;color:${e.catColor};background:var(--canvas);padding:3px 10px;border-radius:20px;white-space:nowrap`)}>{e.cat}</span>
+            <div style={S('width:30px;height:30px;border-radius:50%;background:var(--blue-soft);color:var(--blue);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{e.avatar}</div>
+          </div>
+        ))}
+      </div>
+      <Hov as="div" onClick={() => nav('vehicles')} base="display:flex;align-items:center;justify-content:center;gap:6px;padding:13px;border-top:1px solid var(--border);font-size:13px;font-weight:600;color:var(--ink2);cursor:pointer" hover="background:var(--canvas)">Zobrazit všechna vozidla <span style={S('display:flex;transform:rotate(90deg)')}>{ic('chevron', 15)}</span></Hov>
+    </div>
+  )
+  if (id === 'docs') return (
+    <div style={S(`${CARD};padding:18px 18px 12px`)}>
+      <SectionHead title="Dokumenty" action="Zobrazit všechny" onAction={() => nav('documents')} />
+      <div style={S('display:flex;flex-direction:column;gap:4px')}>
+        {vm.dashDocs.map((d, i) => (
+          <Hov key={i} onClick={() => nav('documents')} base="display:flex;align-items:center;gap:12px;padding:10px 8px;border-radius:11px;cursor:pointer" hover="background:var(--canvas)">
+            <div style={S(`width:34px;height:38px;border-radius:8px;background:var(--canvas);color:${d.color};display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid var(--border)`)}>{ic('file', 17)}</div>
+            <div style={S('flex:1;min-width:0')}><div style={S('font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{d.name}</div><div style={S('font-size:11px;color:var(--ink3)')}>{d.meta}</div></div>
+            <span style={S('display:flex;color:var(--ink3);flex-shrink:0')}>{ic('upload', 16)}</span>
+          </Hov>
+        ))}
+      </div>
+    </div>
+  )
+  return null
+}
+
 function Dashboard({ vm }) {
   const mob = vm.vp.isMobile
   const nav = vm.navigate || (() => {})
-  const aiChips = ['Vozidla pouze s povinným ručením', 'Nejstarší vozidla ve flotile', 'Vozidla bez asistence']
+  const widgets = (vm.dash || []).filter((w) => w.on)
   return (
     <div>
       {/* TITLE ROW */}
@@ -1262,119 +1364,17 @@ function Dashboard({ vm }) {
         {!mob && (
           <div style={S('display:flex;align-items:center;gap:10px')}>
             <Hov base="display:flex;align-items:center;gap:9px;height:42px;padding:0 15px;background:#fff;border:1px solid var(--border2);border-radius:13px;font-size:13.5px;font-weight:600;color:var(--ink);cursor:pointer" hover="background:var(--canvas)"><span style={S('display:flex;color:var(--ink3)')}>{ic('calendar', 16)}</span> Posledních 12 měsíců <span style={S('display:flex;color:var(--ink3)')}>{ic('chevron', 15)}</span></Hov>
-            <Hov base="width:42px;height:42px;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--border2);border-radius:13px;color:var(--ink2);cursor:pointer" hover="background:var(--canvas)">{ic('scales', 17)}</Hov>
+            <Hov onClick={() => nav('settings')} base="display:flex;align-items:center;gap:8px;height:42px;padding:0 14px;background:#fff;border:1px solid var(--border2);border-radius:13px;font-size:13.5px;font-weight:600;color:var(--ink);cursor:pointer" hover="border:1px solid var(--blue);color:var(--blue)">{ic('settings', 16)} Přizpůsobit</Hov>
           </div>
         )}
       </div>
 
-      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : 'minmax(0,1fr) 344px'};gap:${mob ? '16px' : '20px'};align-items:start`)}>
-        {/* ============ MAIN COLUMN ============ */}
-        <div style={S('display:flex;flex-direction:column;gap:18px;min-width:0')}>
-          {/* KPI ROW */}
-          <KpiRow items={vm.kpis} />
-
-          {/* CHARTS ROW */}
-          <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1.35fr 1fr'};gap:18px`)}>
-            {/* dual bar chart */}
-            <div style={S(`${CARD};padding:22px`)}>
-              <div style={S('margin-bottom:18px')}>
-                <div style={S('font-size:16px;font-weight:650;letter-spacing:-.3px')}>Vozidla podle typu</div>
-                <div style={S('font-size:12.5px;color:var(--ink3);margin-top:2px')}>Rozložení flotily · {vm.totalVehicles} vozidel</div>
-              </div>
-              <div style={S('display:flex;align-items:flex-end;gap:14px;height:176px;padding-top:6px')}>
-                {vm.catBars.map((d, i) => (
-                  <div key={i} style={S('position:relative;flex:1;display:flex;flex-direction:column;align-items:center;gap:9px;height:100%;justify-content:flex-end')}>
-                    <div style={S('font-size:13px;font-weight:700;color:var(--ink)')}>{d.n}</div>
-                    <div title={`${d.label} · ${d.n}`} style={S(`width:100%;max-width:42px;height:${d.h}%;min-height:6px;border-radius:8px 8px 4px 4px;background:linear-gradient(180deg,#6D8BFF,#4F6FFF)`)}></div>
-                    <span style={S('font-size:10.5px;color:var(--ink3);text-align:center;line-height:1.2')}>{d.short}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* donut */}
-            <div style={S(`${CARD};padding:22px`)}>
-              <SectionHead title="Vozidla podle značky" sub="Top značky ve flotile" action="Všechna vozidla" onAction={() => nav('vehicles')} />
-              <div style={S('display:flex;align-items:center;gap:16px')}>
-                <div style={S(`position:relative;width:118px;height:118px;flex-shrink:0;border-radius:50%;background:${vm.brandDonut};box-shadow:0 10px 24px -10px rgba(15,23,42,.3)`)}>
-                  <div style={S('position:absolute;inset:21px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px var(--border)')}>
-                    <div style={S('font-size:20px;font-weight:700;letter-spacing:-.5px')}>{vm.totalVehicles}</div>
-                    <div style={S('font-size:10px;color:var(--ink3)')}>vozidel</div>
-                  </div>
-                </div>
-                <div style={S('flex:1;display:flex;flex-direction:column;gap:9px;min-width:0')}>
-                  {vm.brandLegend.map((it, idx) => (
-                    <div key={idx} style={S('display:flex;align-items:center;gap:8px;font-size:12.5px')}>
-                      <span style={S(`width:9px;height:9px;border-radius:3px;background:${it.color};flex-shrink:0`)}></span>
-                      <span style={S('flex:1;color:var(--ink2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{it.name}</span>
-                      <span style={S('color:var(--ink3);font-variant-numeric:tabular-nums')}>{it.count}×</span>
-                      <span style={S('font-weight:700;width:34px;text-align:right;font-variant-numeric:tabular-nums')}>{it.pct}%</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:18px;align-items:start`)}>
+        {widgets.map((w) => (
+          <div key={w.id} style={{ gridColumn: (mob || w.w === 'full') ? '1 / -1' : 'auto', minWidth: 0 }}>
+            <DashWidget id={w.id} vm={vm} nav={nav} />
           </div>
-
-          {/* ACTIVITY */}
-          <div style={S(`${CARD};overflow:hidden`)}>
-            <div style={S('display:flex;align-items:center;justify-content:space-between;padding:18px 22px 14px')}><span style={S('font-size:16px;font-weight:650;letter-spacing:-.3px')}>Nejnovější vozidla ve flotile</span></div>
-            <div>
-              {vm.activity.map((e, i) => (
-                <div key={i} style={S(`display:flex;align-items:center;gap:14px;padding:13px 22px;${i < vm.activity.length - 1 ? 'border-top:1px solid var(--border);' : 'border-top:1px solid var(--border);'}`)}>
-                  <span style={S(`width:8px;height:8px;border-radius:50%;background:${e.color};flex-shrink:0`)}></span>
-                  <div style={S('flex:1;min-width:0')}><span style={S('font-size:13px;font-weight:650')}>{e.actor}</span> <span style={S('font-size:13px;color:var(--ink2)')}>{e.action}</span><div style={S('font-size:11.5px;color:var(--ink3);margin-top:1px')}>{e.time}</div></div>
-                  <span style={S(`font-size:11px;font-weight:600;color:${e.catColor};background:var(--canvas);padding:3px 10px;border-radius:20px;white-space:nowrap`)}>{e.cat}</span>
-                  <div style={S('width:30px;height:30px;border-radius:50%;background:var(--blue-soft);color:var(--blue);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{e.avatar}</div>
-                </div>
-              ))}
-            </div>
-            <Hov as="div" onClick={() => nav('vehicles')} base="display:flex;align-items:center;justify-content:center;gap:6px;padding:13px;border-top:1px solid var(--border);font-size:13px;font-weight:600;color:var(--ink2);cursor:pointer" hover="background:var(--canvas)">Zobrazit všechna vozidla <span style={S('display:flex;transform:rotate(90deg)')}>{ic('chevron', 15)}</span></Hov>
-          </div>
-        </div>
-
-        {/* ============ RIGHT RAIL ============ */}
-        <div style={S('display:flex;flex-direction:column;gap:18px;min-width:0')}>
-          {/* VYŽADUJE POZORNOST */}
-          <div style={S('position:relative;overflow:hidden;border-radius:20px;padding:18px;background:linear-gradient(150deg,#5F6FFF 0%,#6A60F8 45%,#785CFB 100%);box-shadow:0 22px 50px -18px rgba(108,94,246,.9)')}>
-            <div style={S('position:absolute;top:-40px;right:-30px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.13);pointer-events:none')}></div>
-            <div style={S('position:relative')}>
-              <div style={S('display:flex;align-items:center;gap:11px;margin:4px 4px 12px')}>
-                <div style={S('width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0')}>{ic('alert', 20)}</div>
-                <span style={S('font-size:15.5px;font-weight:700;color:#fff;letter-spacing:-.3px')}>Vyžaduje pozornost</span>
-              </div>
-              {vm.quickStats.map((q, i) => (
-                <Hov key={i} onClick={q.onClick} base="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:13px;cursor:pointer" hover="background:rgba(255,255,255,.12)">
-                  <div style={S('width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.16);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{q.icon}</div>
-                  <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:600;line-height:1.25;color:#fff')}>{q.label}</div><div style={S('font-size:11.5px;color:rgba(255,255,255,.72)')}>{q.sub}</div></div>
-                  <div style={S('display:flex;align-items:center;gap:8px;flex-shrink:0')}><span style={S(`width:7px;height:7px;border-radius:50%;background:${q.value !== '0' ? q.color : 'rgba(255,255,255,.5)'}`)}></span><span style={S('font-size:20px;font-weight:700;letter-spacing:-.5px;color:#fff')}>{q.value}</span></div>
-                </Hov>
-              ))}
-            </div>
-          </div>
-
-          {/* CLAIMS MAP */}
-          <div style={S(`${CARD};padding:18px 18px 16px`)}>
-            <SectionHead title="Mapa škod" action="Zobrazit mapu" onAction={() => nav('claims')} />
-            <Suspense fallback={<div style={S('height:180px;border-radius:14px;border:1px solid var(--border);background:linear-gradient(110deg,#F1F5FB 30%,#E8EEF7 50%,#F1F5FB 70%);background-size:200% 100%;animation:pulse 1.4s ease-in-out infinite')}></div>}>
-              <ClaimsMap height={180} />
-            </Suspense>
-          </div>
-
-          {/* DOCUMENTS */}
-          <div style={S(`${CARD};padding:18px 18px 12px`)}>
-            <SectionHead title="Dokumenty" action="Zobrazit všechny" onAction={() => nav('documents')} />
-            <div style={S('display:flex;flex-direction:column;gap:4px')}>
-              {vm.dashDocs.map((d, i) => (
-                <Hov key={i} onClick={() => nav('documents')} base="display:flex;align-items:center;gap:12px;padding:10px 8px;border-radius:11px;cursor:pointer" hover="background:var(--canvas)">
-                  <div style={S(`width:34px;height:38px;border-radius:8px;background:var(--canvas);color:${d.color};display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid var(--border)`)}>{ic('file', 17)}</div>
-                  <div style={S('flex:1;min-width:0')}><div style={S('font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{d.name}</div><div style={S('font-size:11px;color:var(--ink3)')}>{d.meta}</div></div>
-                  <span style={S('display:flex;color:var(--ink3);flex-shrink:0')}>{ic('upload', 16)}</span>
-                </Hov>
-              ))}
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   )
@@ -3134,6 +3134,43 @@ function Contacts({ vm }) {
 }
 
 /* ============================ SETTINGS ============================ */
+// Editor dashboardu — přetahování (drag&drop), zapnutí/vypnutí a šířka boxů.
+function DashEditor({ vm }) {
+  const [drag, setDrag] = useState(null)
+  const [over, setOver] = useState(null)
+  const meta = Object.fromEntries((vm.dashMeta || []).map((w) => [w.id, w.name]))
+  const onCount = (vm.dash || []).filter((w) => w.on).length
+  return (
+    <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:22px;margin-bottom:14px')}>
+      <div style={S('display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px')}>
+        <div style={S('font-size:15px;font-weight:700')}>Můj dashboard</div>
+        <Hov as="span" onClick={vm.resetDash} base="font-size:12.5px;font-weight:600;color:var(--ink3);cursor:pointer" hover="color:var(--ink)">Obnovit výchozí</Hov>
+      </div>
+      <div style={S('font-size:12.5px;color:var(--ink3);margin-bottom:16px')}>Přetáhněte boxy myší podle pořadí, zapněte/vypněte je a nastavte šířku — {onCount} z {(vm.dash || []).length} zapnuto. Mění se jen váš přehled.</div>
+      <div style={S('display:flex;flex-direction:column;gap:8px')}>
+        {(vm.dash || []).map((w, i) => {
+          const isTarget = over === i && drag != null && drag !== i
+          return (
+            <div key={w.id} draggable
+              onDragStart={() => setDrag(i)}
+              onDragEnd={() => { setDrag(null); setOver(null) }}
+              onDragOver={(e) => { e.preventDefault(); if (over !== i) setOver(i) }}
+              onDrop={(e) => { e.preventDefault(); if (drag != null) vm.moveDashWidget(drag, i); setDrag(null); setOver(null) }}
+              style={S(`display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:12px;border:1px solid ${isTarget ? 'var(--blue)' : 'var(--border2)'};background:${w.on ? '#fff' : 'var(--canvas)'};opacity:${drag === i ? '.4' : '1'};transition:border-color .12s`)}>
+              <span style={S('display:flex;color:var(--ink3);cursor:grab')} title="Přetáhnout">{ic('menu', 17)}</span>
+              <span style={S(`flex:1;min-width:0;font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${w.on ? 'var(--ink)' : 'var(--ink3)'}`)}>{meta[w.id] || w.id}</span>
+              <Select value={w.w} onChange={(e) => vm.setDashWidth(w.id, e.target.value)} options={[{ v: 'full', l: 'Celá šířka' }, { v: 'half', l: 'Poloviční' }]} width="auto" height={32} size={12.5} />
+              <Hov onClick={() => vm.toggleDashWidget(w.id)} base={`width:42px;height:24px;border-radius:20px;cursor:pointer;display:flex;align-items:center;padding:2px;flex-shrink:0;background:${w.on ? 'var(--blue)' : '#CFD5E0'};justify-content:${w.on ? 'flex-end' : 'flex-start'};transition:background .15s,justify-content .15s`} hover="">
+                <span style={S('width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25)')}></span>
+              </Hov>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function Settings({ vm }) {
   return (
     <div style={S('max-width:760px')}>
@@ -3141,6 +3178,15 @@ function Settings({ vm }) {
         <div style={S('font-size:15px;font-weight:700;margin-bottom:16px')}>Profil</div>
         <div style={S('display:flex;align-items:center;gap:16px')}><div style={S('width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#4F6FFF,#6D5EF6);color:#fff;font-weight:700;font-size:20px;display:flex;align-items:center;justify-content:center')}>MK</div><div><div style={S('font-size:16px;font-weight:700')}>Martin Kovář</div><div style={S('font-size:13px;color:var(--ink3)')}>Fleet Manager · Jiří Tošovský s.r.o.</div><div style={S('font-size:13px;color:var(--blue);margin-top:3px')}>martin.kovar@tosovsky.cz</div></div></div>
       </div>
+
+      <DashEditor vm={vm} />
+
+      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:18px 22px;margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap')}>
+        <div style={S('width:40px;height:40px;border-radius:11px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic('shield', 20)}</div>
+        <div style={S('flex:1;min-width:160px')}><div style={S('font-size:13.5px;font-weight:700')}>Moduly a menu</div><div style={S('font-size:12.5px;color:var(--ink3);margin-top:1px')}>Rozsah portálu (Řidiči, Financování, Bonifikace…) spravuje váš makléř přes Draive Core CRM. Potřebujete něco zapnout? Ozvěte se.</div></div>
+        <span style={S('display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--ink2);background:#EEF2F9;padding:5px 11px;border-radius:20px;white-space:nowrap')}>{ic('lock', 11, 2.4)} Spravuje makléř</span>
+      </div>
+
       <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:22px;margin-bottom:14px')}>
         <div style={S('font-size:15px;font-weight:700;margin-bottom:6px')}>Notifikace</div>
         {vm.settingRows.map((s, i) => (

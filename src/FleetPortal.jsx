@@ -89,6 +89,31 @@ const rfqRecord = (d, id, sentLabel, status) => {
 // Ukázkové odeslané poptávky (na 1–2 reálně končících vozech) — ať má záložka obsah.
 const SEED_RFQS = financingEnding(120).slice(0, 2).map((e, i) => rfqRecord(rfqDraft(e.v), 'rfq-seed-' + (i + 1), i === 0 ? 'před 2 dny' : 'před 4 dny', 'offers'))
 
+// --- Konfigurace dashboardu (uživatel si ji v Nastavení ladí drag&drop) ---
+// Moduly/menu nastavujeme my přes Draive Core CRM (licence); zákazník si volí jen dashboard.
+const DASH_WIDGETS = [
+  { id: 'kpis', name: 'Souhrn flotily (KPI)', w: 'full' },
+  { id: 'byType', name: 'Vozidla podle typu', w: 'half' },
+  { id: 'byBrand', name: 'Vozidla podle značky', w: 'half' },
+  { id: 'attention', name: 'Vyžaduje pozornost', w: 'half' },
+  { id: 'claimsMap', name: 'Mapa škod', w: 'half' },
+  { id: 'activity', name: 'Nejnovější vozidla', w: 'full' },
+  { id: 'docs', name: 'Dokumenty', w: 'half' },
+]
+const DASH_DEFAULT = DASH_WIDGETS.map((w) => ({ id: w.id, on: true, w: w.w }))
+const DASH_KEY = 'fleetportal.dash.v1'
+const loadDash = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DASH_KEY) || 'null')
+    if (!Array.isArray(saved)) return DASH_DEFAULT
+    const known = Object.fromEntries(DASH_WIDGETS.map((w) => [w.id, w]))
+    const out = saved.filter((s) => s && known[s.id]).map((s) => ({ id: s.id, on: s.on !== false, w: s.w === 'full' ? 'full' : 'half' }))
+    DASH_WIDGETS.forEach((w) => { if (!out.some((o) => o.id === w.id)) out.push({ id: w.id, on: true, w: w.w }) })
+    return out.length ? out : DASH_DEFAULT
+  } catch { return DASH_DEFAULT }
+}
+const saveDash = (arr) => { try { localStorage.setItem(DASH_KEY, JSON.stringify(arr)) } catch (e) { /* localStorage nedostupné */ } }
+
 const INS_COLORS = { Kooperativa: '#2058C9', Allianz: '#16A34A', 'ČPP': '#C2780C', Generali: '#8B5CF6', UNIQA: '#0EA5A5', 'ČSOB': '#9B0E25' }
 const DEFAULT_BONUS = [{ threshold: 30, rate: 15 }, { threshold: 40, rate: 10 }, { threshold: 50, rate: 5 }]
 const INSURER_CODE = { Kooperativa: '7720', Allianz: '4055', 'ČPP': '0019', Generali: '5544', UNIQA: '2401', 'ČSOB': '8830', 'ČSOB Poj.': '8830' }
@@ -142,7 +167,8 @@ const BROKER = { name: 'Petrisk a.s.', role: 'Pojišťovací makléř', reg: 'Č
 const POJISTNIK = { name: 'Jiří Tošovský s.r.o.', ico: '02043858' }
 
 export default function FleetPortal() {
-  const [state, setStateRaw] = useState({
+  const [state, setStateRaw] = useState(() => ({
+    dash: loadDash(),
     route: 'dashboard',
     fleetId: 'f1', vehicleId: 'v1',
     fleetTab: 'overview', vehicleTab: 'overview', fleetsView: 'grid', finTab: 'prehled', rfq: null, rfqs: SEED_RFQS,
@@ -174,7 +200,7 @@ export default function FleetPortal() {
     aiMessages: [
       { role: 'ai', text: 'Dobrý den, Martine. Jsem váš fleet asistent. Můžu vyhledávat vozidla, hlídat obnovy nebo nahlásit škodu — stačí napsat.' },
     ],
-  })
+  }))
   const ttRef = useRef(null)
   const vp = useViewport()
   const setState = (patch) => setStateRaw((s) => ({ ...s, ...(typeof patch === 'function' ? patch(s) : patch) }))
@@ -211,6 +237,12 @@ export default function FleetPortal() {
     showToast(`Poptávka odeslána do ${rec.partnerCount} společností · nabídky obvykle do 2 prac. dnů.`)
     setTimeout(() => setState((s) => ({ rfqs: s.rfqs.map((x) => x.id === id ? { ...x, status: 'offers', offers: rfqGenOffers(x) } : x) })), 1700)
   }
+  // Konfigurace dashboardu (drag&drop v Nastavení)
+  const setDash = (arr) => { saveDash(arr); setState({ dash: arr }) }
+  const toggleDashWidget = (id) => setDash(state.dash.map((w) => w.id === id ? { ...w, on: !w.on } : w))
+  const setDashWidth = (id, wv) => setDash(state.dash.map((w) => w.id === id ? { ...w, w: wv } : w))
+  const moveDashWidget = (from, to) => { if (from === to || to < 0 || to >= state.dash.length) return; const a = [...state.dash]; const [m] = a.splice(from, 1); a.splice(to, 0, m); setDash(a) }
+  const resetDash = () => setDash(DASH_DEFAULT)
   const acceptOffer = (rfqId, partnerId) => {
     setState((s) => ({ rfqs: s.rfqs.map((x) => x.id === rfqId ? { ...x, status: 'accepted', accepted: partnerId } : x) }))
     const o = (state.rfqs.find((x) => x.id === rfqId) || {}).offers || []
@@ -1590,6 +1622,7 @@ export default function FleetPortal() {
   }
 
   const vm = {
+    dash: state.dash, dashMeta: DASH_WIDGETS, toggleDashWidget, setDashWidth, moveDashWidget, resetDash,
     ...shellVM(), ...dashboardVM(), ...fleetsVM(), ...fleetDetailVM(), ...vehiclesVM(), ...vehicleDetailVM(),
     ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(),
   }
