@@ -340,6 +340,7 @@ export default function Render({ vm }) {
       {vm.claimWizard && <ClaimWizard vm={vm} />}
       {vm.av && <AddVehicleWizard vm={vm} />}
       {vm.np && <NewFleetModal vm={vm} />}
+      {vm.rfqModal && <RfqModal vm={vm} />}
       {vm.docPreview && <DocPreviewModal vm={vm} />}
       {vm.unsub && <UnsubscribeModal vm={vm} />}
       {vm.costModal && <CostModal vm={vm} />}
@@ -1885,6 +1886,13 @@ function Financing({ vm }) {
           <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:700;color:var(--star-ink)')}>{vm.finEndingCount} {plural} financování končí do 90 dnů</div><div style={S('font-size:12px;color:var(--ink2);margin-top:1px')}>Doporučujeme včas řešit refinancování nebo obměnu vozidla — končící smlouvy jsou v seznamu níže nahoře a označené.</div></div>
         </div>
       )}
+      <div style={S('display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:20px')}>
+        {[['prehled', 'Přehled', null], ['poptavky', 'Poptávky a nabídky', vm.rfqCount]].map(([id, label, badge]) => {
+          const on = vm.finTab === id
+          return <div key={id} onClick={() => vm.setFinTab(id)} style={S(`display:flex;align-items:center;gap:7px;padding:10px 14px;font-size:13.5px;font-weight:600;cursor:pointer;color:${on ? 'var(--blue-ink)' : 'var(--ink3)'};border-bottom:2px solid ${on ? 'var(--blue)' : 'transparent'};margin-bottom:-1px`)}>{label}{badge ? <span style={S(`font-size:11px;font-weight:700;background:${on ? 'var(--blue-soft)' : '#EEF2F9'};color:${on ? 'var(--blue-ink)' : 'var(--ink2)'};padding:1px 7px;border-radius:20px`)}>{badge}</span> : null}</div>
+        })}
+      </div>
+      {vm.finTab === 'poptavky' ? <FinancingRfqs vm={vm} /> : (<>
       <KpiRow items={vm.finStats} mb="22px" />
 
       <div style={S('font-size:15px;font-weight:700;margin-bottom:12px')}>Podle typu financování</div>
@@ -1914,14 +1922,14 @@ function Financing({ vm }) {
 
       <div style={S('display:flex;align-items:center;gap:9px;margin-bottom:12px')}><span style={S('font-size:15px;font-weight:700')}>Financovaná vozidla</span><span style={S('font-size:11.5px;font-weight:700;color:var(--ink2);background:#EEF2F9;padding:2px 8px;border-radius:20px')}>{vm.finRows.length}</span></div>
       <div style={S(`${CARD};overflow:hidden`)}>
-        <HScroll minW={900}>
+        <HScroll minW={1060}>
           <div style={S('display:flex;align-items:center;gap:14px;padding:13px 22px;border-bottom:1px solid var(--border);background:#F7FAFE;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.5px')}>
             <div style={S('flex:1;min-width:0')}>Vozidlo</div>
             <div style={S('width:130px')}>Typ</div>
-            <div style={S('width:200px')}>Poskytovatel</div>
+            <div style={S('width:180px')}>Poskytovatel</div>
             <div style={S('width:130px;text-align:right')}>Měsíční splátka</div>
             <div style={S('width:110px')}>Konec</div>
-            <div style={S('width:18px;flex-shrink:0')}></div>
+            <div style={S('width:172px;flex-shrink:0')}></div>
           </div>
           {vm.finRows.map((r) => (
             <Hov key={r.id} onClick={r.onClick} base="display:flex;align-items:center;gap:14px;padding:13px 22px;border-bottom:1px solid var(--border);cursor:pointer" hover="background:#F2F6FC">
@@ -1930,19 +1938,139 @@ function Financing({ vm }) {
                 <div style={S('min-width:0')}><div style={S('font-size:13.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{r.vehicle}</div><div style={S('font-size:11.5px;color:var(--ink3);font-variant-numeric:tabular-nums')}>{r.plate}</div></div>
               </div>
               <div style={S('width:130px')}><span style={S(`display:inline-flex;font-size:11px;font-weight:700;color:${r.typeColor};background:${r.typeBg};padding:3px 10px;border-radius:20px`)}>{r.typeShort}</span></div>
-              <div style={S('width:200px;font-size:12.5px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.provider}</div>
+              <div style={S('width:180px;font-size:12.5px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.provider}</div>
               <div style={S('width:130px;text-align:right;font-size:13.5px;font-weight:700;font-variant-numeric:tabular-nums')}>{r.monthly}</div>
               <div style={S('width:110px')}><div style={S('font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums')}>{r.endDate}</div>{r.endingSoon ? <span style={S('display:inline-flex;font-size:10px;font-weight:700;color:var(--star);background:var(--star-soft);padding:1px 7px;border-radius:6px;margin-top:3px')}>{r.daysToEnd === 0 ? 'končí dnes' : `končí za ${r.daysToEnd} dní`}</span> : null}</div>
-              <span style={S('width:18px;flex-shrink:0;color:var(--ink3);display:flex')}>{ic('arrow', 16)}</span>
+              <div style={S('width:172px;flex-shrink:0;display:flex;justify-content:flex-end')}>
+                <Hov onClick={r.onRfq} base={`display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;${r.endingSoon ? 'background:var(--blue);color:#fff' : 'background:#fff;border:1px solid var(--border2);color:var(--ink2)'}`} hover={r.endingSoon ? 'filter:brightness(1.06)' : 'border:1px solid var(--blue);color:var(--blue)'}>{ic('refresh', 14)} Poptat nový vůz</Hov>
+              </div>
             </Hov>
           ))}
         </HScroll>
+      </div>
+      </>)}
+    </div>
+  )
+}
+
+// Záložka „Poptávky a nabídky" — odeslané poptávky obměny vozu + srovnání nabídek leasingovek.
+function FinancingRfqs({ vm }) {
+  if (!vm.rfqList.length) {
+    return <EmptyState icon="banknote" title="Zatím žádné poptávky" sub={'U končící smlouvy klikněte na „Poptat nový vůz" — poptávku rozešleme více leasingovkám najednou a nabídky porovnáme tady.'} />
+  }
+  const stMeta = { sent: ['Odesláno · čeká na nabídky', 'var(--amber)', 'var(--amber-soft)'], offers: ['Nabídky k rozhodnutí', 'var(--blue)', 'var(--blue-soft)'], accepted: ['Přijato', 'var(--green)', 'var(--green-soft)'] }
+  return (
+    <div style={S('display:flex;flex-direction:column;gap:16px')}>
+      {vm.rfqList.map((q) => {
+        const st = stMeta[q.status]
+        return (
+          <div key={q.id} style={S(`${CARD};overflow:hidden`)}>
+            <div style={S('display:flex;align-items:center;gap:13px;padding:16px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap')}>
+              <div style={S('width:40px;height:40px;border-radius:11px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic('car', 19)}</div>
+              <div style={S('flex:1;min-width:0')}>
+                <div style={S('font-size:14.5px;font-weight:700')}>{q.vehicle} <span style={S('font-size:12px;font-weight:500;color:var(--ink3)')}>· {q.plate}</span></div>
+                <div style={S('font-size:11.5px;color:var(--ink3)')}>{q.typeLabel} · {q.paramsSummary} · poptáno u {q.partnerCount} společností · {q.sentLabel}</div>
+              </div>
+              <span style={S(`font-size:11px;font-weight:700;color:${st[1]};background:${st[2]};padding:4px 11px;border-radius:20px;white-space:nowrap`)}>{st[0]}</span>
+            </div>
+            {q.status === 'sent' ? (
+              <div style={S('display:flex;align-items:center;gap:11px;padding:20px;color:var(--ink3);font-size:13px')}>
+                <span style={S('width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--blue);border-radius:50%;display:block;animation:aresSpin .7s linear infinite')} />
+                Poptávka odeslána partnerům — nabídky obvykle do 2 pracovních dnů, dáme vědět.
+              </div>
+            ) : (
+              <div>
+                <div style={S('display:flex;align-items:center;gap:14px;padding:11px 20px;border-bottom:1px solid var(--border);background:#F7FAFE;font-size:10.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.5px')}>
+                  <div style={S('flex:1;min-width:0')}>Leasingová společnost</div>
+                  <div style={S('width:96px;text-align:right')}>Úrok</div>
+                  <div style={S('width:120px;text-align:right')}>Měsíčně</div>
+                  <div style={S('width:130px;text-align:right')}>Celkem</div>
+                  <div style={S('width:104px;flex-shrink:0')}></div>
+                </div>
+                {q.offers.map((o, i) => (
+                  <div key={i} style={S(`display:flex;align-items:center;gap:14px;padding:13px 20px;${i < q.offers.length - 1 ? 'border-bottom:1px solid var(--border);' : ''}background:${o.isAccepted ? 'var(--green-soft)' : o.best ? 'rgba(34,197,94,.05)' : 'transparent'}`)}>
+                    <div style={S('flex:1;min-width:0;display:flex;align-items:center;gap:9px')}>
+                      <span style={S('font-size:13.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{o.partner}</span>
+                      {o.best && <span style={S('font-size:10px;font-weight:700;color:var(--green);background:var(--green-soft);padding:2px 8px;border-radius:20px;flex-shrink:0')}>nejvýhodnější</span>}
+                      {o.svcF && <span style={S('font-size:10.5px;color:var(--ink3);flex-shrink:0')}>vč. služeb</span>}
+                    </div>
+                    <div style={S('width:96px;text-align:right;font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums')}>{o.rateF}</div>
+                    <div style={S('width:120px;text-align:right;font-size:13.5px;font-weight:700;font-variant-numeric:tabular-nums')}>{o.monthlyF}</div>
+                    <div style={S('width:130px;text-align:right;font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums')}>{o.totalF}</div>
+                    <div style={S('width:104px;flex-shrink:0;display:flex;justify-content:flex-end')}>
+                      {q.status === 'accepted'
+                        ? (o.isAccepted ? <span style={S('display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--green)')}>{ic('check', 14, 2.5)} Přijato</span> : <span style={S('font-size:12px;color:var(--ink3)')}>—</span>)
+                        : <Hov onClick={o.onAccept} base={`height:32px;padding:0 13px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;${o.best ? 'background:var(--green);color:#fff' : 'background:#fff;border:1px solid var(--border2);color:var(--ink)'}`} hover={o.best ? 'filter:brightness(1.05)' : 'border:1px solid var(--blue);color:var(--blue)'}>Přijmout</Hov>}
+                    </div>
+                  </div>
+                ))}
+                {q.status === 'accepted' && <div style={S('padding:12px 20px;font-size:12.5px;color:var(--green);background:var(--green-soft);display:flex;align-items:center;gap:8px')}><span style={S('display:flex')}>{ic('check', 15, 2.4)}</span>Nabídka {q.acceptedName} přijata — makléř Petr Kmoch (Petrisk a.s.) připraví smlouvu, ozve se vám.</div>}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// Modal poptávky obměny vozu → výběr parametrů (stejné/upravit) + leasingovek, odeslání.
+function RfqModal({ vm }) {
+  const m = vm.rfqModal
+  const lbl = 'font-size:11px;font-weight:600;color:var(--ink3);margin-bottom:5px'
+  const chip = (label, val) => <div style={S('flex:1;min-width:110px')}><div style={S('font-size:11px;font-weight:600;color:var(--ink3);margin-bottom:4px')}>{label}</div><div style={S('font-size:13.5px;font-weight:600')}>{val}</div></div>
+  return (
+    <div onClick={m.close} style={S('position:fixed;inset:0;z-index:80;background:rgba(15,15,20,.4);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:24px')}>
+      <div onClick={m.stop} style={S('width:640px;max-width:96vw;max-height:92vh;background:#fff;border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.32);overflow:hidden;display:flex;flex-direction:column;animation:popIn .2s ease')}>
+        <div style={S('display:flex;align-items:center;gap:13px;padding:20px 22px;border-bottom:1px solid var(--border)')}>
+          <div style={S('width:40px;height:40px;border-radius:12px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic('refresh', 20)}</div>
+          <div style={{ flex: 1, minWidth: 0 }}><div style={S('font-size:16px;font-weight:700')}>Poptat nový vůz</div><div style={S('font-size:12.5px;color:var(--ink3)')}>{m.vehicle} · {m.plate} — rozešleme více leasingovkám najednou</div></div>
+          <span onClick={m.close} style={S('color:var(--ink3);cursor:pointer;display:flex')}>{ic('close', 17)}</span>
+        </div>
+        <div style={S('padding:20px 22px;overflow-y:auto')}>
+          <div style={S('display:flex;gap:3px;padding:3px;background:#EEF1F6;border-radius:10px;margin-bottom:16px;max-width:340px')}>
+            {[['Stejné parametry', false], ['Upravit', true]].map(([txt, ed], i) => { const on = m.edit === ed; return <Hov key={i} onClick={() => m.setEdit(ed)} base={`flex:1;text-align:center;padding:7px 10px;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;color:${on ? 'var(--blue-ink)' : 'var(--ink3)'};background:${on ? '#fff' : 'transparent'};box-shadow:${on ? '0 1px 3px rgba(15,23,42,.1)' : 'none'}`} hover={on ? '' : 'color:var(--ink)'}>{txt}</Hov> })}
+          </div>
+          <div style={S('font-size:12.5px;font-weight:700;margin-bottom:10px')}>Parametry nového vozu</div>
+          {m.edit ? (
+            <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px')}>
+              <div><div style={S(lbl)}>Typ financování</div><Select value={m.type} onChange={m.onType} options={m.typeOpts} height={40} /></div>
+              <div><div style={S(lbl)}>Doba</div><Select value={m.term} onChange={m.onTerm} options={m.termOpts} height={40} /></div>
+              <div><div style={S(lbl)}>Akontace</div><Select value={m.akontPct} onChange={m.onAkont} options={m.akontOpts} height={40} /></div>
+              {m.isOp && <div><div style={S(lbl)}>Roční nájezd</div><Select value={m.mileage} onChange={m.onMileage} options={m.mileageOpts} height={40} /></div>}
+            </div>
+          ) : (
+            <div style={S('display:flex;flex-wrap:wrap;gap:14px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--canvas)')}>
+              {chip('Vozidlo', 'stejná konfigurace')}{chip('Typ financování', m.typeLabel)}{chip('Doba', m.termLabel)}{chip('Akontace', m.akontLabel)}{m.isOp ? chip('Roční nájezd', m.mileage) : chip('Orientační cena', m.priceF)}
+            </div>
+          )}
+          {m.isOp && (
+            <div style={S('margin-top:12px')}>
+              <div style={S('font-size:11px;font-weight:600;color:var(--ink3);margin-bottom:6px')}>Požadované služby (operativní leasing)</div>
+              <div style={S('display:flex;flex-wrap:wrap;gap:7px')}>{m.services.map((s, i) => <span key={i} style={S('font-size:11.5px;font-weight:600;color:var(--blue-ink);background:var(--blue-soft);padding:5px 10px;border-radius:20px')}>{s}</span>)}</div>
+            </div>
+          )}
+          <div style={S('font-size:12.5px;font-weight:700;margin:18px 0 4px')}>Komu poslat poptávku</div>
+          <div style={S('font-size:11.5px;color:var(--ink3);margin-bottom:10px')}>Relevantní partneři jsou předvybraní — víc nabídek znamená lepší cenu.</div>
+          <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px')}>
+            {m.partners.map((p) => (
+              <Hov key={p.id} onClick={() => m.togglePartner(p.id)} base={`display:flex;align-items:center;gap:10px;padding:11px 13px;border-radius:11px;cursor:pointer;border:1px solid ${p.on ? 'var(--blue)' : 'var(--border2)'};background:${p.on ? 'var(--blue-soft)' : '#fff'}`} hover={p.on ? '' : 'border:1px solid #C9D2E3'}>
+                <span style={S(`width:18px;height:18px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;border:1.5px solid ${p.on ? 'var(--blue)' : '#CFCFD4'};background:${p.on ? 'var(--blue)' : '#fff'}`)}>{p.on ? ic('check', 12, 2.6) : null}</span>
+                <span style={S(`font-size:13px;font-weight:600;color:${p.on ? 'var(--blue-ink)' : 'var(--ink2)'}`)}>{p.name}</span>
+              </Hov>
+            ))}
+          </div>
+        </div>
+        <div style={S('display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 22px;border-top:1px solid var(--border);flex-wrap:wrap')}>
+          <span style={S('font-size:12px;color:var(--ink3)')}>Nabídky se vrátí do portálu · porovnáme je za vás.</span>
+          <Hov onClick={m.canSend ? m.send : undefined} base={`height:42px;padding:0 20px;border-radius:11px;font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:8px;cursor:${m.canSend ? 'pointer' : 'default'};color:#fff;background:${m.canSend ? 'var(--blue)' : 'var(--ink3)'};opacity:${m.canSend ? 1 : .55}`} hover={m.canSend ? 'filter:brightness(1.07)' : ''}>{ic('send', 16)} Odeslat poptávku ({m.selCount})</Hov>
+        </div>
       </div>
     </div>
   )
 }
 
-function FinancingCard({ f }) {
+function FinancingCard({ f, onRfq }) {
   if (!f || !f.active) {
     return (
       <div style={S(`${CARD};padding:20px`)}>
@@ -1969,6 +2097,7 @@ function FinancingCard({ f }) {
         <div style={S(`width:40px;height:40px;border-radius:11px;background:${bg};color:${color};display:flex;align-items:center;justify-content:center`)}>{ic('banknote', 20)}</div>
         <div style={{ flex: 1 }}><div style={S('font-size:15px;font-weight:700')}>Financování</div><div style={S('font-size:12.5px;color:var(--ink3)')}>{f.provider}</div></div>
         <span style={S(`font-size:12px;font-weight:600;color:${color};background:${bg};padding:5px 12px;border-radius:20px`)}>{f.typeLabel}</span>
+        {onRfq && <Hov onClick={onRfq} base="display:flex;align-items:center;gap:6px;height:34px;padding:0 13px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;background:var(--blue-soft);color:var(--blue-ink);border:1px solid var(--blue)" hover="background:var(--blue);color:#fff">{ic('refresh', 14)} Poptat nový vůz</Hov>}
       </div>
       <div style={S(`display:flex;align-items:flex-end;gap:24px;flex-wrap:wrap;padding:16px 18px;background:${bg};border-radius:13px;margin-bottom:18px`)}>
         <div><div style={S('font-size:12px;color:var(--ink3)')}>Měsíční splátka</div><div style={S(`font-size:26px;font-weight:800;letter-spacing:-.6px;color:${color}`)}>{f.monthlyPayment}</div></div>
@@ -2069,7 +2198,7 @@ function VehicleDetail({ vm }) {
             </div>
           </div>
         </div>
-        <div style={S('margin-top:14px')}><FinancingCard f={vd.financing} /></div>
+        <div style={S('margin-top:14px')}><FinancingCard f={vd.financing} onRfq={vd.onRfq} /></div>
         </>
       )}
 

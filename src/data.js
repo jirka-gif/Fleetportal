@@ -50,6 +50,18 @@ export const vehicleVignette = (v) => {
   return { country: 'CZ', type: ['roční', 'roční', '30denní', '10denní'][s % 4], validTo: _fmtD(d) }
 }
 
+// Leasingoví / úvěroví partneři pro poptávky obměny vozidla (refinancování / nový vůz).
+export const leasingPartners = [
+  { id: 'p1', name: 'ČSOB Leasing', types: ['bank_loan', 'finance_lease', 'operating_lease'] },
+  { id: 'p2', name: 'Raiffeisen‑Leasing', types: ['bank_loan', 'finance_lease'] },
+  { id: 'p3', name: 'UniCredit Leasing', types: ['bank_loan', 'finance_lease', 'operating_lease'] },
+  { id: 'p4', name: 'MONETA Leasing', types: ['bank_loan', 'finance_lease'] },
+  { id: 'p5', name: 'Ayvens (ALD Automotive)', types: ['operating_lease'] },
+  { id: 'p6', name: 'Arval CZ', types: ['operating_lease'] },
+  { id: 'p7', name: 'Business Lease', types: ['operating_lease'] },
+  { id: 'p8', name: 'ŠkoFIN', types: ['bank_loan', 'finance_lease', 'operating_lease'] },
+]
+
 export const vehiclesData = [
   {"id": "v1", "plate": "1S13018", "brand": "BMW", "model": "třída 320", "year": 1999, "driver": "—", "fleet": "f1", "insurer": "—", "status": "nocasco", "premium": 0, "renewal": "—", "fuel": "Benzín", "vin": "WBAAM110X0JM40943", "mileage": "—", "value": "—", "druh": "osobní automobil", "tp": "AP571194", "power": "110 kW", "engine": "1991 ccm", "weight": "1865 kg", "seats": "5", "firstReg": "1. 1. 1999", "povLimit": "100/100 mil. Kč", "order": "1", "cov": {"pov": true, "hav": false, "skla": false, "asist": false, "zavaz": false}, "prihlaska": "#1", "financing": {"active": false, "type": "own", "typeLabel": "Vlastní zdroje (hotovost)", "owner": "Jiří Tošovský s.r.o."}},
   {"id": "v2", "plate": "9S93113", "brand": "Mitsubishi", "model": "Lancer", "year": 2009, "driver": "—", "fleet": "f1", "insurer": "—", "status": "nocasco", "premium": 0, "renewal": "—", "fuel": "Benzín", "vin": "JMBSNCZ4A9U000626", "mileage": "—", "value": "—", "druh": "osobní automobil", "tp": "UD521942", "power": "217 kW", "engine": "1998 ccm", "weight": "2040 kg", "seats": "5", "firstReg": "1. 1. 2009", "povLimit": "100/100 mil. Kč", "order": "2", "cov": {"pov": true, "hav": false, "skla": false, "asist": false, "zavaz": false}, "prihlaska": "#2", "financing": {"active": false, "type": "own", "typeLabel": "Vlastní zdroje (hotovost)", "owner": "Jiří Tošovský s.r.o."}},

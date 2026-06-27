@@ -3,7 +3,7 @@ import { Icon, czk, linePath, useViewport } from './helpers.jsx'
 import Render from './Render.jsx'
 import {
   insurersData, brandsData, fleetsData, vehiclesData, claimsData, greenCards, driversData,
-  statusMeta, claimStatusMeta, fleetName, statusChip, vehicleTypeCat, vehicleTypeOrder, vehicleStk, vehicleVignette,
+  statusMeta, claimStatusMeta, fleetName, statusChip, vehicleTypeCat, vehicleTypeOrder, vehicleStk, vehicleVignette, leasingPartners,
 } from './data.js'
 
 const ic = (name, size = 18, sw = 1.8) => <Icon name={name} size={size} sw={sw} />
@@ -42,6 +42,53 @@ const financingEnding = (days = 90) => {
   })
   return out.sort((a, b) => a.daysToEnd - b.daysToEnd)
 }
+
+// --- Poptávka obměny vozidla (refinancování / nový vůz) → leasingovkám ---
+const FIN_TYPE_LABEL = { bank_loan: 'Účelový úvěr', finance_lease: 'Finanční leasing', operating_lease: 'Operativní leasing' }
+const rfqNum = (s) => parseInt(String(s || '').replace(/[^\d]/g, ''), 10) || 0
+const rfqFmt = (n) => Math.round(n).toLocaleString('cs-CZ') + ' Kč'
+// Předvyplněný koncept poptávky z aktuální smlouvy vozidla.
+const rfqDraft = (v) => {
+  const f = v.financing || {}
+  const type = (f.active && f.type) || 'operating_lease'
+  const price = rfqNum(f.price) || rfqNum(v.value) || 500000
+  const akontPct = f.downPaymentPct != null ? f.downPaymentPct : (type === 'operating_lease' ? 0 : 20)
+  const servicesN = type === 'operating_lease' ? (rfqNum(f.servicesMonthly) || 3500) : 0
+  const services = (f.services && f.services.length) ? f.services.map((s) => s.name) : ['Povinné ručení', 'Havarijní pojištění', 'Servis a údržba', 'Pneuservis', 'Dálniční známka / mýto']
+  const partners = {}
+  leasingPartners.filter((p) => p.types.includes(type)).slice(0, 5).forEach((p) => { partners[p.id] = true })
+  return { vehicleId: v.id, vehicle: `${v.brand} ${v.model}`, plate: v.plate, edit: false, type, term: f.termMonths || 54, akontPct, mileage: f.mileageLimit || '120 000 km/rok', priceN: price, services, servicesN, partners }
+}
+// Mock nabídky leasingovek (deterministicky dle partnera) — na BE skutečné odpovědi partnerů.
+const rfqGenOffers = (rfq) => {
+  const price = rfq.priceN, term = rfq.term
+  const akont = Math.round(price * rfq.akontPct / 100)
+  const financed = price - akont
+  const svc = rfq.type === 'operating_lease' ? rfq.servicesN : 0
+  const offers = rfq.partnerIds.map((pid) => {
+    const p = leasingPartners.find((x) => x.id === pid) || { id: pid, name: pid }
+    const seed = p.name.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
+    const rate = Math.round((4.3 + (seed % 30) / 10) * 10) / 10
+    const r = rate / 100 / 12
+    const finance = rfq.type === 'operating_lease' ? financed / term * (1.02 + (seed % 7) / 100) : (r ? financed * r / (1 - Math.pow(1 + r, -term)) : financed / term)
+    const monthly = finance + svc
+    const residual = rfq.type === 'finance_lease' ? Math.round(price * 0.01) : 0
+    const total = akont + monthly * term + residual
+    return { partnerId: p.id, partner: p.name, rateF: String(rate).replace('.', ',') + ' % p.a.', monthlyN: Math.round(monthly), monthlyF: rfqFmt(monthly), svcF: svc ? rfqFmt(svc) : null, downF: rfqFmt(akont), totalF: rfqFmt(total), totalN: Math.round(total) }
+  }).sort((a, b) => a.totalN - b.totalN)
+  if (offers[0]) offers[0].best = true
+  return offers
+}
+// Záznam poptávky z konceptu.
+const rfqRecord = (d, id, sentLabel, status) => {
+  const partnerIds = Object.keys(d.partners).filter((k) => d.partners[k])
+  const rec = { id, vehicleId: d.vehicleId, vehicle: d.vehicle, plate: d.plate, type: d.type, typeLabel: FIN_TYPE_LABEL[d.type], term: d.term, akontPct: d.akontPct, mileage: d.mileage, priceN: d.priceN, priceF: rfqFmt(d.priceN), servicesN: d.servicesN, partnerIds, partnerCount: partnerIds.length, sentLabel, status, accepted: null, offers: [] }
+  if (status === 'offers') rec.offers = rfqGenOffers(rec)
+  return rec
+}
+// Ukázkové odeslané poptávky (na 1–2 reálně končících vozech) — ať má záložka obsah.
+const SEED_RFQS = financingEnding(120).slice(0, 2).map((e, i) => rfqRecord(rfqDraft(e.v), 'rfq-seed-' + (i + 1), i === 0 ? 'před 2 dny' : 'před 4 dny', 'offers'))
+
 const INS_COLORS = { Kooperativa: '#2058C9', Allianz: '#16A34A', 'ČPP': '#C2780C', Generali: '#8B5CF6', UNIQA: '#0EA5A5', 'ČSOB': '#9B0E25' }
 const DEFAULT_BONUS = [{ threshold: 30, rate: 15 }, { threshold: 40, rate: 10 }, { threshold: 50, rate: 5 }]
 const INSURER_CODE = { Kooperativa: '7720', Allianz: '4055', 'ČPP': '0019', Generali: '5544', UNIQA: '2401', 'ČSOB': '8830', 'ČSOB Poj.': '8830' }
@@ -98,7 +145,7 @@ export default function FleetPortal() {
   const [state, setStateRaw] = useState({
     route: 'dashboard',
     fleetId: 'f1', vehicleId: 'v1',
-    fleetTab: 'overview', vehicleTab: 'overview', fleetsView: 'grid',
+    fleetTab: 'overview', vehicleTab: 'overview', fleetsView: 'grid', finTab: 'prehled', rfq: null, rfqs: SEED_RFQS,
     search: false, notif: false, ai: false, companyMenu: false, sidebar: false,
     claimWizard: false, claimStep: 1, claimData: {},
     rowMenu: null, toast: null,
@@ -152,6 +199,24 @@ export default function FleetPortal() {
   const openNoteModal = (v) => setState({ noteModal: { vid: v.id, plate: v.plate, brand: v.brand, model: v.model }, noteText: '' })
   const openParkModal = (v) => setState({ parkModal: { vid: v.id, plate: v.plate, brand: v.brand, model: v.model, fleet: v.fleet }, parkTarget: null, parkDone: false })
   const openDriverModal = (v) => setState({ driverModal: { vid: v.id, plate: v.plate, brand: v.brand, model: v.model, driver: v.driver }, driverSel: null, driverDone: false })
+  // Poptávka obměny vozidla → leasingovkám
+  const openRfq = (v) => setState({ rowMenu: null, rfq: rfqDraft(v) })
+  const setRfq = (patch) => setState((s) => ({ rfq: { ...s.rfq, ...patch } }))
+  const toggleRfqPartner = (pid) => setState((s) => ({ rfq: { ...s.rfq, partners: { ...s.rfq.partners, [pid]: !s.rfq.partners[pid] } } }))
+  const sendRfq = () => {
+    const d = state.rfq
+    const id = 'rfq-' + (state.rfqs.length + 1) + '-' + d.vehicleId
+    const rec = rfqRecord(d, id, 'právě teď', 'sent')
+    setState({ rfq: null, route: 'financing', finTab: 'poptavky', rfqs: [rec, ...state.rfqs] })
+    showToast(`Poptávka odeslána do ${rec.partnerCount} společností · nabídky obvykle do 2 prac. dnů.`)
+    setTimeout(() => setState((s) => ({ rfqs: s.rfqs.map((x) => x.id === id ? { ...x, status: 'offers', offers: rfqGenOffers(x) } : x) })), 1700)
+  }
+  const acceptOffer = (rfqId, partnerId) => {
+    setState((s) => ({ rfqs: s.rfqs.map((x) => x.id === rfqId ? { ...x, status: 'accepted', accepted: partnerId } : x) }))
+    const o = (state.rfqs.find((x) => x.id === rfqId) || {}).offers || []
+    const p = o.find((x) => x.partnerId === partnerId)
+    showToast(`Nabídka ${p ? p.partner : ''} přijata · makléř Petr Kmoch připraví smlouvu.`)
+  }
   const buildClaimRow = (c) => {
     const cm = claimStatusMeta[c.status]
     const v = vehiclesData.find((x) => x.id === c.vId) || {}
@@ -801,7 +866,7 @@ export default function FleetPortal() {
       vehicleTabs,
       vd: {
         brand: v.brand, model: v.model, plate: v.plate, driver: v.driver, fleetName: fleetName(v.fleet),
-        financing: v.financing || { active: false, type: 'own', typeLabel: 'Vlastní zdroje (hotovost)' },
+        financing: v.financing || { active: false, type: 'own', typeLabel: 'Vlastní zdroje (hotovost)' }, onRfq: () => openRfq(v),
         statusLabel: m.label, chipStyle: statusChip(v.status), facts, actions, specs, assign, compliance, products, productsExport, productsTotalF: czk(productsTotal), claims, timeline, vehicleDocs, notes, openNoteModal: () => openNoteModal(v),
         premiumF: czk(v.premium), productCount: products.filter((p) => p.status !== 'nocasco').length, renewal: v.renewal,
         isOverview: tab === 'overview', isInsurance: tab === 'insurance', isClaims: tab === 'claims', isTimeline: tab === 'timeline',
@@ -1188,7 +1253,7 @@ export default function FleetPortal() {
     const finRows = fin.map((v) => {
       const tm = typeMeta[v.financing.type]
       const dte = endMap[v.id]
-      return { id: v.id, vehicle: `${v.brand} ${v.model}`, plate: v.plate, provider: v.financing.provider, monthly: v.financing.monthlyPayment, endDate: v.financing.endDate, daysToEnd: dte === undefined ? null : dte, endingSoon: Object.prototype.hasOwnProperty.call(endMap, v.id), typeShort: tm[0], typeColor: tm[1], typeBg: tm[2], onClick: () => openVehicle(v.id) }
+      return { id: v.id, vehicle: `${v.brand} ${v.model}`, plate: v.plate, provider: v.financing.provider, monthly: v.financing.monthlyPayment, endDate: v.financing.endDate, daysToEnd: dte === undefined ? null : dte, endingSoon: Object.prototype.hasOwnProperty.call(endMap, v.id), typeShort: tm[0], typeColor: tm[1], typeBg: tm[2], onClick: () => openVehicle(v.id), onRfq: (e) => { e.stopPropagation(); openRfq(v) } }
     }).sort((a, b) => {
       if (a.endingSoon !== b.endingSoon) return a.endingSoon ? -1 : 1
       if (a.endingSoon && b.endingSoon) return a.daysToEnd - b.daysToEnd
@@ -1200,7 +1265,38 @@ export default function FleetPortal() {
       { value: milF(totalFinanced), unit: 'mil. Kč', label: 'Objem financování' },
       { value: String(ending.length), label: 'Končí do 90 dnů', note: ending.length ? 'vyžadují řešení' : 'žádné' },
     ]
-    return { finStats, finByType, finProviders, finRows, finTotalMonthly: fmt(totalMonthly), finEndingCount: ending.length }
+    const rfqList = state.rfqs.map((q) => ({
+      id: q.id, vehicle: q.vehicle, plate: q.plate, typeLabel: q.typeLabel, sentLabel: q.sentLabel, partnerCount: q.partnerCount, status: q.status,
+      paramsSummary: `${q.term} měs · akontace ${q.akontPct} %${q.type === 'operating_lease' ? ` · ${q.mileage}` : ''}`,
+      offers: q.offers.map((o) => ({ ...o, isAccepted: q.accepted === o.partnerId, onAccept: () => acceptOffer(q.id, o.partnerId) })),
+      acceptedName: q.accepted ? ((q.offers.find((o) => o.partnerId === q.accepted) || {}).partner || '') : null,
+    }))
+    return { finStats, finByType, finProviders, finRows, finTotalMonthly: fmt(totalMonthly), finEndingCount: ending.length, finTab: state.finTab, setFinTab: (t) => setState({ finTab: t }), rfqList, rfqCount: state.rfqs.length }
+  }
+
+  const rfqVM = () => {
+    const d = state.rfq
+    if (!d) return { rfqModal: null }
+    const typeOpts = [{ v: 'operating_lease', l: 'Operativní leasing' }, { v: 'bank_loan', l: 'Účelový úvěr' }, { v: 'finance_lease', l: 'Finanční leasing' }]
+    const termOpts = [36, 48, 54, 60, 72].map((n) => ({ v: String(n), l: `${n} měsíců` }))
+    const akontOpts = [0, 10, 20, 30].map((n) => ({ v: String(n), l: `${n} %` }))
+    const mileageOpts = ['100 000 km/rok', '120 000 km/rok', '140 000 km/rok', '160 000 km/rok'].map((x) => ({ v: x, l: x }))
+    const partners = leasingPartners.filter((p) => p.types.includes(d.type)).map((p) => ({ id: p.id, name: p.name, on: !!d.partners[p.id] }))
+    const selCount = partners.filter((p) => p.on).length
+    return {
+      rfqModal: {
+        close: () => setState({ rfq: null }), stop: (e) => e.stopPropagation(),
+        vehicle: d.vehicle, plate: d.plate, isOp: d.type === 'operating_lease', priceF: rfqFmt(d.priceN), services: d.services,
+        edit: d.edit, setEdit: (b) => setRfq({ edit: b }),
+        type: d.type, typeLabel: FIN_TYPE_LABEL[d.type],
+        onType: (e) => { const t = e.target.value; const np = {}; leasingPartners.filter((p) => p.types.includes(t)).slice(0, 5).forEach((p) => { np[p.id] = true }); setRfq({ type: t, partners: np }) },
+        term: String(d.term), onTerm: (e) => setRfq({ term: +e.target.value }), termLabel: `${d.term} měsíců`,
+        akontPct: String(d.akontPct), onAkont: (e) => setRfq({ akontPct: +e.target.value }), akontLabel: `${d.akontPct} %`,
+        mileage: d.mileage, onMileage: (e) => setRfq({ mileage: e.target.value }),
+        typeOpts, termOpts, akontOpts, mileageOpts, partners, selCount, togglePartner: toggleRfqPartner,
+        send: sendRfq, canSend: selCount > 0,
+      },
+    }
   }
 
   const settingsVM = () => {
@@ -1495,7 +1591,7 @@ export default function FleetPortal() {
 
   const vm = {
     ...shellVM(), ...dashboardVM(), ...fleetsVM(), ...fleetDetailVM(), ...vehiclesVM(), ...vehicleDetailVM(),
-    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...wizardVM(), ...addVehicleVM(),
+    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(),
   }
 
   return <Render vm={vm} />
