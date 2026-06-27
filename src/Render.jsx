@@ -1302,38 +1302,22 @@ function Dashboard({ vm }) {
 
         {/* ============ RIGHT RAIL ============ */}
         <div style={S('display:flex;flex-direction:column;gap:18px;min-width:0')}>
-          {/* AI ASSISTANT */}
-          <div style={S('position:relative;overflow:hidden;border-radius:20px;padding:22px;background:linear-gradient(150deg,#5F6FFF 0%,#6A60F8 45%,#785CFB 100%);box-shadow:0 22px 50px -18px rgba(108,94,246,.9)')}>
+          {/* VYŽADUJE POZORNOST */}
+          <div style={S('position:relative;overflow:hidden;border-radius:20px;padding:18px;background:linear-gradient(150deg,#5F6FFF 0%,#6A60F8 45%,#785CFB 100%);box-shadow:0 22px 50px -18px rgba(108,94,246,.9)')}>
             <div style={S('position:absolute;top:-40px;right:-30px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.13);pointer-events:none')}></div>
             <div style={S('position:relative')}>
-              <div style={S('display:flex;align-items:center;gap:11px;margin-bottom:6px')}>
-                <div style={S('width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;color:#fff')}>{ic('sparkle', 20)}</div>
-                <div style={S('display:flex;align-items:center;gap:8px')}><span style={S('font-size:15.5px;font-weight:700;color:#fff;letter-spacing:-.3px')}>Fleet AI Assistant</span><span style={S('font-size:8.5px;font-weight:800;letter-spacing:.6px;color:#fff;background:rgba(255,255,255,.26);padding:2px 6px;border-radius:6px')}>BETA</span></div>
+              <div style={S('display:flex;align-items:center;gap:11px;margin:4px 4px 12px')}>
+                <div style={S('width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0')}>{ic('alert', 20)}</div>
+                <span style={S('font-size:15.5px;font-weight:700;color:#fff;letter-spacing:-.3px')}>Vyžaduje pozornost</span>
               </div>
-              <div style={S('font-size:12.5px;color:rgba(255,255,255,.82);line-height:1.5;margin-bottom:16px')}>Zeptejte se na cokoliv ohledně vašeho fleetu.</div>
-              <Hov onClick={vm.toggleAI} base="display:flex;align-items:center;gap:9px;height:46px;padding:0 8px 0 15px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.22);border-radius:13px;cursor:text;margin-bottom:13px" hover="background:rgba(255,255,255,.22)">
-                <span style={S('flex:1;font-size:13px;color:rgba(255,255,255,.7)')}>Zeptejte se na cokoliv…</span>
-                <span style={S('width:32px;height:32px;border-radius:9px;background:#fff;display:flex;align-items:center;justify-content:center;color:var(--purple)')}>{ic('send', 16)}</span>
-              </Hov>
-              <div style={S('display:flex;flex-wrap:wrap;gap:8px')}>
-                {aiChips.map((c, i) => (
-                  <Hov key={i} onClick={vm.toggleAI} base="font-size:11.5px;font-weight:600;color:#fff;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.16);padding:6px 11px;border-radius:20px;cursor:pointer" hover="background:rgba(255,255,255,.24)">{c}</Hov>
-                ))}
-              </div>
+              {vm.quickStats.map((q, i) => (
+                <Hov key={i} onClick={q.onClick} base="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:13px;cursor:pointer" hover="background:rgba(255,255,255,.12)">
+                  <div style={S('width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.16);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{q.icon}</div>
+                  <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:600;line-height:1.25;color:#fff')}>{q.label}</div><div style={S('font-size:11.5px;color:rgba(255,255,255,.72)')}>{q.sub}</div></div>
+                  <div style={S('display:flex;align-items:center;gap:8px;flex-shrink:0')}><span style={S(`width:7px;height:7px;border-radius:50%;background:${q.value !== '0' ? q.color : 'rgba(255,255,255,.5)'}`)}></span><span style={S('font-size:20px;font-weight:700;letter-spacing:-.5px;color:#fff')}>{q.value}</span></div>
+                </Hov>
+              ))}
             </div>
-          </div>
-
-          {/* QUICK OVERVIEW */}
-          <div style={S(`${CARD};padding:8px 8px 10px`)}>
-            <div style={S('padding:14px 14px 12px;font-size:15px;font-weight:650;letter-spacing:-.3px')}>Rychlý přehled</div>
-            {vm.quickStats.map((q, i) => (
-              <Hov key={i} onClick={q.onClick} base="display:flex;align-items:center;gap:13px;padding:11px 14px;border-radius:13px;cursor:pointer" hover="background:var(--canvas)">
-                <div style={S(`width:38px;height:38px;border-radius:11px;background:${q.bg};color:${q.color};display:flex;align-items:center;justify-content:center;flex-shrink:0`)}>{q.icon}</div>
-                <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:600;line-height:1.25')}>{q.label}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{q.sub}</div></div>
-                <div style={S(`font-size:20px;font-weight:700;letter-spacing:-.5px;flex-shrink:0;${q.onClick && q.value !== '0' ? 'color:var(--star)' : ''}`)}>{q.value}</div>
-              </Hov>
-            ))}
-            <Hov as="div" onClick={() => nav('vehicles')} base="display:flex;align-items:center;justify-content:center;gap:5px;margin:6px 6px 2px;padding:9px;border-radius:11px;font-size:12.5px;font-weight:600;color:var(--blue);cursor:pointer" hover="background:var(--blue-soft)">Zobrazit všechny</Hov>
           </div>
 
           {/* CLAIMS MAP */}
