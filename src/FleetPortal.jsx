@@ -157,6 +157,82 @@ const SEED_EQUIP = {
   ],
 }
 
+// ---------- Provoz vozidla: servis, pneumatiky, pokuty, náklady ----------
+const SERVICE_TYPES = ['Pravidelný servis', 'Výměna oleje', 'Oprava', 'STK + emise', 'Brzdy', 'Rozvody', 'Klimatizace', 'Diagnostika', 'Ostatní']
+const SERVICE_META = {
+  'Pravidelný servis': { icon: 'wrench', color: 'var(--purple)', bg: 'var(--purple-soft)' },
+  'Výměna oleje': { icon: 'refresh', color: 'var(--amber)', bg: 'var(--amber-soft)' },
+  'Oprava': { icon: 'alert', color: 'var(--star)', bg: 'var(--star-soft)' },
+  'STK + emise': { icon: 'check2', color: 'var(--green)', bg: 'var(--green-soft)' },
+  'Brzdy': { icon: 'alert', color: 'var(--star)', bg: 'var(--star-soft)' },
+  'Rozvody': { icon: 'wrench', color: 'var(--blue)', bg: 'var(--blue-soft)' },
+  'Klimatizace': { icon: 'wrench', color: 'var(--blue)', bg: 'var(--blue-soft)' },
+  'Diagnostika': { icon: 'gauge', color: 'var(--ink2)', bg: '#EEF2F9' },
+  'Ostatní': { icon: 'wrench', color: 'var(--ink2)', bg: '#EEF2F9' },
+}
+const TIRE_ACTIONS = ['Přezutí na zimní', 'Přezutí na letní', 'Nákup nové sady', 'Oprava / defekt', 'Uskladnění']
+const TIRE_META = {
+  'Přezutí na zimní': { icon: 'swap', color: 'var(--blue)', bg: 'var(--blue-soft)' },
+  'Přezutí na letní': { icon: 'swap', color: 'var(--amber)', bg: 'var(--amber-soft)' },
+  'Nákup nové sady': { icon: 'banknote', color: 'var(--green)', bg: 'var(--green-soft)' },
+  'Oprava / defekt': { icon: 'alert', color: 'var(--star)', bg: 'var(--star-soft)' },
+  'Uskladnění': { icon: 'archive', color: 'var(--ink2)', bg: '#EEF2F9' },
+}
+const FINE_TYPES = ['Rychlost (radar/úsek)', 'Parkování', 'Mýtné / dálnice', 'Technický stav vozidla', 'Jiný přestupek']
+const FINE_META = {
+  'Rychlost (radar/úsek)': { icon: 'gauge', color: 'var(--star)', bg: 'var(--star-soft)' },
+  'Parkování': { icon: 'pin', color: 'var(--amber)', bg: 'var(--amber-soft)' },
+  'Mýtné / dálnice': { icon: 'calendar', color: 'var(--blue)', bg: 'var(--blue-soft)' },
+  'Technický stav vozidla': { icon: 'alert', color: 'var(--star)', bg: 'var(--star-soft)' },
+  'Jiný přestupek': { icon: 'alert', color: 'var(--ink2)', bg: '#EEF2F9' },
+}
+const COST_CATS = [
+  { key: 'pojisteni', label: 'Pojištění', color: 'var(--blue)' },
+  { key: 'servis', label: 'Servis a opravy', color: 'var(--purple)' },
+  { key: 'pneu', label: 'Pneumatiky', color: '#0E9AA6' },
+  { key: 'phm', label: 'Pohonné hmoty', color: 'var(--amber)' },
+  { key: 'leasing', label: 'Leasing / splátky', color: 'var(--green)' },
+  { key: 'dalnice', label: 'Dálnice / mýto', color: '#6D8BFF' },
+  { key: 'myti', label: 'Mytí a péče', color: '#94A3B8' },
+  { key: 'pokuty', label: 'Pokuty', color: 'var(--star)' },
+  { key: 'ostatni', label: 'Ostatní', color: 'var(--ink3)' },
+]
+const COST_CAT_LABEL = Object.fromEntries(COST_CATS.map((c) => [c.key, c.label]))
+const COST_CAT_COLOR = Object.fromEntries(COST_CATS.map((c) => [c.key, c.color]))
+const COST_TYPE_TO_CAT = { 'Servis a opravy': 'servis', 'Dálniční známka': 'dalnice', 'Pneumatiky / přezutí': 'pneu', 'STK a emise': 'servis', 'Palivo': 'phm', 'Mytí a péče o vůz': 'myti', 'Parkování': 'pokuty', 'Mýtné (zahraničí)': 'dalnice', 'Pokuta': 'pokuty', 'Náhradní vozidlo': 'ostatni', 'Leasing / splátka': 'leasing', 'Ostatní': 'ostatni' }
+const moneyNum = (s) => (typeof s === 'number' ? s : parseInt(String(s || '').replace(/[^\d]/g, ''), 10) || 0)
+const fmtKm = (n) => (n ? String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' km' : '—')
+const SEED_SERVICE = {
+  v1: [
+    { id: 'sv1', type: 'Pravidelný servis', date: '14. 3. 2026', km: 142300, desc: 'Olej, olejový a pylový filtr, kontrola brzd a podvozku', price: 8400, shop: 'AutoNova Mladá Boleslav', nextDate: '14. 3. 2027', nextKm: 172000, invoice: 'servis_brezen_2026.pdf' },
+    { id: 'sv2', type: 'Brzdy', date: '11. 2. 2026', km: 140100, desc: 'Přední brzdové destičky + kotouče', price: 7300, shop: 'AutoNova Mladá Boleslav', nextDate: '', nextKm: 0, invoice: '' },
+    { id: 'sv3', type: 'Výměna oleje', date: '2. 9. 2025', km: 128100, desc: 'Motorový olej 5W-30 + filtr', price: 2600, shop: 'AutoNova Mladá Boleslav', nextDate: '', nextKm: 0, invoice: '' },
+    { id: 'sv4', type: 'Oprava', date: '20. 5. 2025', km: 119500, desc: 'Výměna spojkové sady vč. setrvačníku', price: 18900, shop: 'Servis Katusice', nextDate: '', nextKm: 0, invoice: 'oprava_spojka.pdf' },
+  ],
+}
+const SEED_TIRES = {
+  v1: [
+    { id: 'tr1', action: 'Přezutí na letní', date: '8. 4. 2026', km: 143000, set: 'Letní · Continental EcoContact 6, 225/45 R18', tread: 6.5, storage: 'Pneuservis Katusice — box 14', price: 650, invoice: 'prezuti_jaro_2026.pdf', nextDate: 'říjen 2026' },
+    { id: 'tr2', action: 'Přezutí na zimní', date: '24. 10. 2025', km: 134500, set: 'Zimní · Continental WinterContact TS 870', tread: 7.2, storage: 'Pneuservis Katusice — box 14', price: 650, invoice: '', nextDate: 'duben 2026' },
+    { id: 'tr3', action: 'Nákup nové sady', date: '12. 11. 2024', km: 118000, set: 'Zimní · Continental WinterContact TS 870, 225/45 R18', tread: 8.0, storage: '—', price: 24800, invoice: 'faktura_zimni_pneu.pdf', nextDate: '' },
+  ],
+}
+const SEED_FINES = {
+  v1: [
+    { id: 'fn1', type: 'Rychlost (radar/úsek)', date: '3. 6. 2026', driver: 'Jan Procházka', location: 'D1, 21. km (úsekové měření)', amount: 2500, paid: false, points: 2 },
+    { id: 'fn2', type: 'Parkování', date: '18. 4. 2026', driver: 'Jan Procházka', location: 'Praha 1, Dlážděná', amount: 800, paid: true, points: 0 },
+    { id: 'fn3', type: 'Rychlost (radar/úsek)', date: '2. 2. 2026', driver: 'Jan Procházka', location: 'Brno, Hradecká', amount: 1000, paid: true, points: 2 },
+  ],
+}
+const SEED_COSTS = {
+  v1: [
+    { id: 'co1', cat: 'phm', label: 'Pohonné hmoty — květen 2026', date: '31. 5. 2026', amount: 6200, invoice: '' },
+    { id: 'co2', cat: 'phm', label: 'Pohonné hmoty — duben 2026', date: '30. 4. 2026', amount: 5870, invoice: '' },
+    { id: 'co3', cat: 'dalnice', label: 'Dálniční známka ČR 2026 (roční kupón)', date: '5. 1. 2026', amount: 2440, invoice: 'edalnice_2026.pdf' },
+    { id: 'co4', cat: 'myti', label: 'Mytí + čištění interiéru', date: '12. 5. 2026', amount: 650, invoice: '' },
+  ],
+}
+
 const INS_COLORS = { Kooperativa: '#2058C9', Allianz: '#16A34A', 'ČPP': '#C2780C', Generali: '#8B5CF6', UNIQA: '#0EA5A5', 'ČSOB': '#9B0E25' }
 const DEFAULT_BONUS = [{ threshold: 30, rate: 15 }, { threshold: 40, rate: 10 }, { threshold: 50, rate: 5 }]
 const INSURER_CODE = { Kooperativa: '7720', Allianz: '4055', 'ČPP': '0019', Generali: '5544', UNIQA: '2401', 'ČSOB': '8830', 'ČSOB Poj.': '8830' }
@@ -216,6 +292,8 @@ export default function FleetPortal() {
     fleetId: 'f1', vehicleId: 'v1',
     fleetTab: 'overview', vehicleTab: 'overview', fleetsView: 'grid', finTab: 'prehled', rfq: null, rfqs: SEED_RFQS,
     vehEquip: SEED_EQUIP, equipModal: null,
+    vehService: SEED_SERVICE, vehTires: SEED_TIRES, vehFines: SEED_FINES, vehCostsExtra: SEED_COSTS,
+    serviceModal: null, tireModal: null, fineModal: null,
     search: false, notif: false, ai: false, companyMenu: false, sidebar: false,
     claimWizard: false, claimStep: 1, claimData: {},
     rowMenu: null, toast: null,
@@ -265,7 +343,7 @@ export default function FleetPortal() {
   const stop = (e) => e.stopPropagation()
   const showToast = (msg) => { if (ttRef.current) clearTimeout(ttRef.current); setState({ toast: msg }); ttRef.current = setTimeout(() => setState({ toast: null }), 3800) }
   const openUnsub = (v) => setState({ rowMenu: null, unsubDone: false, unsubReason: 'Prodej vozidla', unsubDate: '1. 7. 2026', unsub: { plate: v.plate, brand: v.brand, model: v.model, vin: v.vin, fleetName: fleetName(v.fleet), insurer: v.insurer, premiumF: czk(v.premium), renewal: v.renewal } })
-  const openCostModal = (v) => setState({ costModal: { plate: v.plate, brand: v.brand, model: v.model }, costDone: false, costType: 'Servis a opravy', costDesc: '', costAmount: '', costDate: '19. 6. 2026', costFile: null })
+  const openCostModal = (v) => setState({ costModal: { vid: v.id, plate: v.plate, brand: v.brand, model: v.model }, costDone: false, costType: 'Palivo', costDesc: '', costAmount: '', costDate: '1. 7. 2026', costFile: null })
   const openNoteModal = (v) => setState({ noteModal: { vid: v.id, plate: v.plate, brand: v.brand, model: v.model }, noteText: '' })
   const openParkModal = (v) => setState({ parkModal: { vid: v.id, plate: v.plate, brand: v.brand, model: v.model, fleet: v.fleet }, parkTarget: null, parkDone: false })
   const openDriverModal = (v) => setState({ driverModal: { vid: v.id, plate: v.plate, brand: v.brand, model: v.model, driver: v.driver }, driverSel: null, driverDone: false })
@@ -305,6 +383,38 @@ export default function FleetPortal() {
   }
   const removeEquip = (vid, id) => setState((s) => ({ vehEquip: { ...s.vehEquip, [vid]: (s.vehEquip[vid] || []).filter((x) => x.id !== id) } }))
   const claimEquip = (item) => showToast(`Faktura „${item.invoice || item.section}" připravena k uplatnění — přiložte ji při hlášení škody.`)
+  // ---- Servis ----
+  const openServiceModal = (v) => setState({ rowMenu: null, serviceModal: { vid: v.id, plate: v.plate, brand: v.brand, model: v.model, type: SERVICE_TYPES[0], date: '1. 7. 2026', km: '', desc: '', price: '', shop: '', nextDate: '', nextKm: '', invoice: '' } })
+  const setServiceField = (k, val) => setState((s) => ({ serviceModal: { ...s.serviceModal, [k]: val } }))
+  const saveService = () => {
+    const m = state.serviceModal
+    const item = { id: 'sv' + Date.now(), type: m.type, date: m.date, km: moneyNum(m.km), desc: m.desc.trim(), price: moneyNum(m.price), shop: m.shop.trim(), nextDate: m.nextDate.trim(), nextKm: moneyNum(m.nextKm), invoice: m.invoice }
+    setState((s) => ({ vehService: { ...s.vehService, [m.vid]: [item, ...(s.vehService[m.vid] || [])] }, serviceModal: null }))
+    showToast('Servisní záznam přidán' + (item.nextDate ? ' · příští servis ' + item.nextDate : ''))
+  }
+  const removeService = (vid, id) => setState((s) => ({ vehService: { ...s.vehService, [vid]: (s.vehService[vid] || []).filter((x) => x.id !== id) } }))
+  // ---- Pneumatiky ----
+  const openTireModal = (v) => setState({ rowMenu: null, tireModal: { vid: v.id, plate: v.plate, brand: v.brand, model: v.model, action: TIRE_ACTIONS[0], date: '1. 7. 2026', km: '', set: '', tread: '', storage: '', price: '', nextDate: '', invoice: '' } })
+  const setTireField = (k, val) => setState((s) => ({ tireModal: { ...s.tireModal, [k]: val } }))
+  const saveTire = () => {
+    const m = state.tireModal
+    const item = { id: 'tr' + Date.now(), action: m.action, date: m.date, km: moneyNum(m.km), set: m.set.trim(), tread: parseFloat(String(m.tread).replace(',', '.')) || 0, storage: m.storage.trim() || '—', price: moneyNum(m.price), nextDate: m.nextDate.trim(), invoice: m.invoice }
+    setState((s) => ({ vehTires: { ...s.vehTires, [m.vid]: [item, ...(s.vehTires[m.vid] || [])] }, tireModal: null }))
+    showToast('Záznam o pneumatikách přidán')
+  }
+  const removeTire = (vid, id) => setState((s) => ({ vehTires: { ...s.vehTires, [vid]: (s.vehTires[vid] || []).filter((x) => x.id !== id) } }))
+  // ---- Pokuty ----
+  const openFineModal = (v) => setState({ rowMenu: null, fineModal: { vid: v.id, plate: v.plate, brand: v.brand, model: v.model, type: FINE_TYPES[0], date: '1. 7. 2026', driver: v.driver || '', location: '', amount: '', points: '', paid: false } })
+  const setFineField = (k, val) => setState((s) => ({ fineModal: { ...s.fineModal, [k]: val } }))
+  const saveFine = () => {
+    const m = state.fineModal
+    const item = { id: 'fn' + Date.now(), type: m.type, date: m.date, driver: m.driver.trim() || '—', location: m.location.trim(), amount: moneyNum(m.amount), points: moneyNum(m.points), paid: !!m.paid }
+    setState((s) => ({ vehFines: { ...s.vehFines, [m.vid]: [item, ...(s.vehFines[m.vid] || [])] }, fineModal: null }))
+    showToast('Přestupek zaevidován' + (item.paid ? ' · uhrazeno' : ' · čeká na úhradu'))
+  }
+  const removeFine = (vid, id) => setState((s) => ({ vehFines: { ...s.vehFines, [vid]: (s.vehFines[vid] || []).filter((x) => x.id !== id) } }))
+  const toggleFinePaid = (vid, id) => setState((s) => ({ vehFines: { ...s.vehFines, [vid]: (s.vehFines[vid] || []).map((x) => (x.id === id ? { ...x, paid: !x.paid } : x)) } }))
+  const removeCost = (vid, id) => setState((s) => ({ vehCostsExtra: { ...s.vehCostsExtra, [vid]: (s.vehCostsExtra[vid] || []).filter((x) => x.id !== id) } }))
   const acceptOffer = (rfqId, partnerId) => {
     setState((s) => ({ rfqs: s.rfqs.map((x) => x.id === rfqId ? { ...x, status: 'accepted', accepted: partnerId } : x) }))
     const o = (state.rfqs.find((x) => x.id === rfqId) || {}).offers || []
@@ -502,7 +612,12 @@ export default function FleetPortal() {
       setCostAmount: (e) => setState({ costAmount: e.target.value }),
       setCostDate: (e) => setState({ costDate: e.target.value }),
       pickCostFile: (e) => { const f = e.target.files && e.target.files[0]; if (f) setState({ costFile: f.name }) },
-      submitCost: () => setState({ costDone: true }),
+      submitCost: () => setState((s) => {
+        const c = s.costModal
+        if (!c) return {}
+        const item = { id: 'co' + Date.now(), cat: COST_TYPE_TO_CAT[s.costType] || 'ostatni', label: s.costDesc.trim() || s.costType, date: s.costDate, amount: moneyNum(s.costAmount), invoice: s.costFile || '' }
+        return { vehCostsExtra: { ...s.vehCostsExtra, [c.vid]: [item, ...(s.vehCostsExtra[c.vid] || [])] }, costDone: true }
+      }),
       costTypes: ['Servis a opravy', 'Dálniční známka', 'Pneumatiky / přezutí', 'STK a emise', 'Palivo', 'Mytí a péče o vůz', 'Parkování', 'Mýtné (zahraničí)', 'Pokuta', 'Náhradní vozidlo', 'Leasing / splátka', 'Ostatní'],
       noteModal: state.noteModal, noteText: state.noteText, currentUser: { name: 'Martin Kovář', initials: 'MK', role: 'Fleet Manager · Jiří Tošovský s.r.o.' },
       closeNoteModal: () => setState({ noteModal: null, noteText: '' }),
@@ -952,10 +1067,63 @@ export default function FleetPortal() {
       { text: 'Při přebírce zaevidován drobný odřený zadní nárazník — bez nároku na pojistné plnění.', author: 'Martin Kovář', initials: 'MK', date: '3. 4. ' + v.year, time: '14:10' },
     ]
     const notes = [...(state.vehNotes[v.id] || []), ...seedNotes]
-    const tabsDef = [['overview', 'Přehled'], ['insurance', 'Pojištění'], ['claims', 'Škody'], ['documents', 'Dokumenty'], ['equipment', 'Nadstandardní výbava'], ['timeline', 'Timeline'], ['costs', 'Náklady'], ['notes', 'Poznámky']]
+    const tabsDef = [['overview', 'Přehled'], ['insurance', 'Pojištění'], ['claims', 'Škody'], ['service', 'Servis'], ['tires', 'Pneumatiky'], ['fines', 'Pokuty'], ['costs', 'Náklady'], ['documents', 'Dokumenty'], ['equipment', 'Nadstandardní výbava'], ['timeline', 'Timeline'], ['notes', 'Poznámky']]
     const equipNum = (s) => parseInt(String(s || '').replace(/[^\d]/g, ''), 10) || 0
     const equipList = (state.vehEquip[v.id] || []).map((it) => ({ ...it, onRemove: () => removeEquip(v.id, it.id), onClaim: () => claimEquip(it) }))
     const equipTotal = equipList.reduce((a, it) => a + equipNum(it.price), 0)
+    // ---- Provoz & náklady: servis, pneu, pokuty, agregace nákladů, cashflow predikce ----
+    const svcRaw = state.vehService[v.id] || []
+    const tireRaw = state.vehTires[v.id] || []
+    const fineRaw = state.vehFines[v.id] || []
+    const extraRaw = state.vehCostsExtra[v.id] || []
+    const serviceList = svcRaw.map((x) => ({ ...x, kmF: fmtKm(x.km), priceF: czk(moneyNum(x.price)), nextKmF: x.nextKm ? fmtKm(x.nextKm) : '', meta: SERVICE_META[x.type] || SERVICE_META['Ostatní'], onRemove: () => removeService(v.id, x.id) }))
+    const upcomingSvc = svcRaw.find((x) => x.nextDate)
+    const tireList = tireRaw.map((x) => ({ ...x, kmF: fmtKm(x.km), priceF: czk(moneyNum(x.price)), treadF: x.tread ? String(x.tread).replace('.', ',') + ' mm' : '—', meta: TIRE_META[x.action] || TIRE_META['Uskladnění'], onRemove: () => removeTire(v.id, x.id) }))
+    const upcomingTire = tireRaw.find((x) => x.nextDate)
+    const fineList = fineRaw.map((x) => ({ ...x, amountF: czk(moneyNum(x.amount)), meta: FINE_META[x.type] || FINE_META['Jiný přestupek'], onToggle: () => toggleFinePaid(v.id, x.id), onRemove: () => removeFine(v.id, x.id) }))
+    const finesUnpaid = fineRaw.filter((x) => !x.paid)
+    const finesUnpaidSum = finesUnpaid.reduce((a, x) => a + moneyNum(x.amount), 0)
+    const finesTotalSum = fineRaw.reduce((a, x) => a + moneyNum(x.amount), 0)
+    const finesPoints = fineRaw.reduce((a, x) => a + (x.points || 0), 0)
+    // Sjednocené nákladové položky (číselně)
+    const costEntries = [
+      ...svcRaw.map((x) => ({ cat: 'servis', label: x.type + (x.desc ? ' · ' + x.desc : ''), date: x.date, amount: moneyNum(x.price), invoice: x.invoice })),
+      ...tireRaw.map((x) => ({ cat: 'pneu', label: x.action + (x.set ? ' · ' + x.set : ''), date: x.date, amount: moneyNum(x.price), invoice: x.invoice })),
+      ...fineRaw.map((x) => ({ cat: 'pokuty', label: x.type + ' · ' + x.driver, date: x.date, amount: moneyNum(x.amount), invoice: '' })),
+      ...extraRaw.map((x) => ({ cat: x.cat, label: x.label, date: x.date, amount: moneyNum(x.amount), invoice: x.invoice })),
+    ].filter((e) => e.amount > 0)
+    const fin = v.financing
+    const monthlyLease = fin && fin.active ? moneyNum(fin.monthlyPayment) : 0
+    const annualPrem = moneyNum(v.premium)
+    const catTotals = {}
+    costEntries.forEach((e) => { catTotals[e.cat] = (catTotals[e.cat] || 0) + e.amount })
+    if (monthlyLease) catTotals.leasing = (catTotals.leasing || 0) + monthlyLease * 12
+    if (annualPrem) catTotals.pojisteni = (catTotals.pojisteni || 0) + annualPrem
+    const yearTotal = Object.values(catTotals).reduce((a, b) => a + b, 0)
+    const catBreak = COST_CATS.filter((c) => catTotals[c.key]).map((c) => ({ key: c.key, label: c.label, color: c.color, amount: catTotals[c.key], amountF: czk(catTotals[c.key]), pct: Math.round((catTotals[c.key] / (yearTotal || 1)) * 100) })).sort((a, b) => b.amount - a.amount)
+    const catMax = Math.max(1, ...catBreak.map((c) => c.amount))
+    catBreak.forEach((c) => { c.bar = Math.round((c.amount / catMax) * 100) })
+    const monthlyAvg = Math.round(yearTotal / 12)
+    // Cashflow predikce — plánované náklady na příštích ~12 měsíců
+    const forecast = []
+    if (upcomingSvc) forecast.push({ label: 'Pravidelný servis', sub: upcomingSvc.shop || 'autorizovaný servis', date: upcomingSvc.nextDate, amount: Math.round(moneyNum(upcomingSvc.price)) || 8000, color: 'var(--purple)', bg: 'var(--purple-soft)', icon: 'wrench' })
+    if (upcomingTire) forecast.push({ label: 'Sezónní přezutí', sub: 'výměna pneu + uskladnění', date: upcomingTire.nextDate, amount: 650, color: '#0E9AA6', bg: '#E3F4F5', icon: 'swap' })
+    if (monthlyLease) forecast.push({ label: 'Leasing / splátky (12×)', sub: czk(monthlyLease) + ' měsíčně', date: 'měsíčně', amount: monthlyLease * 12, color: 'var(--green)', bg: 'var(--green-soft)', icon: 'banknote', recurring: true })
+    const dz = extraRaw.find((x) => x.cat === 'dalnice')
+    if (dz) forecast.push({ label: 'Obnova dálniční známky', sub: 'roční kupón ČR', date: 'leden 2027', amount: moneyNum(dz.amount), color: '#6D8BFF', bg: 'var(--blue-soft)', icon: 'calendar' })
+    forecast.forEach((f) => { f.amountF = czk(f.amount) })
+    const forecast12 = forecast.reduce((a, f) => a + f.amount, 0)
+    // Nákladová kniha (ledger)
+    const ledger = costEntries.map((e) => ({ ...e, amountF: czk(e.amount), catLabel: COST_CAT_LABEL[e.cat] || 'Ostatní', catColor: COST_CAT_COLOR[e.cat] || 'var(--ink3)', onRemove: e.cat !== 'servis' && e.cat !== 'pneu' && e.cat !== 'pokuty' ? null : null }))
+    if (monthlyLease) ledger.push({ cat: 'leasing', label: (fin.typeLabel || 'Leasing') + ' — měsíční splátka', date: 'měsíčně', amount: monthlyLease, amountF: czk(monthlyLease) + ' / měs.', catLabel: 'Leasing / splátky', catColor: 'var(--green)', recurring: true, invoice: '' })
+    const ledgerKey = (e) => (e.recurring ? Infinity : (parseCzDate(e.date) ? parseCzDate(e.date).getTime() : 0))
+    ledger.sort((a, b) => ledgerKey(b) - ledgerKey(a))
+    const costStats = [
+      { label: 'Náklady (12 měsíců)', value: czk(yearTotal), sub: 'celkem na vozidlo', color: 'var(--ink)' },
+      { label: 'Měsíční průměr', value: czk(monthlyAvg), sub: 'Ø / měsíc', color: 'var(--ink)' },
+      { label: 'Predikce (12 měs.)', value: czk(forecast12), sub: 'plánované náklady', color: 'var(--purple)' },
+      { label: 'Záznamů nákladů', value: String(costEntries.length), sub: 'evidováno', color: 'var(--ink)' },
+    ]
     const vehicleTabs = tabsDef.map(([id, label]) => { const on = tab === id; return { label, onClick: () => setState({ vehicleTab: id }), style: `padding:10px 14px;font-size:13.5px;font-weight:600;cursor:pointer;color:${on ? 'var(--blue-ink)' : 'var(--ink3)'};border-bottom:2px solid ${on ? 'var(--blue)' : 'transparent'};margin-bottom:-1px` } })
     const otherMap = {
       documents: ['Dokumenty vozidla', 'Velký a malý technický průkaz, zelená karta, smlouvy a faktury k tomuto vozidlu.', ic('file', 24)],
@@ -970,7 +1138,14 @@ export default function FleetPortal() {
         statusLabel: m.label, chipStyle: statusChip(v.status), facts, actions, specs, assign, compliance, products, productsExport, productsTotalF: czk(productsTotal), claims, timeline, vehicleDocs, notes, openNoteModal: () => openNoteModal(v),
         premiumF: czk(v.premium), productCount: products.filter((p) => p.status !== 'nocasco').length, renewal: v.renewal,
         isOverview: tab === 'overview', isInsurance: tab === 'insurance', isClaims: tab === 'claims', isTimeline: tab === 'timeline',
-        isNotes: tab === 'notes', isCosts: tab === 'costs', openCostModal: () => openCostModal(v),
+        isNotes: tab === 'notes',
+        isCosts: tab === 'costs', openCostModal: () => openCostModal(v), costStats, catBreak, forecast, forecast12F: czk(forecast12), yearTotalF: czk(yearTotal), monthlyAvgF: czk(monthlyAvg), ledger, costCount: costEntries.length,
+        isService: tab === 'service', serviceList, serviceCount: svcRaw.length, onAddService: () => openServiceModal(v),
+        upcomingSvc: upcomingSvc ? { date: upcomingSvc.nextDate, km: upcomingSvc.nextKm ? fmtKm(upcomingSvc.nextKm) : '' } : null,
+        isTires: tab === 'tires', tireList, tireCount: tireRaw.length, onAddTire: () => openTireModal(v),
+        upcomingTire: upcomingTire ? { date: upcomingTire.nextDate, action: upcomingTire.action.includes('letní') ? 'na zimní' : 'na letní' } : null,
+        isFines: tab === 'fines', fineList, fineCount: fineRaw.length, onAddFine: () => openFineModal(v),
+        finesUnpaidCount: finesUnpaid.length, finesUnpaidSumF: czk(finesUnpaidSum), finesTotalSumF: czk(finesTotalSum), finesPoints,
         isVehDocs: tab === 'documents',
         isEquipment: tab === 'equipment', equipList, equipCount: equipList.length, equipTotalF: czk(equipTotal), onAddEquip: () => openEquipModal(v.id),
         isOther: false, otherTitle: o[0], otherDesc: o[1], otherIcon: o[2],
@@ -1738,6 +1913,9 @@ export default function FleetPortal() {
     dash: state.dash, dashMeta: DASH_WIDGETS, toggleDashWidget, setDashWidth, moveDashWidget, resetDash,
     kpi: state.kpi, kpiCatalog: KPI_CATALOG, kpiVals, kpiLabel, dashKpis, toggleKpi, moveKpi, resetKpi, kpiMax: KPI_MAX, kpiOnCount: state.kpi.filter((k) => k.on).length,
     equipModal: state.equipModal ? { ...state.equipModal, close: () => setState({ equipModal: null }), stop: (e) => e.stopPropagation(), sections: EQUIP_SECTIONS, onSection: (e) => setEquipField('section', e.target.value), onDesc: (e) => setEquipField('desc', e.target.value), onPrice: (e) => setEquipField('price', e.target.value), onDate: (e) => setEquipField('date', e.target.value), onInvoice: onEquipInvoice, save: saveEquip } : null,
+    serviceModal: state.serviceModal ? { ...state.serviceModal, close: () => setState({ serviceModal: null }), stop: (e) => e.stopPropagation(), types: SERVICE_TYPES, field: (k) => (e) => setServiceField(k, e.target.value), onInvoice: (e) => { const f = e.target.files && e.target.files[0]; if (f) setServiceField('invoice', f.name) }, save: saveService } : null,
+    tireModal: state.tireModal ? { ...state.tireModal, close: () => setState({ tireModal: null }), stop: (e) => e.stopPropagation(), actions: TIRE_ACTIONS, field: (k) => (e) => setTireField(k, e.target.value), onInvoice: (e) => { const f = e.target.files && e.target.files[0]; if (f) setTireField('invoice', f.name) }, save: saveTire } : null,
+    fineModal: state.fineModal ? { ...state.fineModal, close: () => setState({ fineModal: null }), stop: (e) => e.stopPropagation(), types: FINE_TYPES, field: (k) => (e) => setFineField(k, e.target.value), togglePaid: () => setState((s) => ({ fineModal: { ...s.fineModal, paid: !s.fineModal.paid } })), save: saveFine } : null,
     ...shellVM(), ...dashboardVM(), ...fleetsVM(), ...fleetDetailVM(), ...vehiclesVM(), ...vehicleDetailVM(),
     ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(),
   }

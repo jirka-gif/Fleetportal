@@ -361,6 +361,9 @@ export default function Render({ vm }) {
       {vm.np && <NewFleetModal vm={vm} />}
       {vm.rfqModal && <RfqModal vm={vm} />}
       {vm.equipModal && <EquipModal vm={vm} />}
+      {vm.serviceModal && <ServiceModal vm={vm} />}
+      {vm.tireModal && <TireModal vm={vm} />}
+      {vm.fineModal && <FineModal vm={vm} />}
       {vm.docPreview && <DocPreviewModal vm={vm} />}
       {vm.unsub && <UnsubscribeModal vm={vm} />}
       {vm.costModal && <CostModal vm={vm} />}
@@ -2134,6 +2137,124 @@ function EquipModal({ vm }) {
   )
 }
 
+function UploadField({ value, onChange, accent = 'var(--blue)', accentSoft = 'var(--blue-soft)' }) {
+  return (
+    <label style={S(`display:flex;align-items:center;gap:11px;padding:13px 14px;border:1.5px dashed ${value ? accent : 'var(--border2)'};border-radius:12px;cursor:pointer;background:${value ? accentSoft : '#fff'}`)}>
+      <input type="file" onChange={onChange} style={{ display: 'none' }} accept=".pdf,.jpg,.jpeg,.png" />
+      <span style={S(`width:34px;height:34px;border-radius:9px;background:${value ? '#fff' : 'var(--canvas)'};color:${accent};display:flex;align-items:center;justify-content:center;flex-shrink:0`)}>{ic(value ? 'file' : 'upload', 17)}</span>
+      <div style={S('flex:1;min-width:0')}><div style={S(`font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${value ? '' : 'color:var(--ink2)'}`)}>{value || 'Nahrát fakturu (PDF, JPG)'}</div><div style={S('font-size:11px;color:var(--ink3)')}>{value ? 'Připojeno — uplatníte při škodě' : 'Klikněte a vyberte soubor'}</div></div>
+    </label>
+  )
+}
+
+function ModalHeader({ icon, iconBg, iconColor, title, sub, close }) {
+  return (
+    <div style={S('display:flex;align-items:center;gap:13px;padding:20px 22px;border-bottom:1px solid var(--border)')}>
+      <div style={S(`width:40px;height:40px;border-radius:12px;background:${iconBg};color:${iconColor};display:flex;align-items:center;justify-content:center;flex-shrink:0`)}>{ic(icon, 20)}</div>
+      <div style={{ flex: 1, minWidth: 0 }}><div style={S('font-size:16px;font-weight:700')}>{title}</div><div style={S('font-size:12.5px;color:var(--ink3);font-variant-numeric:tabular-nums')}>{sub}</div></div>
+      <span onClick={close} style={S('color:var(--ink3);cursor:pointer;display:flex')}>{ic('close', 17)}</span>
+    </div>
+  )
+}
+
+const modalInp = 'width:100%;height:42px;border:1px solid var(--border2);border-radius:10px;padding:0 12px;font-size:13.5px;font-family:inherit;outline:none'
+const modalLbl = 'font-size:11.5px;font-weight:600;color:var(--ink2);margin-bottom:5px'
+
+function ServiceModal({ vm }) {
+  const m = vm.serviceModal
+  return (
+    <div onClick={m.close} style={S('position:fixed;inset:0;z-index:80;background:rgba(15,15,20,.4);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:24px')}>
+      <div onClick={m.stop} style={S('width:580px;max-width:96vw;background:#fff;border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.32);display:flex;flex-direction:column;animation:popIn .2s ease')}>
+        <ModalHeader icon="wrench" iconBg="var(--purple-soft)" iconColor="var(--purple)" title="Přidat servisní záznam" sub={`${m.plate} · ${m.brand} ${m.model}`} close={m.close} />
+        <div style={S('padding:20px 22px;display:flex;flex-direction:column;gap:14px')}>
+          <div><div style={S(modalLbl)}>Druh servisu</div><Select value={m.type} onChange={m.field('type')} options={m.types} height={42} menuMax={400} /></div>
+          <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:12px')}>
+            <div><div style={S(modalLbl)}>Datum</div><input value={m.date} onChange={m.field('date')} style={S(modalInp)} /></div>
+            <div><div style={S(modalLbl)}>Stav tachometru (km)</div><input value={m.km} onChange={m.field('km')} placeholder="0" inputMode="numeric" style={S(modalInp + ';font-variant-numeric:tabular-nums')} /></div>
+          </div>
+          <div><div style={S(modalLbl)}>Popis úkonů</div><input value={m.desc} onChange={m.field('desc')} placeholder="Např. výměna oleje, filtrů a kontrola brzd" style={S(modalInp)} /></div>
+          <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:12px')}>
+            <div><div style={S(modalLbl)}>Cena (Kč)</div><input value={m.price} onChange={m.field('price')} placeholder="0" inputMode="numeric" style={S(modalInp + ';font-variant-numeric:tabular-nums')} /></div>
+            <div><div style={S(modalLbl)}>Servis / dílna</div><input value={m.shop} onChange={m.field('shop')} placeholder="Název servisu" style={S(modalInp)} /></div>
+          </div>
+          <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:13px 14px;background:var(--purple-soft);border-radius:12px')}>
+            <div><div style={S(modalLbl)}>Příští servis — datum</div><input value={m.nextDate} onChange={m.field('nextDate')} placeholder="volitelné" style={S(modalInp + ';background:#fff')} /></div>
+            <div><div style={S(modalLbl)}>Příští servis — km</div><input value={m.nextKm} onChange={m.field('nextKm')} placeholder="0" inputMode="numeric" style={S(modalInp + ';background:#fff;font-variant-numeric:tabular-nums')} /></div>
+          </div>
+          <div><div style={S(modalLbl)}>Faktura (volitelné)</div><UploadField value={m.invoice} onChange={m.onInvoice} accent="var(--purple)" accentSoft="var(--purple-soft)" /></div>
+        </div>
+        <div style={S('display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:16px 22px;border-top:1px solid var(--border)')}>
+          <Hov onClick={m.close} base="display:flex;align-items:center;justify-content:center;height:42px;padding:0 18px;border-radius:11px;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--ink2);background:#fff;border:1px solid var(--border2)" hover="background:var(--canvas)">Zrušit</Hov>
+          <Hov onClick={m.save} base="height:42px;padding:0 20px;border-radius:11px;font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:8px;cursor:pointer;color:#fff;background:var(--purple)" hover="filter:brightness(1.07)">{ic('check', 16, 2.5)} Uložit servis</Hov>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TireModal({ vm }) {
+  const m = vm.tireModal
+  return (
+    <div onClick={m.close} style={S('position:fixed;inset:0;z-index:80;background:rgba(15,15,20,.4);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:24px')}>
+      <div onClick={m.stop} style={S('width:580px;max-width:96vw;background:#fff;border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.32);display:flex;flex-direction:column;animation:popIn .2s ease')}>
+        <ModalHeader icon="swap" iconBg="#E3F4F5" iconColor="#0B7C86" title="Přidat záznam o pneumatikách" sub={`${m.plate} · ${m.brand} ${m.model}`} close={m.close} />
+        <div style={S('padding:20px 22px;display:flex;flex-direction:column;gap:14px')}>
+          <div><div style={S(modalLbl)}>Úkon</div><Select value={m.action} onChange={m.field('action')} options={m.actions} height={42} menuMax={280} /></div>
+          <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:12px')}>
+            <div><div style={S(modalLbl)}>Datum</div><input value={m.date} onChange={m.field('date')} style={S(modalInp)} /></div>
+            <div><div style={S(modalLbl)}>Stav tachometru (km)</div><input value={m.km} onChange={m.field('km')} placeholder="0" inputMode="numeric" style={S(modalInp + ';font-variant-numeric:tabular-nums')} /></div>
+          </div>
+          <div><div style={S(modalLbl)}>Sada / typ pneumatik</div><input value={m.set} onChange={m.field('set')} placeholder="Např. Zimní · Continental WinterContact, 225/45 R18" style={S(modalInp)} /></div>
+          <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:12px')}>
+            <div><div style={S(modalLbl)}>Hloubka dezénu (mm)</div><input value={m.tread} onChange={m.field('tread')} placeholder="např. 6,5" inputMode="decimal" style={S(modalInp)} /></div>
+            <div><div style={S(modalLbl)}>Uskladnění</div><input value={m.storage} onChange={m.field('storage')} placeholder="Místo uskladnění" style={S(modalInp)} /></div>
+          </div>
+          <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:12px')}>
+            <div><div style={S(modalLbl)}>Cena (Kč)</div><input value={m.price} onChange={m.field('price')} placeholder="0" inputMode="numeric" style={S(modalInp + ';font-variant-numeric:tabular-nums')} /></div>
+            <div><div style={S(modalLbl)}>Příští přezutí</div><input value={m.nextDate} onChange={m.field('nextDate')} placeholder="např. říjen 2026" style={S(modalInp)} /></div>
+          </div>
+          <div><div style={S(modalLbl)}>Faktura (volitelné)</div><UploadField value={m.invoice} onChange={m.onInvoice} accent="#0B7C86" accentSoft="#E3F4F5" /></div>
+        </div>
+        <div style={S('display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:16px 22px;border-top:1px solid var(--border)')}>
+          <Hov onClick={m.close} base="display:flex;align-items:center;justify-content:center;height:42px;padding:0 18px;border-radius:11px;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--ink2);background:#fff;border:1px solid var(--border2)" hover="background:var(--canvas)">Zrušit</Hov>
+          <Hov onClick={m.save} base="height:42px;padding:0 20px;border-radius:11px;font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:8px;cursor:pointer;color:#fff;background:#0B7C86" hover="filter:brightness(1.07)">{ic('check', 16, 2.5)} Uložit záznam</Hov>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function FineModal({ vm }) {
+  const m = vm.fineModal
+  return (
+    <div onClick={m.close} style={S('position:fixed;inset:0;z-index:80;background:rgba(15,15,20,.4);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:24px')}>
+      <div onClick={m.stop} style={S('width:560px;max-width:96vw;background:#fff;border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.32);display:flex;flex-direction:column;animation:popIn .2s ease')}>
+        <ModalHeader icon="alert" iconBg="var(--star-soft)" iconColor="var(--star)" title="Přidat pokutu / přestupek" sub={`${m.plate} · ${m.brand} ${m.model}`} close={m.close} />
+        <div style={S('padding:20px 22px;display:flex;flex-direction:column;gap:14px')}>
+          <div><div style={S(modalLbl)}>Typ přestupku</div><Select value={m.type} onChange={m.field('type')} options={m.types} height={42} menuMax={280} /></div>
+          <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:12px')}>
+            <div><div style={S(modalLbl)}>Datum</div><input value={m.date} onChange={m.field('date')} style={S(modalInp)} /></div>
+            <div><div style={S(modalLbl)}>Řidič</div><input value={m.driver} onChange={m.field('driver')} placeholder="Jméno řidiče" style={S(modalInp)} /></div>
+          </div>
+          <div><div style={S(modalLbl)}>Místo</div><input value={m.location} onChange={m.field('location')} placeholder="Např. D1, 21. km (úsekové měření)" style={S(modalInp)} /></div>
+          <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:12px')}>
+            <div><div style={S(modalLbl)}>Částka (Kč)</div><input value={m.amount} onChange={m.field('amount')} placeholder="0" inputMode="numeric" style={S(modalInp + ';font-variant-numeric:tabular-nums')} /></div>
+            <div><div style={S(modalLbl)}>Trestné body</div><input value={m.points} onChange={m.field('points')} placeholder="0" inputMode="numeric" style={S(modalInp + ';font-variant-numeric:tabular-nums')} /></div>
+          </div>
+          <Hov onClick={m.togglePaid} base={`display:flex;align-items:center;gap:11px;padding:12px 14px;border:1.5px solid ${m.paid ? 'var(--green)' : 'var(--border2)'};border-radius:12px;cursor:pointer;background:${m.paid ? 'var(--green-soft)' : '#fff'}`} hover="border-color:var(--green)">
+            <span style={S(`width:22px;height:22px;border-radius:6px;border:2px solid ${m.paid ? 'var(--green)' : 'var(--border2)'};background:${m.paid ? 'var(--green)' : '#fff'};color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0`)}>{m.paid ? ic('check', 13, 3) : null}</span>
+            <div style={S('flex:1')}><div style={S('font-size:13.5px;font-weight:600')}>Pokuta uhrazena</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{m.paid ? 'Označeno jako zaplaceno' : 'Zatím čeká na úhradu'}</div></div>
+          </Hov>
+        </div>
+        <div style={S('display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:16px 22px;border-top:1px solid var(--border)')}>
+          <Hov onClick={m.close} base="display:flex;align-items:center;justify-content:center;height:42px;padding:0 18px;border-radius:11px;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--ink2);background:#fff;border:1px solid var(--border2)" hover="background:var(--canvas)">Zrušit</Hov>
+          <Hov onClick={m.save} base="height:42px;padding:0 20px;border-radius:11px;font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:8px;cursor:pointer;color:#fff;background:var(--star)" hover="filter:brightness(1.07)">{ic('check', 16, 2.5)} Uložit přestupek</Hov>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function FinancingCard({ f, onRfq }) {
   if (!f || !f.active) {
     return (
@@ -2232,7 +2353,7 @@ function VehicleDetail({ vm }) {
         </div>
       </div>
 
-      <div style={S('display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:20px')}>
+      <div style={S('display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin-bottom:20px')}>
         {vm.vehicleTabs.map((t, i) => <div key={i} onClick={t.onClick} style={S(t.style)}>{t.label}</div>)}
       </div>
 
@@ -2376,8 +2497,181 @@ function VehicleDetail({ vm }) {
       )}
 
       {vd.isCosts && (
-        <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:48px;text-align:center')}>
-          <Hov onClick={vd.openCostModal} as="span" base="display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 20px;background:linear-gradient(180deg,#E0234A,#B10E2B);color:#fff;border-radius:11px;box-shadow:0 2px 8px rgba(200,16,46,.30);font-size:13.5px;font-weight:600;cursor:pointer" hover="filter:brightness(1.05);transform:translateY(-1px);box-shadow:0 6px 16px rgba(200,16,46,.42)">{ic('plus', 16)} Přidat náklad</Hov>
+        <div>
+          <div style={S('display:flex;align-items:flex-end;gap:13px;flex-wrap:wrap;margin-bottom:16px')}>
+            <div style={S('flex:1;min-width:0')}>
+              <div style={S('display:flex;align-items:center;gap:9px')}><span style={S('font-size:15px;font-weight:700')}>Náklady &amp; TCO</span><span style={S('font-size:11.5px;font-weight:700;color:var(--ink2);background:#EEF2F9;padding:2px 8px;border-radius:20px')}>{vd.costCount}</span></div>
+              <div style={S('font-size:12.5px;color:var(--ink3);margin-top:3px')}>Celkové náklady vlastnictví — pojištění, servis, pneu, palivo, leasing a pokuty. Roční náklady <b style={S('color:var(--ink2)')}>{vd.yearTotalF}</b>.</div>
+            </div>
+            <Hov onClick={vd.openCostModal} base="display:flex;align-items:center;gap:7px;height:40px;padding:0 16px;background:linear-gradient(180deg,#22A65A,#15863F);color:#fff;border-radius:11px;box-shadow:0 2px 8px rgba(20,134,63,.28);font-size:13px;font-weight:600;cursor:pointer" hover="filter:brightness(1.05);transform:translateY(-1px)">{ic('plus', 15)} Přidat náklad</Hov>
+          </div>
+          <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px')}>
+            {vd.costStats.map((s, i) => <div key={i} style={S(`${CARD};padding:16px 18px`)}><div style={S('font-size:12px;color:var(--ink3)')}>{s.label}</div><div style={S(`font-size:22px;font-weight:800;letter-spacing:-.5px;margin-top:4px;color:${s.color}`)}>{s.value}</div><div style={S('font-size:11.5px;color:var(--ink3);margin-top:2px')}>{s.sub}</div></div>)}
+          </div>
+          <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:14px;margin-bottom:14px`)}>
+            <div style={S(`${CARD};padding:20px`)}>
+              <div style={S('font-size:14px;font-weight:700;margin-bottom:16px')}>Rozpad podle kategorií</div>
+              {vd.catBreak.length ? vd.catBreak.map((c, i) => (
+                <div key={i} style={S('margin-bottom:13px')}>
+                  <div style={S('display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:5px')}>
+                    <span style={S('display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600')}><span style={S(`width:9px;height:9px;border-radius:3px;background:${c.color};flex-shrink:0`)}></span>{c.label}</span>
+                    <span style={S('font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap')}>{c.amountF} <span style={S('font-size:11.5px;color:var(--ink3);font-weight:600')}>· {c.pct} %</span></span>
+                  </div>
+                  <div style={S('height:8px;border-radius:5px;background:#EEF2F9;overflow:hidden')}><div style={S(`height:100%;width:${c.bar}%;background:${c.color};border-radius:5px`)}></div></div>
+                </div>
+              )) : <div style={S('font-size:13px;color:var(--ink3)')}>Zatím žádné náklady.</div>}
+            </div>
+            <div style={S(`${CARD};padding:20px`)}>
+              <div style={S('display:flex;align-items:center;justify-content:space-between;margin-bottom:4px')}>
+                <div style={S('font-size:14px;font-weight:700')}>Cashflow predikce</div>
+                <span style={S('font-size:11px;font-weight:700;color:var(--purple);background:var(--purple-soft);padding:3px 9px;border-radius:20px')}>12 měsíců</span>
+              </div>
+              <div style={S('font-size:12px;color:var(--ink3);margin-bottom:10px')}>Plánované náklady — co vás vozidlo bude stát.</div>
+              {vd.forecast.length ? vd.forecast.map((f, i) => (
+                <div key={i} style={S('display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--border)')}>
+                  <span style={S(`width:34px;height:34px;border-radius:9px;background:${f.bg};color:${f.color};display:flex;align-items:center;justify-content:center;flex-shrink:0`)}>{ic(f.icon, 17)}</span>
+                  <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:600')}>{f.label}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{f.sub} · {f.date}</div></div>
+                  <span style={S('font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap')}>{f.amountF}</span>
+                </div>
+              )) : <div style={S('font-size:13px;color:var(--ink3)')}>Žádné plánované náklady.</div>}
+              {vd.forecast.length > 0 && <div style={S('display:flex;align-items:center;justify-content:space-between;margin-top:14px')}><span style={S('font-size:13px;font-weight:700')}>Predikce celkem</span><span style={S('font-size:18px;font-weight:800;letter-spacing:-.4px;color:var(--purple);font-variant-numeric:tabular-nums')}>{vd.forecast12F}</span></div>}
+            </div>
+          </div>
+          <div style={S(`${CARD};overflow:hidden`)}>
+            <div style={S('display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)')}>
+              <div style={S('font-size:14px;font-weight:700')}>Nákladová kniha</div>
+              <span style={S('font-size:12px;color:var(--ink3)')}>{vd.ledger.length} položek</span>
+            </div>
+            <HScroll minW={640}>
+              <div style={S('display:grid;grid-template-columns:96px 168px 1fr 120px;gap:12px;padding:10px 20px;border-bottom:1px solid var(--border);background:#F7FAFE;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px')}>
+                <div>Datum</div><div>Kategorie</div><div>Popis</div><div style={S('text-align:right')}>Částka</div>
+              </div>
+              {vd.ledger.map((e, i) => (
+                <div key={i} style={S('display:grid;grid-template-columns:96px 168px 1fr 120px;gap:12px;padding:11px 20px;border-bottom:1px solid var(--border);align-items:center')}>
+                  <div style={S('font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums')}>{e.date}</div>
+                  <div><span style={S('display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--ink2)')}><span style={S(`width:8px;height:8px;border-radius:3px;background:${e.catColor};flex-shrink:0`)}></span>{e.catLabel}</span></div>
+                  <div style={S('font-size:12.5px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{e.label}</div>
+                  <div style={S('text-align:right;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums')}>{e.amountF}</div>
+                </div>
+              ))}
+            </HScroll>
+          </div>
+        </div>
+      )}
+
+      {vd.isService && (
+        <div>
+          <div style={S('display:flex;align-items:flex-end;gap:13px;flex-wrap:wrap;margin-bottom:16px')}>
+            <div style={S('flex:1;min-width:0')}>
+              <div style={S('display:flex;align-items:center;gap:9px')}><span style={S('font-size:15px;font-weight:700')}>Servisní historie</span><span style={S('font-size:11.5px;font-weight:700;color:var(--ink2);background:#EEF2F9;padding:2px 8px;border-radius:20px')}>{vd.serviceCount}</span></div>
+              <div style={S('font-size:12.5px;color:var(--ink3);margin-top:3px')}>Servisní události, výměny oleje, opravy a servisní intervaly. STK se načítá z registru vozidel.</div>
+            </div>
+            <Hov onClick={vd.onAddService} base="display:flex;align-items:center;gap:7px;height:40px;padding:0 16px;background:linear-gradient(180deg,#6D5EF6,#5848D6);color:#fff;border-radius:11px;box-shadow:0 2px 8px rgba(109,94,246,.28);font-size:13px;font-weight:600;cursor:pointer" hover="filter:brightness(1.05);transform:translateY(-1px)">{ic('plus', 15)} Přidat servis</Hov>
+          </div>
+          {vd.upcomingSvc && (
+            <div style={S('display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--purple-soft);border:1px solid var(--purple);border-radius:13px;margin-bottom:14px')}>
+              <span style={S('width:38px;height:38px;border-radius:10px;background:#fff;color:var(--purple);display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic('clock', 19)}</span>
+              <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:700;color:var(--purple)')}>Příští plánovaný servis</div><div style={S('font-size:12.5px;color:var(--ink2)')}>{vd.upcomingSvc.date}{vd.upcomingSvc.km ? ` · nebo při ${vd.upcomingSvc.km}` : ''}</div></div>
+            </div>
+          )}
+          {vd.serviceList.length ? vd.serviceList.map((x) => (
+            <div key={x.id} style={S(`${CARD};padding:16px 18px;margin-bottom:10px`)}>
+              <div style={S('display:flex;align-items:flex-start;gap:12px')}>
+                <span style={S(`width:38px;height:38px;border-radius:10px;background:${x.meta.bg};color:${x.meta.color};display:flex;align-items:center;justify-content:center;flex-shrink:0`)}>{ic(x.meta.icon, 19)}</span>
+                <div style={S('flex:1;min-width:0')}>
+                  <div style={S('display:flex;align-items:baseline;gap:8px;flex-wrap:wrap')}><span style={S('font-size:14px;font-weight:700')}>{x.type}</span><span style={S('font-size:12px;color:var(--ink3);font-variant-numeric:tabular-nums')}>{x.date} · {x.kmF}</span></div>
+                  {x.desc && <div style={S('font-size:13px;color:var(--ink2);margin-top:3px;line-height:1.45')}>{x.desc}</div>}
+                  <div style={S('display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:8px')}>
+                    {x.shop && <span style={S('display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink3)')}>{ic('pin', 13)}{x.shop}</span>}
+                    {x.nextDate && <span style={S('display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--purple);font-weight:600')}>{ic('refresh', 13)} Příští: {x.nextDate}{x.nextKmF ? ` / ${x.nextKmF}` : ''}</span>}
+                    {x.invoice && <span style={S('display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--blue-ink)')}>{ic('file', 13)}{x.invoice}</span>}
+                  </div>
+                </div>
+                <div style={S('text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:8px')}>
+                  <span style={S('font-size:15px;font-weight:800;letter-spacing:-.3px;font-variant-numeric:tabular-nums')}>{x.priceF}</span>
+                  <Hov onClick={x.onRemove} base="display:flex;color:var(--ink3);cursor:pointer;padding:2px" hover="color:var(--star)">{ic('trash', 15)}</Hov>
+                </div>
+              </div>
+            </div>
+          )) : <EmptyState icon="wrench" title="Zatím žádné servisní záznamy" sub="Přidejte servisní událost — pravidelný servis, výměnu oleje nebo opravu. U pravidelného servisu zadejte i příští interval pro cashflow predikci." />}
+        </div>
+      )}
+
+      {vd.isTires && (
+        <div>
+          <div style={S('display:flex;align-items:flex-end;gap:13px;flex-wrap:wrap;margin-bottom:16px')}>
+            <div style={S('flex:1;min-width:0')}>
+              <div style={S('display:flex;align-items:center;gap:9px')}><span style={S('font-size:15px;font-weight:700')}>Pneumatiky a přezouvání</span><span style={S('font-size:11.5px;font-weight:700;color:var(--ink2);background:#EEF2F9;padding:2px 8px;border-radius:20px')}>{vd.tireCount}</span></div>
+              <div style={S('font-size:12.5px;color:var(--ink3);margin-top:3px')}>Sezónní přezutí, nákup sad, hloubka dezénu a uskladnění. S fakturami pro uplatnění.</div>
+            </div>
+            <Hov onClick={vd.onAddTire} base="display:flex;align-items:center;gap:7px;height:40px;padding:0 16px;background:linear-gradient(180deg,#0E9AA6,#0B7C86);color:#fff;border-radius:11px;box-shadow:0 2px 8px rgba(14,154,166,.28);font-size:13px;font-weight:600;cursor:pointer" hover="filter:brightness(1.05);transform:translateY(-1px)">{ic('plus', 15)} Přidat záznam</Hov>
+          </div>
+          {vd.upcomingTire && (
+            <div style={S('display:flex;align-items:center;gap:12px;padding:14px 16px;background:#E3F4F5;border:1px solid #0E9AA6;border-radius:13px;margin-bottom:14px')}>
+              <span style={S('width:38px;height:38px;border-radius:10px;background:#fff;color:#0B7C86;display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic('swap', 19)}</span>
+              <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:700;color:#0B7C86')}>Příští přezutí {vd.upcomingTire.action}</div><div style={S('font-size:12.5px;color:var(--ink2)')}>plánováno na {vd.upcomingTire.date}</div></div>
+            </div>
+          )}
+          {vd.tireList.length ? vd.tireList.map((x) => (
+            <div key={x.id} style={S(`${CARD};padding:16px 18px;margin-bottom:10px`)}>
+              <div style={S('display:flex;align-items:flex-start;gap:12px')}>
+                <span style={S(`width:38px;height:38px;border-radius:10px;background:${x.meta.bg};color:${x.meta.color};display:flex;align-items:center;justify-content:center;flex-shrink:0`)}>{ic(x.meta.icon, 19)}</span>
+                <div style={S('flex:1;min-width:0')}>
+                  <div style={S('display:flex;align-items:baseline;gap:8px;flex-wrap:wrap')}><span style={S('font-size:14px;font-weight:700')}>{x.action}</span><span style={S('font-size:12px;color:var(--ink3);font-variant-numeric:tabular-nums')}>{x.date} · {x.kmF}</span></div>
+                  {x.set && <div style={S('font-size:13px;color:var(--ink2);margin-top:3px')}>{x.set}</div>}
+                  <div style={S('display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:8px')}>
+                    <span style={S('display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink3)')}>{ic('gauge', 13)} Dezén {x.treadF}</span>
+                    {x.storage && x.storage !== '—' && <span style={S('display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink3)')}>{ic('archive', 13)}{x.storage}</span>}
+                    {x.nextDate && <span style={S('display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#0B7C86;font-weight:600')}>{ic('refresh', 13)} Příští: {x.nextDate}</span>}
+                    {x.invoice && <span style={S('display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--blue-ink)')}>{ic('file', 13)}{x.invoice}</span>}
+                  </div>
+                </div>
+                <div style={S('text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:8px')}>
+                  <span style={S('font-size:15px;font-weight:800;letter-spacing:-.3px;font-variant-numeric:tabular-nums')}>{x.priceF}</span>
+                  <Hov onClick={x.onRemove} base="display:flex;color:var(--ink3);cursor:pointer;padding:2px" hover="color:var(--star)">{ic('trash', 15)}</Hov>
+                </div>
+              </div>
+            </div>
+          )) : <EmptyState icon="refresh" title="Zatím žádné záznamy o pneumatikách" sub="Evidujte sezónní přezutí, nákup nových sad, hloubku dezénu a místo uskladnění. Sledujte četnost opotřebení podle stylu jízdy řidiče." />}
+        </div>
+      )}
+
+      {vd.isFines && (
+        <div>
+          <div style={S('display:flex;align-items:flex-end;gap:13px;flex-wrap:wrap;margin-bottom:16px')}>
+            <div style={S('flex:1;min-width:0')}>
+              <div style={S('display:flex;align-items:center;gap:9px')}><span style={S('font-size:15px;font-weight:700')}>Pokuty a přestupky</span><span style={S('font-size:11.5px;font-weight:700;color:var(--ink2);background:#EEF2F9;padding:2px 8px;border-radius:20px')}>{vd.fineCount}</span></div>
+              <div style={S('font-size:12.5px;color:var(--ink3);margin-top:3px')}>Radary, parkování, mýtné. Eviduje řidiče, částku, body a stav úhrady.</div>
+            </div>
+            <Hov onClick={vd.onAddFine} base="display:flex;align-items:center;gap:7px;height:40px;padding:0 16px;background:linear-gradient(180deg,#E0234A,#B10E2B);color:#fff;border-radius:11px;box-shadow:0 2px 8px rgba(200,16,46,.28);font-size:13px;font-weight:600;cursor:pointer" hover="filter:brightness(1.05);transform:translateY(-1px)">{ic('plus', 15)} Přidat pokutu</Hov>
+          </div>
+          <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:14px')}>
+            <div style={S(`${CARD};padding:15px 18px`)}><div style={S('font-size:12px;color:var(--ink3)')}>Neuhrazeno</div><div style={S(`font-size:20px;font-weight:800;letter-spacing:-.4px;margin-top:3px;color:${vd.finesUnpaidCount ? 'var(--star)' : 'var(--green)'}`)}>{vd.finesUnpaidSumF}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{vd.finesUnpaidCount} {vd.finesUnpaidCount === 1 ? 'pokuta' : 'pokut'}</div></div>
+            <div style={S(`${CARD};padding:15px 18px`)}><div style={S('font-size:12px;color:var(--ink3)')}>Celkem za vozidlo</div><div style={S('font-size:20px;font-weight:800;letter-spacing:-.4px;margin-top:3px')}>{vd.finesTotalSumF}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>všechny přestupky</div></div>
+            <div style={S(`${CARD};padding:15px 18px`)}><div style={S('font-size:12px;color:var(--ink3)')}>Trestné body</div><div style={S(`font-size:20px;font-weight:800;letter-spacing:-.4px;margin-top:3px;color:${vd.finesPoints ? 'var(--amber)' : 'var(--ink)'}`)}>{vd.finesPoints}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>součet bodů</div></div>
+          </div>
+          {vd.fineList.length ? (
+            <div style={S(`${CARD};overflow:hidden`)}>
+              <HScroll minW={720}>
+                <div style={S('display:grid;grid-template-columns:38px 96px 1fr 150px 96px 110px;gap:12px;padding:10px 18px;border-bottom:1px solid var(--border);background:#F7FAFE;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px')}>
+                  <div></div><div>Datum</div><div>Přestupek / místo</div><div>Řidič</div><div style={S('text-align:right')}>Částka</div><div style={S('text-align:right')}>Stav</div>
+                </div>
+                {vd.fineList.map((x) => (
+                  <div key={x.id} style={S('display:grid;grid-template-columns:38px 96px 1fr 150px 96px 110px;gap:12px;padding:12px 18px;border-bottom:1px solid var(--border);align-items:center')}>
+                    <span style={S(`width:34px;height:34px;border-radius:9px;background:${x.meta.bg};color:${x.meta.color};display:flex;align-items:center;justify-content:center`)}>{ic(x.meta.icon, 17)}</span>
+                    <div style={S('font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums')}>{x.date}</div>
+                    <div style={S('min-width:0')}><div style={S('font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{x.type}{x.points ? <span style={S('font-size:11px;font-weight:700;color:var(--amber);background:var(--amber-soft);padding:1px 7px;border-radius:20px;margin-left:7px')}>{x.points} b.</span> : null}</div><div style={S('font-size:11.5px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{x.location || '—'}</div></div>
+                    <div style={S('font-size:12.5px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{x.driver}</div>
+                    <div style={S('text-align:right;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums')}>{x.amountF}</div>
+                    <div style={S('display:flex;align-items:center;justify-content:flex-end;gap:8px')}>
+                      <Hov onClick={x.onToggle} base={`display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:4px 9px;border-radius:20px;cursor:pointer;${x.paid ? 'color:var(--green);background:var(--green-soft)' : 'color:var(--star);background:var(--star-soft)'}`} hover="filter:brightness(.97)">{x.paid ? ic('check2', 12) : ic('clock', 12)}{x.paid ? 'Uhrazeno' : 'Čeká'}</Hov>
+                      <Hov onClick={x.onRemove} base="display:flex;color:var(--ink3);cursor:pointer;padding:2px" hover="color:var(--star)">{ic('trash', 15)}</Hov>
+                    </div>
+                  </div>
+                ))}
+              </HScroll>
+            </div>
+          ) : <EmptyState icon="alert" title="Žádné evidované přestupky" sub="Skvělá zpráva. Nové pokuty (radar, parkování, mýtné) přidáte tlačítkem výše — eviduje se řidič, částka, body i stav úhrady." />}
         </div>
       )}
 
