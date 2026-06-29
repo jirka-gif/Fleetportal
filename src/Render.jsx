@@ -11,7 +11,7 @@ const STAR_LOGO = '/fleet-portal/petrisk-logo.svg'
 // Fancy custom dropdown — nahrazuje nativní <select> napříč portálem.
 // onChange dostává { target: { value } }, takže je drop-in za <select> (vm handlery beze změny).
 // options: pole stringů nebo { v, l } / { value, label }. width="auto" = inline (filtry).
-function Select({ value, onChange, options = [], placeholder = 'Vyberte…', width, height = 42, size = 13.5, menuWidth, disabled }) {
+function Select({ value, onChange, options = [], placeholder = 'Vyberte…', width, height = 42, size = 13.5, menuWidth, menuMax = 300, disabled }) {
   const [open, setOpen] = useState(false)
   const opts = options.map((o) => (o && typeof o === 'object')
     ? { value: o.v ?? o.value, label: o.l ?? o.label ?? String(o.v ?? o.value) }
@@ -30,7 +30,7 @@ function Select({ value, onChange, options = [], placeholder = 'Vyberte…', wid
       {open && (
         <>
           <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 9000 }} />
-          <div style={S(`position:absolute;z-index:9001;top:calc(100% + 6px);left:0;${inline ? `min-width:${menuWidth || 210}px;` : 'right:0;'}background:#fff;border:1px solid var(--border2);border-radius:12px;box-shadow:0 18px 44px rgba(15,23,42,.18),0 2px 8px rgba(15,23,42,.06);padding:6px;max-height:300px;overflow-y:auto;animation:popIn .14s cubic-bezier(.2,.9,.3,1)`)}>
+          <div style={S(`position:absolute;z-index:9001;top:calc(100% + 6px);left:0;${inline ? `min-width:${menuWidth || 210}px;` : 'right:0;'}background:#fff;border:1px solid var(--border2);border-radius:12px;box-shadow:0 18px 44px rgba(15,23,42,.18),0 2px 8px rgba(15,23,42,.06);padding:6px;max-height:${menuMax}px;overflow-y:auto;animation:popIn .14s cubic-bezier(.2,.9,.3,1)`)}>
             {opts.map((o, i) => {
               const on = o.value === value
               return (
@@ -2082,14 +2082,14 @@ function EquipModal({ vm }) {
   const lbl = 'font-size:11.5px;font-weight:600;color:var(--ink2);margin-bottom:5px'
   return (
     <div onClick={m.close} style={S('position:fixed;inset:0;z-index:80;background:rgba(15,15,20,.4);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:24px')}>
-      <div onClick={m.stop} style={S('width:560px;max-width:96vw;max-height:92vh;background:#fff;border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.32);overflow:hidden;display:flex;flex-direction:column;animation:popIn .2s ease')}>
+      <div onClick={m.stop} style={S('width:560px;max-width:96vw;background:#fff;border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.32);display:flex;flex-direction:column;animation:popIn .2s ease')}>
         <div style={S('display:flex;align-items:center;gap:13px;padding:20px 22px;border-bottom:1px solid var(--border)')}>
           <div style={S('width:40px;height:40px;border-radius:12px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic('plus', 20)}</div>
           <div style={{ flex: 1, minWidth: 0 }}><div style={S('font-size:16px;font-weight:700')}>Přidat prvek nadstandardní výbavy</div><div style={S('font-size:12.5px;color:var(--ink3)')}>Vyberte sekci, popište prvek a přiložte pořizovací fakturu</div></div>
           <span onClick={m.close} style={S('color:var(--ink3);cursor:pointer;display:flex')}>{ic('close', 17)}</span>
         </div>
-        <div style={S('padding:20px 22px;overflow-y:auto;display:flex;flex-direction:column;gap:14px')}>
-          <div><div style={S(lbl)}>Sekce</div><Select value={m.section} onChange={m.onSection} options={m.sections} height={42} /></div>
+        <div style={S('padding:20px 22px;display:flex;flex-direction:column;gap:14px')}>
+          <div><div style={S(lbl)}>Sekce</div><Select value={m.section} onChange={m.onSection} options={m.sections} height={42} menuMax={460} /></div>
           <div><div style={S(lbl)}>Popis prvku</div><input value={m.desc} onChange={m.onDesc} placeholder="Např. Sada zimních kol — litá 18&quot;, Pirelli Sottozero" style={S(inp)} /></div>
           <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:12px')}>
             <div><div style={S(lbl)}>Pořizovací cena</div><input value={m.price} onChange={m.onPrice} placeholder="0 Kč" inputMode="numeric" style={S(inp + ';font-variant-numeric:tabular-nums')} /></div>
@@ -2105,7 +2105,7 @@ function EquipModal({ vm }) {
           </div>
         </div>
         <div style={S('display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:16px 22px;border-top:1px solid var(--border)')}>
-          <Hov onClick={m.close} base="height:42px;padding:0 16px;border-radius:11px;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--ink2);background:#fff;border:1px solid var(--border2)" hover="background:var(--canvas)">Zrušit</Hov>
+          <Hov onClick={m.close} base="display:flex;align-items:center;justify-content:center;height:42px;padding:0 18px;border-radius:11px;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--ink2);background:#fff;border:1px solid var(--border2)" hover="background:var(--canvas)">Zrušit</Hov>
           <Hov onClick={m.save} base="height:42px;padding:0 20px;border-radius:11px;font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:8px;cursor:pointer;color:#fff;background:var(--blue)" hover="filter:brightness(1.07)">{ic('check', 16, 2.5)} Uložit prvek</Hov>
         </div>
       </div>
