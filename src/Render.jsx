@@ -1535,6 +1535,32 @@ function FleetDetail({ vm }) {
             ))}
           </div>
 
+          {/* Provozní náklady parku — modelovaný odhad (náklady na 1 auto) */}
+          <div style={S(`${CARD};padding:20px;margin-bottom:14px`)}>
+            <div style={S('display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px')}>
+              <span style={S('font-size:15px;font-weight:700')}>Provozní náklady parku</span>
+              <span style={S('font-size:10.5px;font-weight:700;color:var(--purple);background:var(--purple-soft);padding:2px 9px;border-radius:20px')}>modelovaný odhad</span>
+            </div>
+            <div style={S('font-size:12px;color:var(--ink3);margin-bottom:16px')}>Odhad provozních nákladů (palivo, servis, pneu, leasing) podle typu vozidel — bez pojistného. Upřesní se napojením telematiky a fakturace.</div>
+            <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '230px 1fr'};gap:20px;align-items:center`)}>
+              <div style={S('display:flex;gap:24px;flex-wrap:wrap')}>
+                <div><div style={S('font-size:11.5px;color:var(--ink3)')}>Náklady na 1 auto</div><div style={S('font-size:26px;font-weight:800;letter-spacing:-.6px;color:var(--ink);margin-top:2px')}>{fd.parkCostPerVehicleF}</div><div style={S('font-size:11px;color:var(--ink3)')}>ročně · Ø</div></div>
+                <div><div style={S('font-size:11.5px;color:var(--ink3)')}>Celkem za park</div><div style={S('font-size:26px;font-weight:800;letter-spacing:-.6px;color:var(--ink);margin-top:2px')}>{fd.parkCostTotalF}</div><div style={S('font-size:11px;color:var(--ink3)')}>ročně</div></div>
+              </div>
+              <div>
+                {fd.parkCostSplit.map((c, i) => (
+                  <div key={i} style={S('margin-bottom:9px')}>
+                    <div style={S('display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px')}>
+                      <span style={S('display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600')}><span style={S(`width:9px;height:9px;border-radius:3px;background:${c.color};flex-shrink:0`)}></span>{c.label}</span>
+                      <span style={S('font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap')}>{c.amountF} <span style={S('font-size:11px;color:var(--ink3);font-weight:600')}>· {c.pct} %</span></span>
+                    </div>
+                    <div style={S('height:6px;border-radius:4px;background:#EEF2F9;overflow:hidden')}><div style={S(`height:100%;width:${c.pct}%;background:${c.color};border-radius:4px`)}></div></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
           {/* Škody parku — rozpad celkem / podle druhu / podle vozidla / podle řidiče */}
           <div style={S('display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:2px 0 12px')}>
             <span style={S('font-size:15px;font-weight:700')}>Škody parku</span>
@@ -2675,6 +2701,37 @@ function VehicleDetail({ vm }) {
         </div>
       )}
 
+      {vd.isUsage && (
+        <div>
+          <div style={S('display:flex;align-items:flex-end;gap:13px;flex-wrap:wrap;margin-bottom:16px')}>
+            <div style={S('flex:1;min-width:0')}>
+              <div style={S('display:flex;align-items:center;gap:9px')}><span style={S('font-size:15px;font-weight:700')}>Historie používání</span><span style={S('font-size:11.5px;font-weight:700;color:var(--ink2);background:#EEF2F9;padding:2px 8px;border-radius:20px')}>{vd.usageCount}</span></div>
+              <div style={S('font-size:12.5px;color:var(--ink3);margin-top:3px')}>Kdo vozidlo používal, od kdy do kdy, stav km při převzetí a vrácení. Užitečné i pro pojištění.</div>
+            </div>
+            <Hov onClick={vd.onHandover} base="display:flex;align-items:center;gap:7px;height:40px;padding:0 16px;background:linear-gradient(180deg,#2C6AE0,#1D50BD);color:#fff;border-radius:11px;box-shadow:0 2px 8px rgba(32,88,201,.28);font-size:13px;font-weight:600;cursor:pointer" hover="filter:brightness(1.05);transform:translateY(-1px)">{ic('transfer', 15)} Předat vozidlo</Hov>
+          </div>
+          <div style={S('position:relative;padding-left:8px')}>
+            {vd.usageList.map((u, i) => (
+              <div key={u.id} style={S(`${CARD};padding:16px 18px;margin-bottom:10px`)}>
+                <div style={S('display:flex;align-items:flex-start;gap:13px')}>
+                  <span style={S(`width:40px;height:40px;border-radius:50%;background:${u.active ? 'var(--blue-soft)' : '#EEF2F9'};color:${u.active ? 'var(--blue)' : 'var(--ink2)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:700;font-size:13px`)}>{u.driver.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()}</span>
+                  <div style={S('flex:1;min-width:0')}>
+                    <div style={S('display:flex;align-items:center;gap:9px;flex-wrap:wrap')}><span style={S('font-size:14px;font-weight:700')}>{u.driver}</span>{u.active ? <span style={S('font-size:10.5px;font-weight:700;color:var(--green);background:var(--green-soft);padding:2px 9px;border-radius:20px')}>Aktuální řidič</span> : <span style={S('font-size:10.5px;font-weight:700;color:var(--ink2);background:#EEF2F9;padding:2px 9px;border-radius:20px')}>Vráceno</span>}</div>
+                    <div style={S('font-size:12px;color:var(--ink3);margin-top:2px')}>{u.role}</div>
+                    <div style={S('display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-top:10px')}>
+                      <div><div style={S('font-size:10.5px;color:var(--ink3);font-weight:600')}>Období</div><div style={S('font-size:13px;font-weight:600;font-variant-numeric:tabular-nums')}>{u.period}</div></div>
+                      <div><div style={S('font-size:10.5px;color:var(--ink3);font-weight:600')}>Km převzetí → vrácení</div><div style={S('font-size:13px;font-weight:600;font-variant-numeric:tabular-nums')}>{u.kmStartF} → {u.kmEndF}</div></div>
+                      <div><div style={S('font-size:10.5px;color:var(--ink3);font-weight:600')}>Najeto</div><div style={S('font-size:13px;font-weight:700;color:var(--blue-ink);font-variant-numeric:tabular-nums')}>{u.drivenF}</div></div>
+                    </div>
+                    {u.handover && <div style={S('display:flex;align-items:flex-start;gap:8px;margin-top:11px;padding:9px 12px;background:var(--canvas);border:1px solid var(--border);border-radius:10px;font-size:12.5px;color:var(--ink2);line-height:1.45')}><span style={S('display:flex;flex-shrink:0;margin-top:1px;color:var(--ink3)')}>{ic('doc2', 14)}</span>{u.handover}</div>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {vd.isOther && (
         <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:48px;text-align:center;color:var(--ink3)')}>
           <div style={S('width:52px;height:52px;border-radius:13px;background:#EEF2F9;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:var(--ink3)')}>{vd.otherIcon}</div>
@@ -3449,7 +3506,7 @@ function DriverDetail({ vm }) {
       <div style={S(`display:grid;grid-template-columns:repeat(auto-fit,minmax(${mob ? '240px' : '300px'},1fr));gap:14px;margin-bottom:20px`)}>
         {d.idDocs.map((doc, i) => (
           <div key={i} style={S(`${CARD};padding:18px 20px`)}>
-            <div style={S('display:flex;align-items:center;gap:11px;margin-bottom:13px')}><div style={S(`width:38px;height:38px;border-radius:11px;background:${doc.bg};color:${doc.color};display:flex;align-items:center;justify-content:center`)}>{doc.icon}</div><span style={S('font-size:13.5px;font-weight:700')}>{doc.title}</span></div>
+            <div style={S('display:flex;align-items:center;gap:11px;margin-bottom:13px')}><div style={S(`width:38px;height:38px;border-radius:11px;background:${doc.bg};color:${doc.color};display:flex;align-items:center;justify-content:center;flex-shrink:0`)}>{doc.icon}</div><span style={S('font-size:13.5px;font-weight:700;flex:1;min-width:0')}>{doc.title}</span>{doc.status && <span style={S(`font-size:10.5px;font-weight:700;color:${doc.status.color};background:${doc.status.bg};padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0`)}>{doc.status.label}</span>}</div>
             <div style={S('display:flex;flex-direction:column;gap:8px')}>
               {doc.rows.map((r, k) => <div key={k} style={S('display:flex;justify-content:space-between;gap:12px;font-size:12.5px')}><span style={S('color:var(--ink3)')}>{r[0]}</span><span style={S('font-weight:600;text-align:right')}>{r[1]}</span></div>)}
             </div>
@@ -3652,6 +3709,28 @@ function Settings({ vm }) {
           <div key={i} style={S('display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--border)')}><div><div style={S('font-size:13.5px;font-weight:600')}>{s.title}</div><div style={S('font-size:12px;color:var(--ink3)')}>{s.sub}</div></div><div onClick={s.toggle} style={S(s.trackStyle)}><div style={S(s.knobStyle)}></div></div></div>
         ))}
       </div>
+      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);overflow:hidden;margin-bottom:14px')}>
+        <div style={S('display:flex;align-items:center;gap:11px;padding:18px 22px;border-bottom:1px solid var(--border)')}>
+          <div style={S('width:40px;height:40px;border-radius:11px;background:#EEF2F9;color:var(--ink2);display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic('clock', 20)}</div>
+          <div style={S('flex:1;min-width:0')}><div style={S('font-size:15px;font-weight:700')}>Historie změn</div><div style={S('font-size:12.5px;color:var(--ink3)')}>Audit log — kdo, co a kdy změnil v portálu. Poslední {vm.auditRows.length} z {vm.auditCount} záznamů.</div></div>
+        </div>
+        <div>
+          {vm.auditRows.map((a, i) => (
+            <div key={a.id} style={S('display:flex;align-items:flex-start;gap:12px;padding:13px 22px;border-bottom:1px solid var(--border)')}>
+              <span style={S(`width:32px;height:32px;border-radius:9px;background:${a.meta.bg};color:${a.meta.color};display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px`)}>{ic(a.meta.icon, 16)}</span>
+              <div style={S('flex:1;min-width:0')}>
+                <div style={S('display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px')}>
+                  <span style={S(`font-size:10.5px;font-weight:700;color:${a.meta.color};background:${a.meta.bg};padding:2px 8px;border-radius:20px`)}>{a.meta.label}</span>
+                  <span style={S('font-size:12px;font-weight:600;color:var(--ink2)')}>{a.entity}</span>
+                </div>
+                <div style={S('font-size:12.5px;color:var(--ink2);line-height:1.45')}>{a.detail}</div>
+              </div>
+              <div style={S('text-align:right;flex-shrink:0')}><div style={S('font-size:11.5px;font-weight:600;color:var(--ink2);font-variant-numeric:tabular-nums;white-space:nowrap')}>{a.when}</div><div style={S('font-size:11px;color:var(--ink3)')}>{a.who}</div></div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:22px;display:flex;align-items:center;gap:16px')}>
         <img src={STAR_LOGO} alt="Petrisk a.s." style={S('height:30px;width:auto;flex-shrink:0')} />
         <div style={{ flex: 1 }}><div style={S('font-size:13.5px;font-weight:700')}>Broker Hub · Petrisk a.s.</div><div style={S('font-size:12px;color:var(--ink3)')}>Portál spravuje makléřská kancelář Petrisk a.s. · podpora po–pá 8–18</div></div>

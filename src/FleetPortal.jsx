@@ -233,6 +233,43 @@ const SEED_COSTS = {
   ],
 }
 
+// ---------- Historie používání vozidla (kniha předání) ----------
+const SEED_USAGE = {
+  v1: [
+    { id: 'us1', driver: 'Jan Procházka', role: 'Obchodní zástupce · Centrála', from: '18. 11. 2025', to: '', kmStart: 128400, kmEnd: 0, status: 'active', handover: 'Předáno: plná nádrž, 2 ks klíčů, čistý interiér, bez závad.' },
+    { id: 'us2', driver: 'Eva Kučerová', role: 'Fleet koordinátor · Centrála', from: '2. 5. 2025', to: '17. 11. 2025', kmStart: 104900, kmEnd: 128400, status: 'returned', handover: 'Vráceno s drobným odřením zadního nárazníku — bez nároku na plnění.' },
+    { id: 'us3', driver: 'Tomáš Dvořák', role: 'Vedoucí prodeje · Centrála', from: '10. 1. 2024', to: '1. 5. 2025', kmStart: 78200, kmEnd: 104900, status: 'returned', handover: 'Vráceno bez závad, kompletní výbava.' },
+  ],
+}
+// ---------- Audit log (historie změn v systému) ----------
+const AUDIT_META = {
+  create: { label: 'Vytvořeno', color: 'var(--green)', bg: 'var(--green-soft)', icon: 'plus' },
+  update: { label: 'Změněno', color: 'var(--blue)', bg: 'var(--blue-soft)', icon: 'edit' },
+  delete: { label: 'Smazáno', color: 'var(--star)', bg: 'var(--star-soft)', icon: 'trash' },
+  export: { label: 'Export', color: 'var(--purple)', bg: 'var(--purple-soft)', icon: 'arrow' },
+  login: { label: 'Přihlášení', color: 'var(--ink2)', bg: '#EEF2F9', icon: 'user1' },
+}
+const SEED_AUDIT = [
+  { id: 'a1', when: '29. 6. 2026 08:12', who: 'Martin Kovář', action: 'login', entity: 'Systém', detail: 'Přihlášení do Fleet Portalu (web, Praha)' },
+  { id: 'a2', when: '28. 6. 2026 16:41', who: 'Martin Kovář', action: 'create', entity: 'Pokuta', detail: 'Zaevidován přestupek — Rychlost (radar), BMW 320 (1S13018), 2 500 Kč' },
+  { id: 'a3', when: '28. 6. 2026 11:05', who: 'Eva Kučerová', action: 'update', entity: 'Vozidlo', detail: 'Změněn řidič — Ford Transit (1SC7662): Jan Procházka' },
+  { id: 'a4', when: '27. 6. 2026 14:22', who: 'Martin Kovář', action: 'export', entity: 'Vozidla', detail: 'Export sestavy vozového parku (XLSX, 335 vozidel)' },
+  { id: 'a5', when: '26. 6. 2026 09:48', who: 'Martin Kovář', action: 'create', entity: 'Servis', detail: 'Přidán servisní záznam — Pravidelný servis, BMW 320, 8 400 Kč' },
+  { id: 'a6', when: '24. 6. 2026 13:30', who: 'Tomáš Bartoš', action: 'delete', entity: 'Vozidlo', detail: 'Odebráno vozidlo z parku — Škoda Octavia (prodej)' },
+  { id: 'a7', when: '23. 6. 2026 10:15', who: 'Martin Kovář', action: 'update', entity: 'Pojištění', detail: 'Upraveno krytí — doplněno pojištění skel u 6 vozidel' },
+]
+// ---------- Modelované provozní náklady (odhad na úrovni parku) ----------
+const seedFromId = (id) => { let h = 0; const s = String(id || ''); for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0 } return h }
+const TYPE_ANNUAL_COST = { 'Osobní vozidla': 96000, 'Motocykly': 21000, 'Tahače': 312000, 'Návěsy': 64000, 'Nákladní vozidla': 208000, 'Přívěsy': 26000, 'Traktory a stroje': 138000 }
+const vehicleAnnualCostModel = (v) => { const base = TYPE_ANNUAL_COST[vehicleTypeCat(v.druh)] || 90000; const j = seedFromId(v.id) % 31; return Math.round((base * (1 + (j - 15) / 100)) / 100) * 100 }
+const PARK_COST_SPLIT = [
+  { key: 'phm', label: 'Pohonné hmoty', color: 'var(--amber)', share: 0.38 },
+  { key: 'servis', label: 'Servis a opravy', color: 'var(--purple)', share: 0.24 },
+  { key: 'leasing', label: 'Leasing / splátky', color: 'var(--green)', share: 0.18 },
+  { key: 'pneu', label: 'Pneumatiky', color: '#0E9AA6', share: 0.11 },
+  { key: 'ostatni', label: 'Mýto, mytí, ostatní', color: '#94A3B8', share: 0.09 },
+]
+
 const INS_COLORS = { Kooperativa: '#2058C9', Allianz: '#16A34A', 'ČPP': '#C2780C', Generali: '#8B5CF6', UNIQA: '#0EA5A5', 'ČSOB': '#9B0E25' }
 const DEFAULT_BONUS = [{ threshold: 30, rate: 15 }, { threshold: 40, rate: 10 }, { threshold: 50, rate: 5 }]
 const INSURER_CODE = { Kooperativa: '7720', Allianz: '4055', 'ČPP': '0019', Generali: '5544', UNIQA: '2401', 'ČSOB': '8830', 'ČSOB Poj.': '8830' }
@@ -294,6 +331,7 @@ export default function FleetPortal() {
     vehEquip: SEED_EQUIP, equipModal: null,
     vehService: SEED_SERVICE, vehTires: SEED_TIRES, vehFines: SEED_FINES, vehCostsExtra: SEED_COSTS,
     serviceModal: null, tireModal: null, fineModal: null,
+    audit: SEED_AUDIT,
     search: false, notif: false, ai: false, companyMenu: false, sidebar: false,
     claimWizard: false, claimStep: 1, claimData: {},
     rowMenu: null, toast: null,
@@ -383,6 +421,13 @@ export default function FleetPortal() {
   }
   const removeEquip = (vid, id) => setState((s) => ({ vehEquip: { ...s.vehEquip, [vid]: (s.vehEquip[vid] || []).filter((x) => x.id !== id) } }))
   const claimEquip = (item) => showToast(`Faktura „${item.invoice || item.section}" připravena k uplatnění — přiložte ji při hlášení škody.`)
+  // Audit log — zapiš změnu do historie systému
+  const logAudit = (action, entity, detail) => {
+    const now = new Date()
+    const p2 = (n) => String(n).padStart(2, '0')
+    const when = `${now.getDate()}. ${now.getMonth() + 1}. ${now.getFullYear()} ${p2(now.getHours())}:${p2(now.getMinutes())}`
+    setState((s) => ({ audit: [{ id: 'a' + now.getTime(), when, who: 'Martin Kovář', action, entity, detail }, ...s.audit] }))
+  }
   // ---- Servis ----
   const openServiceModal = (v) => setState({ rowMenu: null, serviceModal: { vid: v.id, plate: v.plate, brand: v.brand, model: v.model, type: SERVICE_TYPES[0], date: '1. 7. 2026', km: '', desc: '', price: '', shop: '', nextDate: '', nextKm: '', invoice: '' } })
   const setServiceField = (k, val) => setState((s) => ({ serviceModal: { ...s.serviceModal, [k]: val } }))
@@ -390,6 +435,7 @@ export default function FleetPortal() {
     const m = state.serviceModal
     const item = { id: 'sv' + Date.now(), type: m.type, date: m.date, km: moneyNum(m.km), desc: m.desc.trim(), price: moneyNum(m.price), shop: m.shop.trim(), nextDate: m.nextDate.trim(), nextKm: moneyNum(m.nextKm), invoice: m.invoice }
     setState((s) => ({ vehService: { ...s.vehService, [m.vid]: [item, ...(s.vehService[m.vid] || [])] }, serviceModal: null }))
+    logAudit('create', 'Servis', `Přidán servisní záznam — ${item.type}, ${m.brand} ${m.model} (${m.plate})${item.price ? ', ' + czk(item.price) : ''}`)
     showToast('Servisní záznam přidán' + (item.nextDate ? ' · příští servis ' + item.nextDate : ''))
   }
   const removeService = (vid, id) => setState((s) => ({ vehService: { ...s.vehService, [vid]: (s.vehService[vid] || []).filter((x) => x.id !== id) } }))
@@ -400,6 +446,7 @@ export default function FleetPortal() {
     const m = state.tireModal
     const item = { id: 'tr' + Date.now(), action: m.action, date: m.date, km: moneyNum(m.km), set: m.set.trim(), tread: parseFloat(String(m.tread).replace(',', '.')) || 0, storage: m.storage.trim() || '—', price: moneyNum(m.price), nextDate: m.nextDate.trim(), invoice: m.invoice }
     setState((s) => ({ vehTires: { ...s.vehTires, [m.vid]: [item, ...(s.vehTires[m.vid] || [])] }, tireModal: null }))
+    logAudit('create', 'Pneumatiky', `Přidán záznam — ${item.action}, ${m.brand} ${m.model} (${m.plate})`)
     showToast('Záznam o pneumatikách přidán')
   }
   const removeTire = (vid, id) => setState((s) => ({ vehTires: { ...s.vehTires, [vid]: (s.vehTires[vid] || []).filter((x) => x.id !== id) } }))
@@ -410,6 +457,7 @@ export default function FleetPortal() {
     const m = state.fineModal
     const item = { id: 'fn' + Date.now(), type: m.type, date: m.date, driver: m.driver.trim() || '—', location: m.location.trim(), amount: moneyNum(m.amount), points: moneyNum(m.points), paid: !!m.paid }
     setState((s) => ({ vehFines: { ...s.vehFines, [m.vid]: [item, ...(s.vehFines[m.vid] || [])] }, fineModal: null }))
+    logAudit('create', 'Pokuta', `Zaevidován přestupek — ${item.type}, ${m.brand} ${m.model} (${m.plate})${item.amount ? ', ' + czk(item.amount) : ''}`)
     showToast('Přestupek zaevidován' + (item.paid ? ' · uhrazeno' : ' · čeká na úhradu'))
   }
   const removeFine = (vid, id) => setState((s) => ({ vehFines: { ...s.vehFines, [vid]: (s.vehFines[vid] || []).filter((x) => x.id !== id) } }))
@@ -681,6 +729,7 @@ export default function FleetPortal() {
     const financedCount = vehiclesData.filter((v) => v.financing && v.financing.active).length
     const stkExpCount = vehiclesData.filter((v) => { const d = dueInfo(vehicleStk(v)); return d && d.days <= 60 }).length
     const vigExpCount = vehiclesData.filter((v) => { const vg = vehicleVignette(v); if (!vg) return false; const d = dueInfo(vg.validTo); return d && d.days <= 60 }).length
+    const rpExpCount = driversData.filter((d) => { const a = dueInfo(d.rp && d.rp.validTo, 60); const b = d.rp && d.rp.profValidTo ? dueInfo(d.rp.profValidTo, 60) : null; return (a && a.days <= 60) || (b && b.days <= 60) }).length
 
     // KPI — souhrn flotily pro majitele
     const driverCount = driversData.length
@@ -712,6 +761,7 @@ export default function FleetPortal() {
       { icon: ic('banknote', 18), ...starGreen(finEnd.length), label: 'Končící financování', sub: 'smlouvy do 90 dnů', value: String(finEnd.length), onClick: () => navigate('financing') },
       { icon: ic('check2', 18), ...amberGreen(stkExpCount), label: 'Končící STK', sub: 'do 60 dnů / po platnosti', value: String(stkExpCount), onClick: () => navigate('vehicles') },
       { icon: ic('doc2', 18), ...amberGreen(vigExpCount), label: 'Končící dálniční známky', sub: 'do 60 dnů / po platnosti', value: String(vigExpCount), onClick: () => navigate('vehicles') },
+      { icon: ic('user1', 18), ...amberGreen(rpExpCount), label: 'Končící řidičské průkazy', sub: 'ŘP / profesní do 60 dnů', value: String(rpExpCount), onClick: () => navigate('drivers') },
     ]
 
     // karty vozových parků (lokalit) — hav dopočítán z vozidel parku
@@ -876,6 +926,10 @@ export default function FleetPortal() {
     const maxDrvClaims = Math.max(1, ...Object.values(grpDrv).map((x) => x.count))
     const claimsByDriver = Object.entries(grpDrv).map(([driver, x]) => ({ driver, count: x.count, costF: czk(x.cost), pct: Math.round(x.count / maxDrvClaims * 100) })).sort((a, b) => b.count - a.count).slice(0, 6)
 
+    // Modelované provozní náklady parku (odhad — bez pojistného)
+    const parkCostTotal = fveh.reduce((a, v) => a + vehicleAnnualCostModel(v), 0)
+    const parkCostPerVehicle = cnt ? Math.round(parkCostTotal / cnt) : 0
+    const parkCostSplit = PARK_COST_SPLIT.map((c) => ({ label: c.label, color: c.color, amountF: czk(Math.round(parkCostTotal * c.share)), pct: Math.round(c.share * 100) }))
     const otherMap = {
       insurance: ['Pojištění parku', 'Souhrn všech smluv a krytí v tomto parku — přejděte do modulu Pojištění pro detailní práci se smlouvami.', ic('shield', 24)],
       claims: ['Události parku', 'Všech ' + f.claims + ' událostí parku najdete v modulu Pojistné události s filtrem na tento park.', ic('alert', 24)],
@@ -888,6 +942,7 @@ export default function FleetPortal() {
       fd: {
         name: f.name, address: f.address || '', singlePark: allFleets.length === 1, manager: f.manager, policy: f.policy || '—', policyStart: f.policyStart || '—', stats,
         typeBreakdown, coverBreakdown, finBreakdown, financedCount, premiumYear: '—',
+        parkCostTotalF: czk(parkCostTotal), parkCostPerVehicleF: czk(parkCostPerVehicle), parkCostSplit,
         claimTotal, claimCostF: czk(claimCost), claimPayoutF: czk(claimPayout), claimOpen, claimsByRisk, claimsByVehicle, claimsByDriver,
         expiringStk, expiringVig, stkExpCount: stkAll.length, vigExpCount: vigAll.length,
         line: lp.line, area: lp.area, donut, insurerLegend, fuel, evPct, evDonut, claimBars, claims: f.claims,
@@ -1013,6 +1068,7 @@ export default function FleetPortal() {
     const vig = vehicleVignette(v); const vigDue = vig ? dueInfo(vig.validTo) : null
     const compliance = [
       { k: 'STK / technická prohlídka', v: `platná do ${stkD}`, sub: 'z registru vozidel', icon: ic('check2', 18), status: compStatus(stkDue) },
+      { k: 'Měření emisí', v: `vyhovuje · do ${stkD}`, sub: 'v rámci STK', icon: ic('refresh', 18), status: compStatus(stkDue) },
       vig
         ? { k: 'Dálniční známka', v: `${vig.country} · ${vig.type}, do ${vig.validTo}`, sub: 'eDalnice.cz', icon: ic('doc2', 18), status: compStatus(vigDue) }
         : { k: 'Dálniční známka', v: 'nevyžaduje (nad 3,5 t — mýto)', sub: 'eDalnice.cz', icon: ic('doc2', 18), status: null },
@@ -1067,7 +1123,14 @@ export default function FleetPortal() {
       { text: 'Při přebírce zaevidován drobný odřený zadní nárazník — bez nároku na pojistné plnění.', author: 'Martin Kovář', initials: 'MK', date: '3. 4. ' + v.year, time: '14:10' },
     ]
     const notes = [...(state.vehNotes[v.id] || []), ...seedNotes]
-    const tabsDef = [['overview', 'Přehled'], ['insurance', 'Pojištění'], ['claims', 'Škody'], ['service', 'Servis'], ['tires', 'Pneumatiky'], ['fines', 'Pokuty'], ['costs', 'Náklady'], ['documents', 'Dokumenty'], ['equipment', 'Nadstandardní výbava'], ['timeline', 'Timeline'], ['notes', 'Poznámky']]
+    const tabsDef = [['overview', 'Přehled'], ['insurance', 'Pojištění'], ['claims', 'Škody'], ['service', 'Servis'], ['tires', 'Pneumatiky'], ['fines', 'Pokuty'], ['costs', 'Náklady'], ['usage', 'Užívání'], ['documents', 'Dokumenty'], ['equipment', 'Nadstandardní výbava'], ['timeline', 'Timeline'], ['notes', 'Poznámky']]
+    const usageRaw = SEED_USAGE[v.id] || [{ id: 'us-cur', driver: v.driver, role: '—', from: v.firstReg, to: '', kmStart: 0, kmEnd: 0, status: 'active', handover: 'Aktuální přiřazení vozidla.' }]
+    const curKm = moneyNum(v.mileage)
+    const usageList = usageRaw.map((u) => {
+      const endKm = u.status === 'active' ? curKm : u.kmEnd
+      const driven = endKm && u.kmStart ? endKm - u.kmStart : 0
+      return { ...u, kmStartF: u.kmStart ? fmtKm(u.kmStart) : '—', kmEndF: u.status === 'active' ? (curKm > 0 ? fmtKm(curKm) : 'dosud') : (u.kmEnd ? fmtKm(u.kmEnd) : '—'), drivenF: driven > 0 ? fmtKm(driven) : '—', period: u.to ? `${u.from} – ${u.to}` : `${u.from} – dosud`, active: u.status === 'active' }
+    })
     const equipNum = (s) => parseInt(String(s || '').replace(/[^\d]/g, ''), 10) || 0
     const equipList = (state.vehEquip[v.id] || []).map((it) => ({ ...it, onRemove: () => removeEquip(v.id, it.id), onClaim: () => claimEquip(it) }))
     const equipTotal = equipList.reduce((a, it) => a + equipNum(it.price), 0)
@@ -1146,6 +1209,7 @@ export default function FleetPortal() {
         upcomingTire: upcomingTire ? { date: upcomingTire.nextDate, action: upcomingTire.action.includes('letní') ? 'na zimní' : 'na letní' } : null,
         isFines: tab === 'fines', fineList, fineCount: fineRaw.length, onAddFine: () => openFineModal(v),
         finesUnpaidCount: finesUnpaid.length, finesUnpaidSumF: czk(finesUnpaidSum), finesTotalSumF: czk(finesTotalSum), finesPoints,
+        isUsage: tab === 'usage', usageList, usageCount: usageRaw.length, onHandover: () => openDriverModal(v),
         isVehDocs: tab === 'documents',
         isEquipment: tab === 'equipment', equipList, equipCount: equipList.length, equipTotalF: czk(equipTotal), onAddEquip: () => openEquipModal(v.id),
         isOther: false, otherTitle: o[0], otherDesc: o[1], otherIcon: o[2],
@@ -1495,12 +1559,15 @@ export default function FleetPortal() {
     const claims = claimsData.filter((c) => d.vehicleIds.includes(c.vId)).map(buildClaimRow)
     const personal = [['Datum narození', d.birth], ['Rodné číslo', d.rc], ['Adresa', d.address], ['Telefon', d.phone], ['E-mail', d.email]]
     const employment = [['Pozice', d.position], ['Pracovní poměr', d.employment], ['Ve firmě od', d.since], ['Číslo pracovní smlouvy', d.contractNo], ['Číslo účtu', d.bankAccount], ['ADR oprávnění', d.adr ? 'Ano' : 'Ne']]
+    const docStatus = (dateStr) => { const due = dueInfo(dateStr, 60); if (!due) return null; return due.expired ? { label: `propadlý · ${-due.days} dnů`, color: 'var(--star)', bg: 'var(--star-soft)', days: due.days } : due.days <= 60 ? { label: `končí za ${due.days} ${due.days === 1 ? 'den' : due.days < 5 ? 'dny' : 'dní'}`, color: '#B45309', bg: 'var(--amber-soft)', days: due.days } : { label: 'platný', color: 'var(--green)', bg: 'var(--green-soft)', days: due.days } }
+    const worse = (a, b) => { if (!a) return b; if (!b) return a; return a.days <= b.days ? a : b }
+    const rpStatus = worse(docStatus(d.rp.validTo), d.rp.profValidTo ? docStatus(d.rp.profValidTo) : null)
     const idDocs = [
-      { title: 'Občanský průkaz (OP)', icon: ic('user1', 18), color: 'var(--blue)', bg: 'var(--blue-soft)', rows: [['Číslo OP', d.op.number], ['Platnost do', d.op.validTo]] },
-      { title: 'Řidičský průkaz (ŘP)', icon: ic('car', 18), color: 'var(--green)', bg: 'var(--green-soft)', rows: [['Číslo ŘP', d.rp.number], ['Skupiny', d.rp.groups], ['Platnost do', d.rp.validTo], ['Profesní způsobilost', d.rp.profValidTo ? 'do ' + d.rp.profValidTo : 'nevyžaduje se']] },
+      { title: 'Občanský průkaz (OP)', icon: ic('user1', 18), color: 'var(--blue)', bg: 'var(--blue-soft)', status: docStatus(d.op.validTo), rows: [['Číslo OP', d.op.number], ['Platnost do', d.op.validTo]] },
+      { title: 'Řidičský průkaz (ŘP)', icon: ic('car', 18), color: 'var(--green)', bg: 'var(--green-soft)', status: rpStatus, rows: [['Číslo ŘP', d.rp.number], ['Skupiny', d.rp.groups], ['Platnost do', d.rp.validTo], ['Profesní způsobilost', d.rp.profValidTo ? 'do ' + d.rp.profValidTo : 'nevyžaduje se']] },
     ]
-    if (d.tachoCard) idDocs.push({ title: 'Karta řidiče (tachograf)', icon: ic('hash', 18), color: 'var(--purple)', bg: 'var(--purple-soft)', rows: [['Číslo karty', d.tachoCard.number], ['Platnost do', d.tachoCard.validTo]] })
-    if (d.adr) idDocs.push({ title: 'ADR – přeprava nebezpečných věcí', icon: ic('alert', 18), color: 'var(--amber)', bg: 'var(--amber-soft)', rows: [['Osvědčení', 'Platné'], ['Rozsah', 'Kusy + cisterny'], ['Platnost do', d.rp.validTo]] })
+    if (d.tachoCard) idDocs.push({ title: 'Karta řidiče (tachograf)', icon: ic('hash', 18), color: 'var(--purple)', bg: 'var(--purple-soft)', status: docStatus(d.tachoCard.validTo), rows: [['Číslo karty', d.tachoCard.number], ['Platnost do', d.tachoCard.validTo]] })
+    if (d.adr) idDocs.push({ title: 'ADR – přeprava nebezpečných věcí', icon: ic('alert', 18), color: 'var(--amber)', bg: 'var(--amber-soft)', status: docStatus(d.rp.validTo), rows: [['Osvědčení', 'Platné'], ['Rozsah', 'Kusy + cisterny'], ['Platnost do', d.rp.validTo]] })
     const files = [
       { name: `Pracovní smlouva ${d.contractNo}.pdf`, type: 'Pracovní smlouva', color: 'var(--blue)' },
       { name: `Kopie OP ${d.name}.pdf`, type: 'Občanský průkaz', color: 'var(--green)' },
@@ -1595,7 +1662,8 @@ export default function FleetPortal() {
       row('email', 'E-mailové souhrny', 'Týdenní report stavu flotily'),
       row('sms', 'SMS notifikace', 'Kritické události a havárie'),
     ]
-    return { settingRows }
+    const auditRows = state.audit.slice(0, 30).map((a) => ({ ...a, meta: AUDIT_META[a.action] || AUDIT_META.update }))
+    return { settingRows, auditRows, auditCount: state.audit.length }
   }
 
   const bonifikaceVM = () => {
