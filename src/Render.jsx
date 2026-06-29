@@ -341,6 +341,7 @@ export default function Render({ vm }) {
       {vm.av && <AddVehicleWizard vm={vm} />}
       {vm.np && <NewFleetModal vm={vm} />}
       {vm.rfqModal && <RfqModal vm={vm} />}
+      {vm.equipModal && <EquipModal vm={vm} />}
       {vm.docPreview && <DocPreviewModal vm={vm} />}
       {vm.unsub && <UnsubscribeModal vm={vm} />}
       {vm.costModal && <CostModal vm={vm} />}
@@ -2074,6 +2075,44 @@ function RfqModal({ vm }) {
   )
 }
 
+// Modal přidání prvku nadstandardní výbavy (sekce, popis, cena, datum, faktura).
+function EquipModal({ vm }) {
+  const m = vm.equipModal
+  const inp = 'width:100%;height:42px;border:1px solid var(--border2);border-radius:10px;padding:0 12px;font-size:13.5px;font-family:inherit;outline:none'
+  const lbl = 'font-size:11.5px;font-weight:600;color:var(--ink2);margin-bottom:5px'
+  return (
+    <div onClick={m.close} style={S('position:fixed;inset:0;z-index:80;background:rgba(15,15,20,.4);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:24px')}>
+      <div onClick={m.stop} style={S('width:560px;max-width:96vw;max-height:92vh;background:#fff;border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.32);overflow:hidden;display:flex;flex-direction:column;animation:popIn .2s ease')}>
+        <div style={S('display:flex;align-items:center;gap:13px;padding:20px 22px;border-bottom:1px solid var(--border)')}>
+          <div style={S('width:40px;height:40px;border-radius:12px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic('plus', 20)}</div>
+          <div style={{ flex: 1, minWidth: 0 }}><div style={S('font-size:16px;font-weight:700')}>Přidat prvek nadstandardní výbavy</div><div style={S('font-size:12.5px;color:var(--ink3)')}>Vyberte sekci, popište prvek a přiložte pořizovací fakturu</div></div>
+          <span onClick={m.close} style={S('color:var(--ink3);cursor:pointer;display:flex')}>{ic('close', 17)}</span>
+        </div>
+        <div style={S('padding:20px 22px;overflow-y:auto;display:flex;flex-direction:column;gap:14px')}>
+          <div><div style={S(lbl)}>Sekce</div><Select value={m.section} onChange={m.onSection} options={m.sections} height={42} /></div>
+          <div><div style={S(lbl)}>Popis prvku</div><input value={m.desc} onChange={m.onDesc} placeholder="Např. Sada zimních kol — litá 18&quot;, Pirelli Sottozero" style={S(inp)} /></div>
+          <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:12px')}>
+            <div><div style={S(lbl)}>Pořizovací cena</div><input value={m.price} onChange={m.onPrice} placeholder="0 Kč" inputMode="numeric" style={S(inp + ';font-variant-numeric:tabular-nums')} /></div>
+            <div><div style={S(lbl)}>Datum pořízení</div><input value={m.date} onChange={m.onDate} style={S(inp)} /></div>
+          </div>
+          <div>
+            <div style={S(lbl)}>Pořizovací faktura</div>
+            <label style={S(`display:flex;align-items:center;gap:11px;padding:13px 14px;border:1.5px dashed ${m.invoice ? 'var(--blue)' : 'var(--border2)'};border-radius:12px;cursor:pointer;background:${m.invoice ? 'var(--blue-soft)' : '#fff'}`)}>
+              <input type="file" onChange={m.onInvoice} style={{ display: 'none' }} accept=".pdf,.jpg,.jpeg,.png" />
+              <span style={S(`width:34px;height:34px;border-radius:9px;background:${m.invoice ? '#fff' : 'var(--canvas)'};color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0`)}>{ic(m.invoice ? 'file' : 'upload', 17)}</span>
+              <div style={S('flex:1;min-width:0')}><div style={S(`font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${m.invoice ? '' : 'color:var(--ink2)'}`)}>{m.invoice || 'Nahrát fakturu (PDF, JPG)'}</div><div style={S('font-size:11px;color:var(--ink3)')}>{m.invoice ? 'Připojeno — uplatníte při škodě' : 'Klikněte a vyberte soubor'}</div></div>
+            </label>
+          </div>
+        </div>
+        <div style={S('display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:16px 22px;border-top:1px solid var(--border)')}>
+          <Hov onClick={m.close} base="height:42px;padding:0 16px;border-radius:11px;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--ink2);background:#fff;border:1px solid var(--border2)" hover="background:var(--canvas)">Zrušit</Hov>
+          <Hov onClick={m.save} base="height:42px;padding:0 20px;border-radius:11px;font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:8px;cursor:pointer;color:#fff;background:var(--blue)" hover="filter:brightness(1.07)">{ic('check', 16, 2.5)} Uložit prvek</Hov>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function FinancingCard({ f, onRfq }) {
   if (!f || !f.active) {
     return (
@@ -2326,6 +2365,45 @@ function VehicleDetail({ vm }) {
           <div style={S('width:52px;height:52px;border-radius:13px;background:#EEF2F9;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:var(--ink3)')}>{vd.otherIcon}</div>
           <div style={S('font-size:15px;font-weight:700;color:var(--ink2)')}>{vd.otherTitle}</div>
           <div style={S('font-size:13px;margin-top:5px;max-width:400px;margin:8px auto 0')}>{vd.otherDesc}</div>
+        </div>
+      )}
+
+      {vd.isEquipment && (
+        <div>
+          <div style={S('display:flex;align-items:flex-end;gap:13px;flex-wrap:wrap;margin-bottom:16px')}>
+            <div style={S('flex:1;min-width:0')}>
+              <div style={S('display:flex;align-items:center;gap:9px')}><span style={S('font-size:15px;font-weight:700')}>Nadstandardní výbava</span><span style={S('font-size:11.5px;font-weight:700;color:var(--ink2);background:#EEF2F9;padding:2px 8px;border-radius:20px')}>{vd.equipCount}</span></div>
+              <div style={S('font-size:12.5px;color:var(--ink3);margin-top:3px')}>Prvky s pořizovací fakturou — při poškození ji rovnou uplatníte u pojišťovny. Hodnota celkem <b style={S('color:var(--ink2)')}>{vd.equipTotalF}</b>.</div>
+            </div>
+            <Hov onClick={vd.onAddEquip} base="display:flex;align-items:center;gap:7px;height:40px;padding:0 16px;background:linear-gradient(180deg,#2C6AE0,#1D50BD);color:#fff;border-radius:11px;box-shadow:0 2px 8px rgba(32,88,201,.30);font-size:13px;font-weight:600;cursor:pointer" hover="filter:brightness(1.05);transform:translateY(-1px)">{ic('plus', 15)} Přidat prvek výbavy</Hov>
+          </div>
+          {vd.equipList.length ? (
+            <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px')}>
+              {vd.equipList.map((it) => (
+                <div key={it.id} style={S(`${CARD};padding:18px`)}>
+                  <div style={S('display:flex;align-items:flex-start;gap:10px;margin-bottom:11px')}>
+                    <span style={S('font-size:11px;font-weight:700;color:var(--blue-ink);background:var(--blue-soft);padding:4px 10px;border-radius:20px')}>{it.section}</span>
+                    <div style={{ flex: 1 }} />
+                    <Hov onClick={it.onRemove} base="display:flex;color:var(--ink3);cursor:pointer;padding:2px" hover="color:var(--star)">{ic('trash', 16)}</Hov>
+                  </div>
+                  <div style={S('font-size:13.5px;font-weight:600;line-height:1.4;margin-bottom:12px')}>{it.desc}</div>
+                  <div style={S('display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:12px')}>
+                    {it.price && <div><div style={S('font-size:10.5px;color:var(--ink3);font-weight:600')}>Pořizovací cena</div><div style={S('font-size:14px;font-weight:700;font-variant-numeric:tabular-nums')}>{it.price}</div></div>}
+                    <div><div style={S('font-size:10.5px;color:var(--ink3);font-weight:600')}>Pořízeno</div><div style={S('font-size:13px;font-weight:600;color:var(--ink2);font-variant-numeric:tabular-nums')}>{it.date}</div></div>
+                  </div>
+                  {it.invoice
+                    ? <div style={S('display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:11px;background:var(--canvas);margin-bottom:11px')}>
+                        <span style={S('width:30px;height:34px;border-radius:7px;background:#fff;border:1px solid var(--border);color:var(--star);display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic('file', 16)}</span>
+                        <div style={S('flex:1;min-width:0')}><div style={S('font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{it.invoice}</div><div style={S('font-size:10.5px;color:var(--ink3)')}>Pořizovací faktura</div></div>
+                      </div>
+                    : <div style={S('display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--amber);margin-bottom:11px')}><span style={S('display:flex')}>{ic('alert', 13)}</span>Bez faktury — doplňte pro snazší uplatnění</div>}
+                  <Hov onClick={it.onClaim} base="display:flex;align-items:center;justify-content:center;gap:7px;width:100%;height:36px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;background:var(--blue-soft);color:var(--blue-ink);border:1px solid var(--blue)" hover="background:var(--blue);color:#fff">{ic('shield', 14)} Uplatnit u pojišťovny</Hov>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState icon="car" title="Zatím žádná nadstandardní výbava" sub="Přidejte prvky (alu kola, audio, tažné zařízení…) s pořizovací fakturou — při poškození je snadno uplatníte u pojišťovny." />
+          )}
         </div>
       )}
     </div>

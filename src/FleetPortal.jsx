@@ -148,6 +148,15 @@ const loadKpi = () => {
 }
 const saveKpi = (arr) => { try { localStorage.setItem(KPI_KEY, JSON.stringify(arr)) } catch (e) { /* nedostupné */ } }
 
+// --- Nadstandardní výbava vozidla (prvky + faktury pro uplatnění u pojišťovny) ---
+const EQUIP_SECTIONS = ['Kola a pneumatiky', 'Audio a multimédia', 'Navigace a telematika', 'Interiér', 'Exteriér a karoserie', 'Zabezpečení (alarm, GPS)', 'Tažné zařízení', 'Střešní nosič / box', 'Osvětlení', 'Fólie a polepy', 'Ostatní']
+const SEED_EQUIP = {
+  v1: [
+    { id: 'eq-seed-1', section: 'Kola a pneumatiky', desc: 'Sada zimních kol — litá BBS 18", Pirelli Sottozero 3', price: '42 000 Kč', date: '12. 11. 2024', invoice: 'faktura_zimni_kola_BBS.pdf' },
+    { id: 'eq-seed-2', section: 'Audio a multimédia', desc: 'Ozvučení Harman/Kardon vč. subwooferu a zesilovače', price: '28 500 Kč', date: '3. 6. 2023', invoice: 'faktura_audio_harman.pdf' },
+  ],
+}
+
 const INS_COLORS = { Kooperativa: '#2058C9', Allianz: '#16A34A', 'ČPP': '#C2780C', Generali: '#8B5CF6', UNIQA: '#0EA5A5', 'ČSOB': '#9B0E25' }
 const DEFAULT_BONUS = [{ threshold: 30, rate: 15 }, { threshold: 40, rate: 10 }, { threshold: 50, rate: 5 }]
 const INSURER_CODE = { Kooperativa: '7720', Allianz: '4055', 'ČPP': '0019', Generali: '5544', UNIQA: '2401', 'ČSOB': '8830', 'ČSOB Poj.': '8830' }
@@ -206,6 +215,7 @@ export default function FleetPortal() {
     route: 'dashboard',
     fleetId: 'f1', vehicleId: 'v1',
     fleetTab: 'overview', vehicleTab: 'overview', fleetsView: 'grid', finTab: 'prehled', rfq: null, rfqs: SEED_RFQS,
+    vehEquip: SEED_EQUIP, equipModal: null,
     search: false, notif: false, ai: false, companyMenu: false, sidebar: false,
     claimWizard: false, claimStep: 1, claimData: {},
     rowMenu: null, toast: null,
@@ -283,6 +293,18 @@ export default function FleetPortal() {
   const toggleKpi = (id) => { const cur = state.kpi.find((k) => k.id === id); if (cur && !cur.on && kpiOn() >= KPI_MAX) return; setKpi(state.kpi.map((k) => k.id === id ? { ...k, on: !k.on } : k)) }
   const moveKpi = (from, to) => { if (from === to || to < 0 || to >= state.kpi.length) return; const a = [...state.kpi]; const [m] = a.splice(from, 1); a.splice(to, 0, m); setKpi(a) }
   const resetKpi = () => setKpi(KPI_DEFAULT)
+  // Nadstandardní výbava vozidla
+  const openEquipModal = (vid) => setState({ rowMenu: null, equipModal: { vid, section: EQUIP_SECTIONS[0], desc: '', price: '', date: '1. 7. 2026', invoice: '' } })
+  const setEquipField = (k, v) => setState((s) => ({ equipModal: { ...s.equipModal, [k]: v } }))
+  const onEquipInvoice = (e) => { const f = e.target.files && e.target.files[0]; if (f) setEquipField('invoice', f.name) }
+  const saveEquip = () => {
+    const m = state.equipModal
+    const item = { id: 'eq' + Date.now(), section: m.section, desc: m.desc.trim() || m.section, price: m.price.trim(), date: m.date, invoice: m.invoice }
+    setState((s) => ({ vehEquip: { ...s.vehEquip, [m.vid]: [item, ...(s.vehEquip[m.vid] || [])] }, equipModal: null }))
+    showToast('Prvek nadstandardní výbavy přidán' + (item.invoice ? ' · faktura přiložena' : ''))
+  }
+  const removeEquip = (vid, id) => setState((s) => ({ vehEquip: { ...s.vehEquip, [vid]: (s.vehEquip[vid] || []).filter((x) => x.id !== id) } }))
+  const claimEquip = (item) => showToast(`Faktura „${item.invoice || item.section}" připravena k uplatnění — přiložte ji při hlášení škody.`)
   const acceptOffer = (rfqId, partnerId) => {
     setState((s) => ({ rfqs: s.rfqs.map((x) => x.id === rfqId ? { ...x, status: 'accepted', accepted: partnerId } : x) }))
     const o = (state.rfqs.find((x) => x.id === rfqId) || {}).offers || []
@@ -927,7 +949,10 @@ export default function FleetPortal() {
       { text: 'Při přebírce zaevidován drobný odřený zadní nárazník — bez nároku na pojistné plnění.', author: 'Martin Kovář', initials: 'MK', date: '3. 4. ' + v.year, time: '14:10' },
     ]
     const notes = [...(state.vehNotes[v.id] || []), ...seedNotes]
-    const tabsDef = [['overview', 'Přehled'], ['insurance', 'Pojištění'], ['claims', 'Škody'], ['documents', 'Dokumenty'], ['timeline', 'Timeline'], ['costs', 'Náklady'], ['notes', 'Poznámky']]
+    const tabsDef = [['overview', 'Přehled'], ['insurance', 'Pojištění'], ['claims', 'Škody'], ['documents', 'Dokumenty'], ['equipment', 'Nadstandardní výbava'], ['timeline', 'Timeline'], ['costs', 'Náklady'], ['notes', 'Poznámky']]
+    const equipNum = (s) => parseInt(String(s || '').replace(/[^\d]/g, ''), 10) || 0
+    const equipList = (state.vehEquip[v.id] || []).map((it) => ({ ...it, onRemove: () => removeEquip(v.id, it.id), onClaim: () => claimEquip(it) }))
+    const equipTotal = equipList.reduce((a, it) => a + equipNum(it.price), 0)
     const vehicleTabs = tabsDef.map(([id, label]) => { const on = tab === id; return { label, onClick: () => setState({ vehicleTab: id }), style: `padding:10px 14px;font-size:13.5px;font-weight:600;cursor:pointer;color:${on ? 'var(--blue-ink)' : 'var(--ink3)'};border-bottom:2px solid ${on ? 'var(--blue)' : 'transparent'};margin-bottom:-1px` } })
     const otherMap = {
       documents: ['Dokumenty vozidla', 'Velký a malý technický průkaz, zelená karta, smlouvy a faktury k tomuto vozidlu.', ic('file', 24)],
@@ -944,6 +969,7 @@ export default function FleetPortal() {
         isOverview: tab === 'overview', isInsurance: tab === 'insurance', isClaims: tab === 'claims', isTimeline: tab === 'timeline',
         isNotes: tab === 'notes', isCosts: tab === 'costs', openCostModal: () => openCostModal(v),
         isVehDocs: tab === 'documents',
+        isEquipment: tab === 'equipment', equipList, equipCount: equipList.length, equipTotalF: czk(equipTotal), onAddEquip: () => openEquipModal(v.id),
         isOther: false, otherTitle: o[0], otherDesc: o[1], otherIcon: o[2],
       },
     }
@@ -1706,6 +1732,7 @@ export default function FleetPortal() {
   const vm = {
     dash: state.dash, dashMeta: DASH_WIDGETS, toggleDashWidget, setDashWidth, moveDashWidget, resetDash,
     kpi: state.kpi, kpiCatalog: KPI_CATALOG, kpiVals, kpiLabel, dashKpis, toggleKpi, moveKpi, resetKpi, kpiMax: KPI_MAX, kpiOnCount: state.kpi.filter((k) => k.on).length,
+    equipModal: state.equipModal ? { ...state.equipModal, close: () => setState({ equipModal: null }), stop: (e) => e.stopPropagation(), sections: EQUIP_SECTIONS, onSection: (e) => setEquipField('section', e.target.value), onDesc: (e) => setEquipField('desc', e.target.value), onPrice: (e) => setEquipField('price', e.target.value), onDate: (e) => setEquipField('date', e.target.value), onInvoice: onEquipInvoice, save: saveEquip } : null,
     ...shellVM(), ...dashboardVM(), ...fleetsVM(), ...fleetDetailVM(), ...vehiclesVM(), ...vehicleDetailVM(),
     ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(),
   }
