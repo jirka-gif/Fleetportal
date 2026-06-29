@@ -3122,6 +3122,8 @@ function Contacts({ vm }) {
                   <div style={S('min-width:0')}><div style={S('font-size:15.5px;font-weight:700;line-height:1.2')}>{p.name}</div><div style={S('font-size:12.5px;color:var(--ink3);margin-top:1px')}>{p.role}</div></div>
                 </div>
                 <div style={S('margin-top:16px;padding-top:16px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:11px')}>
+                  {p.asist && <ContactRow icon="phone" label="Asistenční linka · nonstop" value={p.asist} href={'tel:' + p.asist.replace(/\s/g, '')} />}
+                  {p.alt && <ContactRow icon="phone" label="Z ČR / univerzální" value={p.alt} href={'tel:' + p.alt.replace(/\s/g, '')} />}
                   {p.email && <ContactRow icon="file" label="E-mail" value={p.email} href={'mailto:' + p.email} />}
                   {p.mobil && <ContactRow icon="phone" label="Mobil" value={p.mobil} href={'tel:' + p.mobil.replace(/\s/g, '')} />}
                   {p.telefon && <ContactRow icon="phone" label="Telefon" value={p.telefon} href={'tel:' + p.telefon.replace(/\s/g, '')} />}

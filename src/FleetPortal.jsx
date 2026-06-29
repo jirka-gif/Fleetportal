@@ -1242,6 +1242,14 @@ export default function FleetPortal() {
         { name: 'Dana Strejcovská', role: 'Senior broker', initials: 'DS', bg: 'var(--purple-soft)', color: 'var(--purple)', email: 'strejcovska@petrisk.cz', mobil: '+420 724 159 016', telefon: '+420 272 769 586', adresa: ADDR, www: 'www.petrisk.cz' },
         { name: 'Jiří Netopilík', role: 'Ředitel likvidace pojistných událostí', initials: 'JN', bg: 'var(--purple-soft)', color: 'var(--purple)', email: 'netopilik@petrisk.cz', mobil: '+420 777 262 244', telefon: '+420 272 769 586', adresa: ADDR, www: 'www.petrisk.cz' },
       ] },
+      { name: 'Asistenční služby pojišťoven · nonstop 24/7', people: [
+        { name: 'Kooperativa', role: 'Asistence vozidel · odtah, oprava', initials: 'Ko', bg: 'var(--blue-soft)', color: 'var(--blue)', asist: '+420 957 105 105', www: 'koop.cz' },
+        { name: 'Allianz', role: 'Asistence · odtah, náhradní vozidlo', initials: 'Al', bg: 'var(--green-soft)', color: 'var(--green)', asist: '+420 241 170 000', www: 'allianz.cz' },
+        { name: 'Generali Česká pojišťovna', role: 'Linka pomoci řidičům', initials: 'GČ', bg: 'var(--purple-soft)', color: 'var(--purple)', asist: '1224', www: 'generaliceska.cz' },
+        { name: 'Česká podnikatelská pojišťovna (ČPP)', role: 'Asistence · Global Assistance', initials: 'ČP', bg: 'var(--amber-soft)', color: '#B45309', asist: '+420 266 799 779', alt: '1220', www: 'cpp.cz' },
+        { name: 'UNIQA', role: 'Asistence · bezlimitní odtah ČR/SR', initials: 'UN', bg: '#E3F4F5', color: '#0E7C86', asist: '+420 246 059 444', www: 'uniqa.cz' },
+        { name: 'ČSOB Pojišťovna', role: 'Asistence · 24 h / 365 dní', initials: 'ČS', bg: 'var(--star-soft)', color: 'var(--star-ink)', asist: '+420 466 100 777', alt: '1224', www: 'csobpoj.cz' },
+      ] },
     ]
     return { contactGroups }
   }
