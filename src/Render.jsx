@@ -158,6 +158,31 @@ function SubjectField({ label, subj, pojistnik }) {
   )
 }
 
+// Logo Fleet Portal — gradientový F-mark + wordmark. dark=true pro tmavý sidebar.
+function FleetLogo({ markSize = 34, dark = true }) {
+  const gid = 'fpMark' + (dark ? 'D' : 'L')
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+      <svg width={markSize} height={Math.round(markSize * 1.07)} viewBox="0 0 56 60" fill="none" style={{ flexShrink: 0 }} aria-label="Fleet Portal">
+        <defs>
+          <linearGradient id={gid} x1="10" y1="6" x2="42" y2="56" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#3D6CFF" /><stop offset="1" stopColor="#8A47F0" />
+          </linearGradient>
+        </defs>
+        <path d="M7 20.5 C 20 11 38 9 52.5 14 C 44 23.5 27 26.5 15 25.5 C 9 25 7 23.5 7 20.5 Z" fill={`url(#${gid})`} />
+        <path d="M8 35.5 C 19 27.5 33 26.5 45.5 30.5 C 38 38.5 25 41.5 16.5 40.5 C 10.5 40 8 38.5 8 35.5 Z" fill={`url(#${gid})`} />
+        <path d="M7 17 C 7 13.2 9 12 13 12.6 L 20.5 13.8 C 22.4 14.1 22.8 16.4 22.2 19.4 L 17.6 52 C 16.9 57 13.6 58.2 10.6 56.2 C 8.2 54.6 7.2 52 7.7 48.2 Z" fill={`url(#${gid})`} />
+      </svg>
+      <div style={{ lineHeight: 1 }}>
+        <div style={{ fontSize: 18.5, fontWeight: 800, letterSpacing: '-0.5px', whiteSpace: 'nowrap' }}>
+          <span style={{ color: dark ? '#fff' : '#0F172A' }}>Fleet</span> <span style={{ color: dark ? '#9FB3FF' : '#4F6FFF' }}>Portal</span>
+        </div>
+        <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: dark ? 'rgba(255,255,255,.5)' : 'var(--ink3)', marginTop: 5 }}>Smarter fleet management</div>
+      </div>
+    </div>
+  )
+}
+
 // Export button with an XLS / CSV / PDF dropdown — exports the given rows.
 function ExportMenu({ filename, title, columns, rows, variant }) {
   const [open, setOpen] = useState(false)
@@ -220,8 +245,7 @@ export default function Render({ vm }) {
       {/* SIDEBAR */}
       <aside style={S(asideStyle)}>
         <div style={S('padding:24px 20px 18px;border-bottom:1px solid var(--side-border)')}>
-          <img src={LOGO} alt="Jiří Tošovský s.r.o." style={S('height:34px;width:auto;max-width:100%;display:block;border-radius:7px')} />
-          <div style={S('font-size:10.5px;color:var(--side-fg);font-weight:700;letter-spacing:1.4px;text-transform:uppercase;margin-top:11px;opacity:.85')}>Fleet Portal</div>
+          <FleetLogo markSize={34} dark />
         </div>
         <div style={S('flex:1;overflow-y:auto;padding:10px 12px')}>
           {vm.nav.map((item) => (
