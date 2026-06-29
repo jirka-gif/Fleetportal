@@ -256,11 +256,6 @@ export default function Render({ vm }) {
             </Hov>
           ))}
         </div>
-        <div style={S('padding:16px 18px;border-top:1px solid var(--side-border)')}>
-          <div style={S('font-size:9.5px;font-weight:700;letter-spacing:1px;color:var(--side-fg);text-transform:uppercase;margin-bottom:9px;opacity:.7')}>Spravuje · Powered by</div>
-          <img src={STAR_LOGO} alt="Petrisk a.s." style={S('height:24px;width:auto;display:block;filter:brightness(0) invert(1);opacity:.92')} />
-          <div style={S('font-size:11px;color:var(--side-fg);margin-top:8px;opacity:.8')}>Broker Hub · makléř Petrisk a.s.</div>
-        </div>
       </aside>
 
       {/* MAIN */}
@@ -3216,6 +3211,25 @@ function Contacts({ vm }) {
       {vm.contactGroups.map((g, gi) => (
         <div key={gi} style={S('margin-bottom:26px')}>
           <div style={S('display:flex;align-items:center;gap:9px;margin-bottom:14px')}><span style={S('font-size:15px;font-weight:700;letter-spacing:-.2px')}>{g.name}</span><span style={S('font-size:11.5px;font-weight:700;color:var(--ink3);background:#EEF2F9;padding:2px 8px;border-radius:20px')}>{g.people.length}</span></div>
+          {g.broker && (
+            <div style={S('position:relative;overflow:hidden;border-radius:16px;padding:22px 24px;margin-bottom:16px;background:linear-gradient(130deg,#0B1E3A 0%,#15294e 55%,#1e3460 100%);box-shadow:0 18px 44px -20px rgba(11,30,58,.75)')}>
+              <div style={S('position:absolute;top:-60px;right:-40px;width:220px;height:220px;border-radius:50%;background:rgba(79,111,255,.16);pointer-events:none')}></div>
+              <div style={S('position:relative;display:flex;align-items:center;gap:22px;flex-wrap:wrap')}>
+                <div style={S('width:104px;height:62px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0 14px')}>
+                  <img src={STAR_LOGO} alt={g.broker.name} style={S('height:26px;width:auto;display:block')} />
+                </div>
+                <div style={S('flex:1;min-width:190px')}>
+                  <div style={S('font-size:18px;font-weight:800;color:#fff;letter-spacing:-.3px')}>{g.broker.name}</div>
+                  <div style={S('font-size:12.5px;color:rgba(255,255,255,.72);margin-top:2px')}>{g.broker.tagline}</div>
+                  <div style={S('display:flex;align-items:flex-start;gap:6px;font-size:12px;color:rgba(255,255,255,.6);margin-top:9px')}><span style={S('display:flex;flex-shrink:0;margin-top:1px')}>{ic('pin', 13)}</span>{g.broker.address}</div>
+                </div>
+                <div style={S('display:flex;flex-direction:column;gap:8px;flex-shrink:0')}>
+                  <a href={'tel:' + g.broker.phone.replace(/\s/g, '')} style={S('display:flex;align-items:center;gap:8px;height:38px;padding:0 15px;border-radius:11px;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:13px;font-weight:600;text-decoration:none;font-variant-numeric:tabular-nums')}>{ic('phone', 15)} {g.broker.phone}</a>
+                  <a href={'https://' + g.broker.web} target="_blank" rel="noreferrer" style={S('display:flex;align-items:center;justify-content:center;gap:8px;height:38px;padding:0 15px;border-radius:11px;background:#fff;color:var(--blue-ink);font-size:13px;font-weight:700;text-decoration:none')}>{ic('info', 15)} {g.broker.web}</a>
+                </div>
+              </div>
+            </div>
+          )}
           <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,400px));gap:14px')}>
             {g.people.map((p, pi) => (
               <div key={pi} style={S(`${CARD};padding:20px`)}>

@@ -1263,7 +1263,7 @@ export default function FleetPortal() {
       { name: 'Za klienta · správa vozového parku', people: [
         { name: 'Josef Moučka', role: 'Správa vozového parku · Jiří Tošovský s.r.o.', initials: 'JM', bg: 'var(--blue-soft)', color: 'var(--blue)', email: 'josef.moucka@autotos.cz', telefon: '+420 602 215 732' },
       ] },
-      { name: 'Za makléře · Petrisk a.s.', people: [
+      { name: 'Za makléře · Petrisk a.s.', broker: { name: 'Petrisk a.s.', tagline: 'Pojišťovací makléř · spravuje váš Fleet Portal', address: ADDR, web: 'petrisk.cz', phone: '+420 272 769 586', email: 'info@petrisk.cz' }, people: [
         { name: 'Ing. Michal Zeman', role: 'Vedoucí oddělení pojištění motorových vozidel', initials: 'MZ', bg: 'var(--purple-soft)', color: 'var(--purple)', email: 'zeman@petrisk.cz', mobil: '+420 777 282 996', telefon: '+420 272 769 586', adresa: ADDR, www: 'www.petrisk.cz' },
         { name: 'Dana Strejcovská', role: 'Senior broker', initials: 'DS', bg: 'var(--purple-soft)', color: 'var(--purple)', email: 'strejcovska@petrisk.cz', mobil: '+420 724 159 016', telefon: '+420 272 769 586', adresa: ADDR, www: 'www.petrisk.cz' },
         { name: 'Jiří Netopilík', role: 'Ředitel likvidace pojistných událostí', initials: 'JN', bg: 'var(--purple-soft)', color: 'var(--purple)', email: 'netopilik@petrisk.cz', mobil: '+420 777 262 244', telefon: '+420 272 769 586', adresa: ADDR, www: 'www.petrisk.cz' },
