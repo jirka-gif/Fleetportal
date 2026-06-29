@@ -23,13 +23,14 @@ export const fleetsData = [
 export const vehicleTypeCat = (druh) => {
   const d = String(druh || '').toLowerCase()
   if (d.includes('motocykl')) return 'Motocykly'
-  if (d.includes('tahač') || d.includes('návěs')) return 'Tahače a návěsy'
+  if (d.includes('tahač')) return 'Tahače' // „tahač návěsů" obsahuje i „návěs" → kontrolovat dřív
+  if (d.includes('návěs')) return 'Návěsy'
   if (d.includes('nákladní') || d.includes('autobus')) return 'Nákladní vozidla'
   if (d.includes('přívěs')) return 'Přívěsy'
   if (d.includes('traktor') || d.includes('stroj') || d.includes('malotraktor')) return 'Traktory a stroje'
   return 'Osobní vozidla'
 }
-export const vehicleTypeOrder = ['Osobní vozidla', 'Motocykly', 'Tahače a návěsy', 'Nákladní vozidla', 'Přívěsy', 'Traktory a stroje']
+export const vehicleTypeOrder = ['Osobní vozidla', 'Motocykly', 'Tahače', 'Návěsy', 'Nákladní vozidla', 'Přívěsy', 'Traktory a stroje']
 
 // --- STK a dálniční známka (ukázková data; na BE: STK z registru vozidel, známka z eDalnice.cz) ---
 // Veřejné CORS API jako u ARES neexistuje → na produkci přes B2B API / server-side ověření.
