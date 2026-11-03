@@ -2,13 +2,12 @@
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{
-  font-family:'Inter','Inter var',-apple-system,system-ui,sans-serif;
-  color:#0F172A;
+  font-family:'Plus Jakarta Sans','Inter','Inter var',-apple-system,system-ui,sans-serif;
+  color:#15132A;
   -webkit-font-smoothing:antialiased;
   text-rendering:optimizeLegibility;
-  font-feature-settings:'cv11','ss01';
   letter-spacing:-.011em;
-  background:#EDF2FA;
+  background:#F3F2FB;
 }
 #root{height:100vh}
 ::-webkit-scrollbar{width:10px;height:10px}

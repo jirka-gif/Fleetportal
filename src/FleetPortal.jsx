@@ -596,7 +596,7 @@ export default function FleetPortal() {
   const shellVM = () => {
     const r = state.route
     const navItems = [
-      ['dashboard', 'Přehled', 'dashboard', null],
+      ['dashboard', 'Přehled', 'home', null],
       ['fleets', 'Vozové parky', 'fleets', null],
       ['vehicles', 'Vozidla', 'car', String(vehiclesData.length)],
       ['drivers', 'Řidiči', 'users', String(driversData.length)],
@@ -606,9 +606,8 @@ export default function FleetPortal() {
       ['financing', 'Financování', 'banknote', String(vehiclesData.filter((v) => v.financing && v.financing.active).length)],
       ['claims', 'Škody', 'alert', String(claimsData.filter((c) => c.status !== 'closed').length) || null],
       ['documents', 'Dokumenty', 'file', null],
-      ['bonifikace', 'Bonifikace', 'percent', null],
+      ['analytics', 'Reporting', 'trend', null],
       ['contacts', 'Kontakty', 'users', null],
-      ['analytics', 'Analytika', 'chart', null],
       ['settings', 'Nastavení', 'settings', null],
     ]
     const activeRoute = r === 'fleet-detail' ? 'fleets' : r === 'vehicle-detail' ? 'vehicles' : r === 'driver-detail' ? 'drivers' : r === 'bonifikace-detail' ? 'bonifikace' : r === 'documents-detail' ? 'documents' : r === 'claim-detail' ? 'claims' : r === 'linky-detail' ? 'linky' : r

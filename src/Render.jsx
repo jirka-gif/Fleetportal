@@ -222,14 +222,14 @@ const ROOT_STYLE =
   "--star:#EF4444;--star-soft:#FEECEC;--star-ink:#DC2626;--blue:#4F6FFF;--blue-soft:#EDF0FF;" +
   "--blue-ink:#3E5EF8;--green:#22C55E;--green-soft:#E7F9EE;--amber:#F59E0B;--amber-soft:#FEF3E2;" +
   "--purple:#6D5EF6;--purple-soft:#EFEDFE;--ai1:#5F6FFF;--ai2:#785CFB;" +
-  "--ink:#0F172A;--ink2:#475569;--ink3:#94A3B8;--border:rgba(15,23,42,.06);--border2:rgba(15,23,42,.10);--canvas:radial-gradient(1100px 560px at 82% -12%,#E5EDFF 0%,#EDF2FA 46%);" +
+  "--ink:#15132A;--ink2:#514F6B;--ink3:#938FAC;--border:rgba(24,16,54,.07);--border2:rgba(24,16,54,.11);--canvas:radial-gradient(1200px 640px at 80% -16%,#EDE6FF 0%,#F5F3FC 48%);" +
   "--card:#FFFFFF;--r:18px;" +
   "--shc:0 12px 40px rgba(15,23,42,.06);" +
   "--shc-h:0 20px 60px rgba(15,23,42,.12);" +
-  "--side-bg:linear-gradient(180deg,#04101F 0%,#081B33 55%,#0B1E3A 100%);--side-fg:#93A4BE;--side-strong:#FFFFFF;--side-hover:rgba(255,255,255,.06);" +
+  "--side-bg:linear-gradient(180deg,#0B0A16 0%,#100E24 52%,#17132F 100%);--side-fg:#9A96B4;--side-strong:#FFFFFF;--side-hover:rgba(255,255,255,.05);" +
   "--side-active:rgba(255,255,255,.09);--side-border:rgba(255,255,255,.07);" +
   "display:flex;height:100vh;width:100%;overflow:hidden;color:var(--ink);" +
-  "font-family:'Inter','Inter var',system-ui,-apple-system,sans-serif"
+  "font-family:'Plus Jakarta Sans','Inter','Inter var',system-ui,-apple-system,sans-serif"
 
 export default function Render({ vm }) {
   const mob = vm.vp.isMobile
@@ -255,6 +255,14 @@ export default function Render({ vm }) {
               {item.badge ? <span style={S(item.badgeStyle)}>{item.badge}</span> : null}
             </Hov>
           ))}
+        </div>
+        <div style={S('padding:12px 12px 16px;flex-shrink:0')}>
+          <div style={S('position:relative;overflow:hidden;border-radius:16px;padding:15px 16px;background:linear-gradient(145deg,#241B4C 0%,#3A2A78 55%,#4C2F93 100%);border:1px solid rgba(255,255,255,.10)')}>
+            <div style={S('position:absolute;top:-24px;right:-18px;width:90px;height:90px;border-radius:50%;background:rgba(150,120,255,.28);filter:blur(6px);pointer-events:none')}></div>
+            <div style={S('position:relative;width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;color:#fff;margin-bottom:11px')}>{ic('trend', 18)}</div>
+            <div style={S('position:relative;font-size:14px;font-weight:700;color:#fff;letter-spacing:-.2px')}>Fleet v pohybu</div>
+            <div style={S('position:relative;font-size:11.5px;color:rgba(255,255,255,.66);margin-top:2px')}>Data. Kontrola. Úspory.</div>
+          </div>
         </div>
       </aside>
 
@@ -1288,7 +1296,7 @@ function DashWidget({ id, vm, nav }) {
         {vm.catBars.map((d, i) => (
           <div key={i} style={S('position:relative;flex:1;display:flex;flex-direction:column;align-items:center;gap:9px;height:100%;justify-content:flex-end')}>
             <div style={S('font-size:13px;font-weight:700;color:var(--ink)')}>{d.n}</div>
-            <div title={`${d.label} · ${d.n}`} style={S(`width:100%;max-width:42px;height:${d.h}%;min-height:6px;border-radius:8px 8px 4px 4px;background:linear-gradient(180deg,#6D8BFF,#4F6FFF)`)}></div>
+            <div title={`${d.label} · ${d.n}`} style={S(`width:100%;max-width:44px;height:${d.h}%;min-height:6px;border-radius:10px 10px 5px 5px;background:linear-gradient(180deg,#B7A6FC 0%,#8E79F8 45%,#6D5EF6 100%);box-shadow:0 8px 18px -8px rgba(109,94,246,.6)`)}></div>
             <span style={S('font-size:10.5px;color:var(--ink3);text-align:center;line-height:1.2')}>{d.short}</span>
           </div>
         ))}
@@ -1386,9 +1394,11 @@ function Dashboard({ vm }) {
   return (
     <div>
       {/* TITLE ROW */}
-      <div style={S(`display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:${mob ? '20px' : '26px'}`)}>
+      <div style={S(`position:relative;margin-bottom:${mob ? '20px' : '26px'}`)}>
+      {!mob && <img src="/hero-buses.png" alt="" aria-hidden="true" style={{ position: 'absolute', top: -58, right: 328, width: 'min(470px,40%)', pointerEvents: 'none', userSelect: 'none', zIndex: 0, filter: 'drop-shadow(0 26px 46px rgba(109,94,246,.30))' }} />}
+      <div style={S('position:relative;z-index:1;display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap')}>
         <div>
-          <h1 style={S(`font-size:${mob ? '28px' : '34px'};font-weight:700;letter-spacing:-1.2px;margin:0;line-height:1.05`)}>Přehled</h1>
+          <h1 style={S(`font-size:${mob ? '28px' : '36px'};font-weight:800;letter-spacing:-1.4px;margin:0;line-height:1.02`)}>Přehled</h1>
           <div style={S('font-size:14.5px;color:var(--ink2);margin-top:7px')}>Aktuální stav vašeho fleetu</div>
         </div>
         {!mob && (
@@ -1397,6 +1407,7 @@ function Dashboard({ vm }) {
             <Hov onClick={() => nav('settings')} base="display:flex;align-items:center;gap:8px;height:42px;padding:0 14px;background:#fff;border:1px solid var(--border2);border-radius:13px;font-size:13.5px;font-weight:600;color:var(--ink);cursor:pointer" hover="border:1px solid var(--blue);color:var(--blue)">{ic('settings', 16)} Přizpůsobit</Hov>
           </div>
         )}
+      </div>
       </div>
 
       <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:18px;align-items:stretch`)}>

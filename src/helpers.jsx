@@ -71,6 +71,8 @@ export function Hov({ base, hover, as = 'div', style, children, ...rest }) {
 // ---------------------------------------------------------------------------
 const PATHS = {
   dashboard: '<path d="M3 3h7v7H3z"/><path d="M14 3h7v7h-7z"/><path d="M14 14h7v7h-7z"/><path d="M3 14h7v7H3z"/>',
+  home: '<path d="M3 11.2 12 4l9 7.2"/><path d="M5.5 9.8V20h13V9.8"/><path d="M9.5 20v-5.5h5V20"/>',
+  trend: '<path d="M3 17l6-6 4 4 7-8"/><path d="M15 7h6v6"/>',
   fleets: '<path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>',
   car: '<path d="M5 11l1.6-4.2A2 2 0 0 1 8.5 5.5h7A2 2 0 0 1 17.4 6.8L19 11"/><path d="M3 11h18v6H3z"/><circle cx="7.5" cy="17" r="1.6"/><circle cx="16.5" cy="17" r="1.6"/>',
   shield: '<path d="M12 2l8 3.5v6c0 4.8-3.4 7.8-8 9.5-4.6-1.7-8-4.7-8-9.5v-6z"/>',
