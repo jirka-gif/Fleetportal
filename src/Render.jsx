@@ -1423,7 +1423,7 @@ function Dashboard({ vm }) {
     <div>
       {/* TITLE ROW */}
       <div style={S(`position:relative;margin-bottom:${mob ? '20px' : '26px'}`)}>
-      {!mob && <img src="/hero-buses.png" alt="" aria-hidden="true" style={{ position: 'absolute', top: -8, right: 290, width: 'min(380px,32%)', pointerEvents: 'none', userSelect: 'none', zIndex: 0, filter: 'drop-shadow(0 26px 46px rgba(109,94,246,.30))' }} />}
+      {!mob && <img src="/hero-buses.png" alt="" aria-hidden="true" style={{ position: 'absolute', top: -26, right: 290, width: 'min(380px,32%)', pointerEvents: 'none', userSelect: 'none', zIndex: 0, filter: 'drop-shadow(0 26px 46px rgba(109,94,246,.30))' }} />}
       <div style={S('position:relative;z-index:1;display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap')}>
         <div>
           <h1 style={S(`font-size:${mob ? '28px' : '36px'};font-weight:800;letter-spacing:-1.4px;margin:0;line-height:1.02`)}>Přehled</h1>
