@@ -338,7 +338,7 @@ const SEED_AUDIT = [
   { id: 'a1', when: '29. 6. 2026 08:12', who: 'Martin Kovář', action: 'login', entity: 'Systém', detail: 'Přihlášení do Fleet Portalu (web, Praha)' },
   { id: 'a2', when: '28. 6. 2026 16:41', who: 'Martin Kovář', action: 'create', entity: 'Pokuta', detail: 'Zaevidován přestupek — Rychlost (radar), BMW 320 (1S13018), 2 500 Kč' },
   { id: 'a3', when: '28. 6. 2026 11:05', who: 'Eva Kučerová', action: 'update', entity: 'Vozidlo', detail: 'Změněn řidič — Ford Transit (1SC7662): Jan Procházka' },
-  { id: 'a4', when: '27. 6. 2026 14:22', who: 'Martin Kovář', action: 'export', entity: 'Vozidla', detail: 'Export sestavy vozového parku (XLSX, 335 vozidel)' },
+  { id: 'a4', when: '27. 6. 2026 14:22', who: 'Martin Kovář', action: 'export', entity: 'Vozidla', detail: 'Export sestavy vozového parku (XLSX, 542 vozidel)' },
   { id: 'a5', when: '26. 6. 2026 09:48', who: 'Martin Kovář', action: 'create', entity: 'Servis', detail: 'Přidán servisní záznam — Pravidelný servis, BMW 320, 8 400 Kč' },
   { id: 'a6', when: '24. 6. 2026 13:30', who: 'Tomáš Bartoš', action: 'delete', entity: 'Vozidlo', detail: 'Odebráno vozidlo z parku — Škoda Octavia (prodej)' },
   { id: 'a7', when: '23. 6. 2026 10:15', who: 'Martin Kovář', action: 'update', entity: 'Pojištění', detail: 'Upraveno krytí — doplněno pojištění skel u 6 vozidel' },
@@ -1103,6 +1103,9 @@ export default function FleetPortal() {
       return true
     }
     const rows = vehiclesData.filter((v) => v.status !== 'ended' && matchBase(v) && (vf.status === 'all' || v.status === vf.status))
+    // autobusy první (jádro flotily), pak ostatní; uvnitř dle pořadí
+    const _vp = (v) => vehicleTypeCat(v.druh) === 'Autobusy' ? 0 : vehicleTypeCat(v.druh) === 'Nákladní vozidla' ? 1 : vehicleTypeCat(v.druh) === 'Osobní vozidla' ? 2 : 3
+    rows.sort((a, b) => _vp(a) - _vp(b) || (parseInt(a.id.slice(1)) - parseInt(b.id.slice(1))))
     const endedRows = vehiclesData.filter((v) => v.status === 'ended' && matchBase(v)).map((v) => ({
       id: v.id, plate: v.plate, brand: v.brand, model: v.model, driver: v.driver, year: v.year, fuel: v.fuel,
       fleetName: fleetName(v.fleet), typeName: vehicleTypeCat(v.druh), insurer: v.insurer, premiumF: czk(v.premium), endedDate: v.endedDate, endReason: v.endReason,
@@ -1274,15 +1277,16 @@ export default function FleetPortal() {
     // evidované reálné položky (servis/pneu/pokuty/faktury). Po napojení
     // účetnictví/telematiky ho nahradí reálná data.
     const costModel = vehicleAnnualCost(v)
-    const costModeled = costEntries.length < 2 && !monthlyLease && !annualPrem
+    const costModeled = costEntries.filter((e) => e.cat !== 'pojisteni').length < 2
     const catTotals = {}
     if (costModeled) {
       ;['phm', 'servis', 'pneu', 'dalnice', 'pokuty'].forEach((k) => { if (costModel[k]) catTotals[k] = costModel[k] })
     } else {
       costEntries.forEach((e) => { catTotals[e.cat] = (catTotals[e.cat] || 0) + e.amount })
-      if (monthlyLease) catTotals.leasing = (catTotals.leasing || 0) + monthlyLease * 12
-      if (annualPrem) catTotals.pojisteni = (catTotals.pojisteni || 0) + annualPrem
     }
+    // reálné pojistné (z kmene) a leasing přičteme vždy, když je známe
+    if (monthlyLease) catTotals.leasing = (catTotals.leasing || 0) + monthlyLease * 12
+    if (annualPrem) catTotals.pojisteni = (catTotals.pojisteni || 0) + annualPrem
     const yearTotal = Object.values(catTotals).reduce((a, b) => a + b, 0)
     const catBreak = COST_CATS.filter((c) => catTotals[c.key]).map((c) => ({ key: c.key, label: c.label, color: c.color, amount: catTotals[c.key], amountF: czk(catTotals[c.key]), pct: Math.round((catTotals[c.key] / (yearTotal || 1)) * 100) })).sort((a, b) => b.amount - a.amount)
     const catMax = Math.max(1, ...catBreak.map((c) => c.amount))
@@ -1395,17 +1399,13 @@ export default function FleetPortal() {
       { label: 'Pojištění skel', icon: 'glass', color: '#6D5EF6', value: String(sklaN), pct: Math.round(sklaN / total * 100) },
       { label: 'Asistenční služby', icon: 'wrench', color: '#F59E0B', value: String(asistN), pct: Math.round(asistN / total * 100) },
     ]
-    // modelový odhad ročního pojistného (NE reálná smlouva)
-    const premEst = (v) => { const c = vehicleTypeCat(v.druh); const cv = v.cov || {}
-      const pov = c === 'Autobusy' ? 32000 : c === 'Nákladní vozidla' ? 14000 : c === 'Osobní vozidla' ? 7000 : 5000
-      const hav = cv.hav ? (c === 'Autobusy' ? 52000 : c === 'Nákladní vozidla' ? 12000 : 9000) : 0
-      return pov + hav + (cv.skla ? (c === 'Autobusy' ? 3500 : 1500) : 0) + (cv.asist ? 1800 : 0) }
-    const premModel = vehiclesData.reduce((a, v) => a + premEst(v), 0)
+    // REÁLNÉ roční pojistné z kmene makléře (součet Pojistné z flotilové smlouvy)
+    const premReal = vehiclesData.reduce((a, v) => a + (v.premium || 0), 0)
     const insKpis = [
       { value: String(total), label: 'Pojištěných vozidel', icon: 'shield', note: 'povinné ručení 100 %' },
       { value: String(havN), label: 'S havarijním krytím', icon: 'umbrella', note: `${Math.round(havN / total * 100)} % flotily` },
       { value: String(noHav.length), label: 'Bez havarijního krytí', icon: 'alert', note: `z toho ${busNoHav.length} autobusů`, trendColor: 'var(--star)' },
-      { value: (premModel / 1e6).toFixed(1).replace('.', ','), unit: 'mil. Kč', label: 'Modelové roční pojistné', icon: 'banknote', note: 'odhad · po napojení reálné' },
+      { value: (premReal / 1e6).toFixed(1).replace('.', ','), unit: 'mil. Kč', label: 'Roční pojistné (předepsané)', icon: 'banknote', note: 'z flotilové smlouvy' },
     ]
     // mezery podle parku (% bez havarijního)
     const gapByPark = allFleets.map((f) => { const vs = vehiclesData.filter((v) => v.fleet === f.id); const gap = vs.filter((v) => !(v.cov && v.cov.hav)).length
@@ -1532,8 +1532,8 @@ export default function FleetPortal() {
     const F = (name, count, icon, bg, color, onClick) => ({ name, count, icon: ic(icon, 18), bg, color, onClick, nav: !!onClick })
     const docFolders = [
       F('Pojistné smlouvy', 1174, 'shield', 'var(--star-soft)', 'var(--star)', () => navigate('documents-detail', { docCat: 'smlouvy', docOpen: {} })),
-      F('Zelené karty', 335, 'doc2', 'var(--green-soft)', 'var(--green)', () => navigate('documents-detail', { docCat: 'zk', docOpen: {} })),
-      F('Technické průkazy', 335, 'file', 'var(--blue-soft)', 'var(--blue)', () => navigate('documents-detail', { docCat: 'orv', docOpen: {} })),
+      F('Zelené karty', vehiclesData.length, 'doc2', 'var(--green-soft)', 'var(--green)', () => navigate('documents-detail', { docCat: 'zk', docOpen: {} })),
+      F('Technické průkazy', vehiclesData.length, 'file', 'var(--blue-soft)', 'var(--blue)', () => navigate('documents-detail', { docCat: 'orv', docOpen: {} })),
       F('Faktury', 486, 'banknote', 'var(--amber-soft)', 'var(--amber)', () => navigate('documents-detail', { docCat: 'faktury', docOpen: {} })),
       F('Servisní záznamy', 724, 'wrench', '#F1F1F3', 'var(--ink2)'),
       F('STK & emise', 298, 'check2', 'var(--green-soft)', 'var(--green)'),

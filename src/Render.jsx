@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react'
 import { css as S, Hov, Icon, InsurerLogo, exportData } from './helpers.jsx'
 import CzMap from './CzMap.jsx'
+import { vehiclesData, vehicleTypeCat } from './data.js'
 
 // Mapa škod (Leaflet) je těžká a jen na dashboardu → lazy-load do vlastního chunku.
 const ClaimsMap = React.lazy(() => import('./ClaimsMap.jsx'))
@@ -277,7 +278,7 @@ export default function Render({ vm }) {
           ) : (
             <Hov onClick={vm.openSearch} base="display:flex;align-items:center;gap:10px;height:42px;width:380px;padding:0 14px;background:#fff;border:1px solid var(--border2);border-radius:13px;cursor:text;color:var(--ink3);transition:box-shadow .15s ease,border-color .15s ease" hover="box-shadow:0 0 0 4px rgba(79,111,255,.1);border:1px solid var(--blue)">
               <span style={{ display: 'flex' }}>{ic('search', 17)}</span>
-              <span style={S('flex:1;font-size:13.5px')}>Hledat vozidlo, ev. č., řidiče, smlouvu…</span>
+              <span style={S('flex:1;font-size:13.5px')}>Hledat vozidlo, SPZ, řidiče, smlouvu…</span>
               <span style={S('font-size:11px;font-weight:600;background:var(--canvas);border:1px solid var(--border2);border-radius:7px;padding:2px 7px;color:var(--ink2)')}>⌘K</span>
             </Hov>
           )}
@@ -828,7 +829,7 @@ function ClaimDocPreview({ vm }) {
             </div>
             <div style={S('font-size:21px;font-weight:800;letter-spacing:-.3px;margin-bottom:18px')}>{d.type}</div>
             <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;padding:16px 18px;background:#F7FAFE;border:1px solid var(--border);border-radius:8px;margin-bottom:28px')}>
-              {[['Číslo škody', d.claimId], ['Pojistitel', d.insurer], ['Vozidlo', `${d.brand} ${d.model}`], ['Ev. č.', d.plate], ['Datum nahlášení', d.date], ['Pojistník', 'ČSAD AUTOBUSY České Budějovice a.s.']].map((r, i) => (
+              {[['Číslo škody', d.claimId], ['Pojistitel', d.insurer], ['Vozidlo', `${d.brand} ${d.model}`], ['SPZ', d.plate], ['Datum nahlášení', d.date], ['Pojistník', 'ČSAD AUTOBUSY České Budějovice a.s.']].map((r, i) => (
                 <div key={i}><div style={S('font-size:10.5px;color:var(--ink3);text-transform:uppercase;letter-spacing:.3px')}>{r[0]}</div><div style={S('font-size:13px;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums')}>{r[1]}</div></div>
               ))}
             </div>
@@ -1274,18 +1275,22 @@ function KpiRow({ items, mb, featuredFirst }) {
   )
 }
 
+const _TOT = vehiclesData.length
+const _HAV = vehiclesData.filter((v) => v.cov && v.cov.hav).length
+const _SKLA = vehiclesData.filter((v) => v.cov && v.cov.skla).length
+const _NTYPE = new Set(vehiclesData.map((v) => vehicleTypeCat(v.druh))).size
 const PARK_KPIS = [
-  { value: '335', label: 'Vozidel celkem', note: 'napříč 7 typy vozidel' },
-  { value: '6', label: 'Typů vozidel', note: 'dle druhu z registru' },
-  { value: '115', label: 'S havarijním', note: 'plné krytí' },
-  { value: '220', label: 'Pouze povinné ručení', note: 'základní krytí' },
+  { value: String(_TOT), label: 'Vozidel celkem', note: `napříč ${_NTYPE} typy vozidel` },
+  { value: String(_NTYPE), label: 'Typů vozidel', note: 'dle druhu z registru' },
+  { value: String(_HAV), label: 'S havarijním', note: 'plné krytí' },
+  { value: String(_TOT - _HAV), label: 'Pouze povinné ručení', note: 'základní krytí' },
 ]
 
 const VEHICLE_KPIS = [
-  { value: '335', label: 'Vozidel celkem', note: 'napříč 7 typy vozidel' },
-  { value: '115', label: 'S havarijním pojištěním', note: 'plné krytí' },
-  { value: '220', label: 'Pouze povinné ručení', note: 'základní krytí' },
-  { value: '27', label: 'Pojištění skel', note: 'doplňkové krytí' },
+  { value: String(_TOT), label: 'Vozidel celkem', note: `napříč ${_NTYPE} typy vozidel` },
+  { value: String(_HAV), label: 'S havarijním pojištěním', note: 'plné krytí' },
+  { value: String(_TOT - _HAV), label: 'Pouze povinné ručení', note: 'základní krytí' },
+  { value: String(_SKLA), label: 'Pojištění skel', note: 'doplňkové krytí' },
 ]
 
 const INS_KPIS = [
@@ -1823,7 +1828,7 @@ function InsuranceOverview({ vm }) {
             </div>
           ))}
         </div>
-        <div style={S('font-size:11.5px;color:var(--ink3);margin-top:16px;line-height:1.5')}>Roční pojistné je modelový odhad z typu vozidla a rozsahu krytí. Reálné pojistné, pojišťovny, čísla smluv, výročí a škodní průběh se zobrazí po napojení portálu na systém pojišťovny (spravuje makléř Petrisk).</div>
+        <div style={S('font-size:11.5px;color:var(--ink3);margin-top:16px;line-height:1.5')}>Roční pojistné a rozsah krytí vychází z flotilové smlouvy spravované makléřem (Petrisk). Pojišťovna, čísla podsmluv, výročí a škodní průběh se doplní po napojení portálu na systém pojišťovny.</div>
       </div>
     </div>
   )
@@ -2196,7 +2201,7 @@ function FleetDetail({ vm }) {
             <HScroll minW={900}>
             <div style={S('display:flex;align-items:center;gap:14px;padding:9px 18px;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px')}>
               <div style={S('width:46px;flex-shrink:0')}></div>
-              <div style={S('width:96px;flex-shrink:0')}>Ev. č.</div>
+              <div style={S('width:96px;flex-shrink:0')}>SPZ</div>
               <div style={S('flex:1')}>Vozidlo</div>
               <div style={S('width:110px')}>Pojišťovna</div>
               <div style={S('width:100px;text-align:right')}>Pojistné</div>
@@ -2355,7 +2360,7 @@ function Vehicles({ vm }) {
       <div style={S('display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:14px')}>
         <div style={S('display:flex;align-items:center;gap:8px;height:38px;padding:0 12px;background:#fff;border:1px solid var(--border);border-radius:10px;flex:1;min-width:220px;max-width:340px;color:var(--ink3)')}>
           <span style={S('display:flex')}>{ic('search', 17)}</span>
-          <input value={vm.vfQuery} onChange={vm.onVfQuery} placeholder="Hledat ev. č., model, řidiče…" style={S('border:none;outline:none;font-size:13.5px;font-family:inherit;flex:1;background:transparent;color:var(--ink)')} />
+          <input value={vm.vfQuery} onChange={vm.onVfQuery} placeholder="Hledat SPZ, model, řidiče…" style={S('border:none;outline:none;font-size:13.5px;font-family:inherit;flex:1;background:transparent;color:var(--ink)')} />
         </div>
         {vm.vFilters.map((fl, i) => (
           <Select key={i} value={fl.value} onChange={fl.onChange} options={fl.options} width="auto" height={38} size={13} />
@@ -2385,7 +2390,7 @@ function Vehicles({ vm }) {
         <div style={S('display:flex;align-items:center;gap:14px;padding:13px 22px;border-bottom:1px solid var(--border);background:#F7FAFE;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.5px')}>
           <div style={S('width:18px;flex-shrink:0')}></div>
           <div style={S('width:46px;flex-shrink:0')}></div>
-          <div style={S('width:96px;flex-shrink:0')}>Ev. č.</div>
+          <div style={S('width:96px;flex-shrink:0')}>SPZ</div>
           <div style={S('flex:1')}>Vozidlo / řidič</div>
           <div style={S('width:120px')}>Typ</div>
           <div style={S('width:128px')}>Limit POV</div>
@@ -2435,7 +2440,7 @@ function EndedVehiclesTable({ rows, count, showPark = true }) {
         <HScroll minW={showPark ? 900 : 760}>
           <div style={S('display:flex;align-items:center;gap:14px;padding:11px 18px;border-bottom:1px solid var(--border);background:#F7FAFE;font-size:11.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px')}>
             <div style={S('width:46px;flex-shrink:0')}></div>
-            <div style={S('width:96px;flex-shrink:0')}>Ev. č.</div>
+            <div style={S('width:96px;flex-shrink:0')}>SPZ</div>
             <div style={S('flex:1;min-width:0')}>Vozidlo</div>
             {showPark && <div style={S('width:120px')}>Typ</div>}
             <div style={S('width:110px')}>Pojišťovna</div>
@@ -3735,7 +3740,7 @@ function DocumentsVehicleDocs({ vm }) {
         <HScroll minW={840}>
           <div style={S('display:flex;align-items:center;gap:14px;padding:11px 18px;border-bottom:1px solid var(--border);background:#F7FAFE;font-size:11.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px')}>
             <div style={S('width:40px;flex-shrink:0')}></div>
-            <div style={S('width:96px;flex-shrink:0')}>Ev. č.</div>
+            <div style={S('width:96px;flex-shrink:0')}>SPZ</div>
             <div style={S('flex:1;min-width:0')}>Vozidlo</div>
             <div style={S('width:190px')}>VIN</div>
             <div style={S('width:170px;text-align:right')}>{dd.docColLabel}</div>
@@ -4532,7 +4537,7 @@ function SearchModal({ vm }) {
       <div onClick={vm.stop} style={S('width:600px;max-width:92vw;background:#fff;border-radius:16px;box-shadow:0 30px 80px rgba(0,0,0,.3);overflow:hidden;animation:popIn .16s ease')}>
         <div style={S('display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid var(--border)')}>
           <span style={S('color:var(--ink3);display:flex')}>{ic('search', 17)}</span>
-          <input value={vm.searchQuery} onChange={vm.onSearchInput} autoFocus placeholder="Hledat vozidlo, ev. č., řidiče, park, smlouvu…" style={S('flex:1;border:none;outline:none;font-size:16px;font-family:inherit')} />
+          <input value={vm.searchQuery} onChange={vm.onSearchInput} autoFocus placeholder="Hledat vozidlo, SPZ, řidiče, park, smlouvu…" style={S('flex:1;border:none;outline:none;font-size:16px;font-family:inherit')} />
           <span style={S('font-size:11px;font-weight:600;background:#EEF2F9;border:1px solid var(--border2);border-radius:6px;padding:3px 7px;color:var(--ink2)')}>ESC</span>
         </div>
         <div style={S('max-height:50vh;overflow-y:auto;padding:8px')}>
