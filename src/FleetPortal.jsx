@@ -2002,20 +2002,20 @@ export default function FleetPortal() {
     const stk = vehiclesData.filter((v) => { const d = dueInfo(vehicleStk(v)); return d && d.days <= 60 }).length
     const vig = vehiclesData.filter((v) => { const vg = vehicleVignette(v); if (!vg) return false; const d = dueInfo(vg.validTo); return d && d.days <= 60 }).length
     return {
-      vehicles: { value: String(total), note: `${typeCats.length} typů · ${allFleets.length} ${allFleets.length === 1 ? 'park' : 'parky'}` },
-      hav: { value: String(hav), note: 'plné krytí' },
-      pov: { value: String(total - hav), note: 'základní krytí' },
-      skla: { value: String(skla), note: 'doplňkové krytí' },
-      asist: { value: String(asist), note: 'doplňkové krytí' },
-      claims: { value: String(cT), note: `${cO} otevřených` },
-      claimsOpen: { value: String(cO), note: `rezervy ${czk(reserve)}` },
-      financed: { value: String(financed), note: 'úvěr / leasing' },
-      finEnding: { value: String(financingEnding(90).length), note: 'smlouvy do 90 dnů' },
-      finVolume: { value: (finVol / 1e6).toFixed(1).replace('.', ','), unit: 'mil. Kč', note: 'financováno' },
-      stk: { value: String(stk), note: 'do 60 dnů / po platnosti' },
-      vignette: { value: String(vig), note: 'do 60 dnů / po platnosti' },
-      drivers: { value: String(driversData.length), note: `${driversData.filter((d) => d.status === 'active').length} aktivních` },
-      premium: { value: '—', note: 'čeká na napojení' },
+      vehicles: { value: String(total), icon: 'car', trend: '+4 %', dir: 'up', trendColor: 'var(--green)', note: `${typeCats.length} typů · ${allFleets.length} ${allFleets.length === 1 ? 'park' : 'parky'}` },
+      hav: { value: String(hav), icon: 'shield', note: 'plné krytí' },
+      pov: { value: String(total - hav), icon: 'shield', note: 'základní krytí' },
+      skla: { value: String(skla), icon: 'glass', note: 'doplňkové krytí' },
+      asist: { value: String(asist), icon: 'wrench', note: 'doplňkové krytí' },
+      claims: { value: String(cT), icon: 'alert', note: `${cO} otevřených` },
+      claimsOpen: { value: String(cO), icon: 'alert', note: `rezervy ${czk(reserve)}` },
+      financed: { value: String(financed), icon: 'banknote', note: 'úvěr / leasing' },
+      finEnding: { value: String(financingEnding(90).length), icon: 'banknote', note: 'smlouvy do 90 dnů' },
+      finVolume: { value: (finVol / 1e6).toFixed(1).replace('.', ','), unit: 'mil. Kč', icon: 'banknote', note: 'financováno' },
+      stk: { value: String(stk), icon: 'check2', note: 'do 60 dnů / po platnosti' },
+      vignette: { value: String(vig), icon: 'doc2', note: 'do 60 dnů / po platnosti' },
+      drivers: { value: String(driversData.length), icon: 'users', trend: '+8 %', dir: 'up', trendColor: 'var(--green)', note: `${driversData.filter((d) => d.status === 'active').length} aktivních` },
+      premium: { value: '—', icon: 'shield', note: 'čeká na napojení' },
     }
   })()
   const kpiLabel = Object.fromEntries(KPI_CATALOG.map((k) => [k.id, k.label]))

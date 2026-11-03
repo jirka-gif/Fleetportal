@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react'
 import { css as S, Hov, Icon, InsurerLogo, exportData } from './helpers.jsx'
+import CzMap from './CzMap.jsx'
 
 // Mapa škod (Leaflet) je těžká a jen na dashboardu → lazy-load do vlastního chunku.
 const ClaimsMap = React.lazy(() => import('./ClaimsMap.jsx'))
@@ -1215,33 +1216,41 @@ function EmptyState({ icon = 'info', title, sub }) {
   )
 }
 
-function KpiCard({ k }) {
+function KpiCard({ k, featured }) {
+  const tcol = k.trendColor || 'var(--green)'
+  const tsoft = tcol.includes('star') ? 'var(--star-soft)' : tcol.includes('amber') ? 'var(--amber-soft)' : tcol.includes('green') ? 'var(--green-soft)' : 'var(--blue-soft)'
+  const arrow = (sz) => <span style={{ display: 'flex', transform: k.dir === 'down' ? 'rotate(90deg)' : 'rotate(-90deg)' }}>{ic('arrow', sz)}</span>
   return (
-    <div style={S(`${CARD};padding:18px 20px`)}>
-      <div style={S('display:flex;align-items:flex-start;justify-content:space-between;gap:8px')}>
-        <div style={{ minWidth: 0 }}>
-          <div style={S('display:flex;align-items:baseline;gap:5px')}>
-            <span style={S('font-size:30px;font-weight:700;letter-spacing:-1.4px;line-height:1;white-space:nowrap')}>{k.value}</span>
-            {k.unit && <span style={S('font-size:13.5px;font-weight:600;color:var(--ink2);white-space:nowrap')}>{k.unit}</span>}
+    <div style={S(`${CARD};padding:18px 20px;position:relative${featured ? ';background:linear-gradient(140deg,#F1ECFF 0%,#FBFAFF 62%);border:1px solid rgba(109,94,246,.24);box-shadow:0 16px 40px -16px rgba(109,94,246,.42)' : ''}`)}>
+      <div style={S('display:flex;align-items:flex-start;justify-content:space-between;gap:10px')}>
+        <div style={S('display:flex;align-items:center;gap:13px;min-width:0')}>
+          {k.icon && <span style={S(`width:44px;height:44px;border-radius:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${featured ? 'linear-gradient(135deg,#6D5EF6,#8E79F8)' : 'var(--purple-soft)'};color:${featured ? '#fff' : 'var(--purple)'}${featured ? ';box-shadow:0 8px 18px -6px rgba(109,94,246,.6)' : ''}`)}>{ic(k.icon, 21)}</span>}
+          <div style={{ minWidth: 0 }}>
+            <div style={S('display:flex;align-items:baseline;gap:5px')}>
+              <span style={S('font-size:30px;font-weight:800;letter-spacing:-1.4px;line-height:1;white-space:nowrap')}>{k.value}</span>
+              {k.unit && <span style={S('font-size:13.5px;font-weight:600;color:var(--ink2);white-space:nowrap')}>{k.unit}</span>}
+            </div>
+            <div style={S('font-size:13px;color:var(--ink2);font-weight:500;margin-top:8px')}>{k.label}</div>
           </div>
-          <div style={S('font-size:13px;color:var(--ink2);font-weight:500;margin-top:10px')}>{k.label}</div>
         </div>
-        {k.spark && <div style={{ flexShrink: 0, marginTop: 2 }}><Sparkline data={k.spark} color={k.accent} /></div>}
+        {k.spark
+          ? <div style={{ flexShrink: 0, marginTop: 2 }}><Sparkline data={k.spark} color={k.accent} /></div>
+          : (k.trend && <span style={S(`display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:700;color:${tcol};background:${tsoft};padding:4px 9px;border-radius:20px;flex-shrink:0`)}>{arrow(12)}{k.trend}</span>)}
       </div>
-      {(k.trend || k.note) && (
-        <div style={S('display:flex;align-items:center;gap:6px;margin-top:13px')}>
-          {k.trend && <span style={S(`display:inline-flex;align-items:center;gap:3px;font-size:12.5px;font-weight:700;color:${k.trendColor}`)}><span style={{ display: 'flex', transform: k.dir === 'down' ? 'rotate(90deg)' : 'rotate(-90deg)' }}>{ic('arrow', 13)}</span>{k.trend}</span>}
-          {k.note && <span style={S('font-size:12px;color:var(--ink3)')}>{k.note}</span>}
+      {k.note && (
+        <div style={S('display:flex;align-items:center;gap:6px;margin-top:12px')}>
+          {k.spark && k.trend && <span style={S(`display:inline-flex;align-items:center;gap:3px;font-size:12.5px;font-weight:700;color:${tcol}`)}>{arrow(13)}{k.trend}</span>}
+          <span style={S('font-size:12px;color:var(--ink3)')}>{k.note}</span>
         </div>
       )}
     </div>
   )
 }
 
-function KpiRow({ items, mb }) {
+function KpiRow({ items, mb, featuredFirst }) {
   return (
     <div style={S(`display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px${mb ? ';margin-bottom:' + mb : ''}`)}>
-      {items.map((k, i) => <KpiCard key={i} k={k} />)}
+      {items.map((k, i) => <KpiCard key={i} k={k} featured={featuredFirst && i === 0} />)}
     </div>
   )
 }
@@ -1284,7 +1293,7 @@ const AN_KPIS = [
 // Jednotlivý dashboardový box — vykreslí se podle id z uživatelské konfigurace.
 function DashWidget({ id, vm, nav }) {
   if (id === 'kpis') return vm.dashKpis.length
-    ? <KpiRow items={vm.dashKpis} />
+    ? <KpiRow items={vm.dashKpis} featuredFirst />
     : <Hov onClick={() => nav('settings')} base={`${CARD};padding:18px 20px;display:flex;align-items:center;gap:10px;cursor:pointer;color:var(--ink3);font-size:13px`} hover="border:1px solid var(--blue);color:var(--blue)">{ic('settings', 16)} Vyberte KPI dlaždice v Nastavení</Hov>
   if (id === 'byType') return (
     <div style={S(`${CARD};padding:22px;height:100%;box-sizing:border-box`)}>
@@ -1348,9 +1357,7 @@ function DashWidget({ id, vm, nav }) {
     <div style={S(`${CARD};padding:18px 18px 16px;height:100%;box-sizing:border-box;display:flex;flex-direction:column`)}>
       <SectionHead title="Mapa škod" action="Zobrazit mapu" onAction={() => nav('claims')} />
       <div style={S('flex:1;min-height:200px;display:flex;flex-direction:column')}>
-        <Suspense fallback={<div style={S('flex:1;min-height:200px;border-radius:14px;border:1px solid var(--border);background:linear-gradient(110deg,#F1F5FB 30%,#E8EEF7 50%,#F1F5FB 70%);background-size:200% 100%;animation:pulse 1.4s ease-in-out infinite')}></div>}>
-          <ClaimsMap height="100%" />
-        </Suspense>
+        <CzMap height="100%" />
       </div>
     </div>
   )
