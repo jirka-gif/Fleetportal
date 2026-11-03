@@ -1501,16 +1501,63 @@ function Fleets({ vm }) {
 }
 
 /* ============================ FLEET DETAIL ============================ */
+// Grafika grafů (znovupoužitelná): horizontální pruhy s ikonou + hodnotou · %.
+const TYPE_META = { 'Osobní vozidla': ['car', '#4F6FFF'], 'Motocykly': ['gauge', '#8B5CF6'], 'Autobusy': ['bus', '#6D5EF6'], 'Tahače': ['truck', '#0E9AA6'], 'Návěsy': ['trailer', '#14B8A6'], 'Nákladní vozidla': ['truck', '#F59E0B'], 'Přívěsy': ['trailer', '#FB923C'], 'Traktory a stroje': ['settings', '#64748B'] }
+const COVER_META = { 'Povinné ručení': ['shield', '#4F6FFF'], 'Havarijní pojištění': ['umbrella', '#22C55E'], 'Pojištění skel': ['glass', '#6D5EF6'], 'Asistence': ['wrench', '#F59E0B'] }
+const COST_META = { 'Pohonné hmoty': ['fuel', '#F59E0B'], 'Servis a opravy': ['wrench', '#6D5EF6'], 'Leasing / splátky': ['banknote', '#22C55E'], 'Pneumatiky': ['tire', '#0E9AA6'], 'Mýto, mytí, ostatní': ['sparkle', '#64748B'] }
+
+function BarBreakdown({ items, gap = 15 }) {
+  return (
+    <div>
+      {items.map((r, i) => (
+        <div key={i} style={S(i ? `margin-top:${gap}px` : '')}>
+          <div style={S('display:flex;align-items:center;gap:11px;margin-bottom:8px')}>
+            <span style={S(`width:32px;height:32px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${r.color}1F;color:${r.color}`)}>{ic(r.icon, 17)}</span>
+            <span style={S('flex:1;min-width:0;font-size:13.5px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.label}</span>
+            <span style={S('font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap')}>{r.value}<span style={S('color:var(--ink3);font-weight:600')}> · {r.pct} %</span></span>
+          </div>
+          <div style={S('height:8px;border-radius:6px;background:#ECE9F6;overflow:hidden')}><div style={S(`height:100%;width:${Math.max(r.pct, 1.5)}%;border-radius:6px;background:linear-gradient(90deg,${r.color}B3,${r.color})`)}></div></div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function InsightNote({ title, sub, icon = 'sparkle', color = 'var(--purple)' }) {
+  return (
+    <div style={S('display:flex;align-items:flex-start;gap:11px;padding:13px 14px;background:var(--purple-soft);border-radius:13px')}>
+      <span style={S(`width:30px;height:30px;border-radius:9px;background:#fff;color:${color};display:flex;align-items:center;justify-content:center;flex-shrink:0`)}>{ic(icon, 16)}</span>
+      <div><div style={S('font-size:13px;font-weight:700')}>{title}</div>{sub && <div style={S('font-size:12px;color:var(--ink2);margin-top:2px;line-height:1.45')}>{sub}</div>}</div>
+    </div>
+  )
+}
+
+function CardHead({ icon, color = 'var(--purple)', title, sub }) {
+  return (
+    <div style={S('display:flex;align-items:center;gap:12px;margin-bottom:16px')}>
+      <span style={S(`width:40px;height:40px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--purple-soft);color:${color}`)}>{ic(icon, 21)}</span>
+      <div style={S('min-width:0')}><div style={S('font-size:16px;font-weight:700;letter-spacing:-.3px')}>{title}</div>{sub && <div style={S('font-size:12px;color:var(--ink3);margin-top:1px')}>{sub}</div>}</div>
+    </div>
+  )
+}
+
 function FleetDetail({ vm }) {
   const fd = vm.fd
   const mob = vm.vp.isMobile
+  const typeItems = fd.typeBreakdown.map((r) => { const m = TYPE_META[r.name] || ['car', '#6D5EF6']; return { label: r.name, icon: m[0], color: m[1], value: r.count, pct: r.pct } })
+  const coverItems = fd.coverBreakdown.map((r) => { const m = COVER_META[r.label] || ['shield', '#4F6FFF']; return { label: r.label, icon: m[0], color: m[1], value: r.count, pct: r.pct } })
+  const costItems = fd.parkCostSplit.map((r) => { const m = COST_META[r.label] || ['sparkle', '#64748B']; return { label: r.label, icon: m[0], color: m[1], value: r.amountF, pct: r.pct } })
+  const ownCount = fd.finBreakdown.filter((f) => /vlastní/i.test(f.label)).reduce((a, f) => a + f.count, 0)
+  const vehTotal = fd.finBreakdown.reduce((a, f) => a + f.count, 0) || 1
+  const finPct = Math.round(fd.financedCount / vehTotal * 100)
+  const finDonut = `conic-gradient(#4F6FFF 0deg ${(100 - finPct) * 3.6}deg,#E5E1F5 ${(100 - finPct) * 3.6}deg 360deg)`
   return (
     <div>
       {!fd.singlePark && <Hov onClick={vm.goFleets} base="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink3);cursor:pointer;margin-bottom:14px" hover="color:var(--ink)"><span style={S('transform:rotate(180deg);display:flex')}>{ic('arrow', 16)}</span> Vozové parky</Hov>}
       <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:22px 24px;margin-bottom:16px')}>
         <div style={S('display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px')}>
           <div style={S('display:flex;gap:16px;align-items:center')}>
-            <div style={S('width:56px;height:56px;border-radius:14px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center')}>{ic('fleets', 28)}</div>
+            <div style={S('width:56px;height:56px;border-radius:15px;background:var(--purple-soft);color:var(--purple);display:flex;align-items:center;justify-content:center')}>{ic('fleets', 28)}</div>
             <div>
               <div style={S('font-size:22px;font-weight:800;letter-spacing:-.5px')}>{fd.name}</div>
               <div style={S('font-size:13px;color:var(--ink3);margin-top:3px')}>{fd.address ? <span style={S('color:var(--ink2);font-weight:600')}>{fd.address}</span> : <>Fleet manager <span style={S('color:var(--ink2);font-weight:600')}>{fd.manager}</span></>} · Odpovědný makléř <span style={S('color:var(--ink2);font-weight:600')}>Petr Kmoch, Petrisk a.s.</span></div>
@@ -1520,7 +1567,7 @@ function FleetDetail({ vm }) {
           <div style={S('display:flex;gap:8px;flex-wrap:wrap')}>
             <ExportMenu {...fd.export} variant="header" />
             <Hov onClick={vm.openNewFleet} base="height:38px;padding:0 14px;background:#fff;color:var(--ink);border:1px solid var(--border2);border-radius:10px;display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;cursor:pointer" hover="border:1px solid var(--blue);color:var(--blue)">{ic('plus', 15)} Nový vozový park</Hov>
-            <Hov onClick={vm.openAddVehicle} base="height:38px;padding:0 15px;background:linear-gradient(180deg,#2C6AE0,#1D50BD);color:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(32,88,201,.30);display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;cursor:pointer" hover="background:linear-gradient(180deg,#2655C4,#163E92);transform:translateY(-1px);box-shadow:0 6px 16px rgba(32,88,201,.42)">{ic('plus', 15)} Přidat vozidlo do flotily</Hov>
+            <Hov onClick={vm.openAddVehicle} base="height:38px;padding:0 15px;background:linear-gradient(135deg,#5B6BF5,#7A5CF8);color:#fff;border-radius:11px;box-shadow:0 6px 16px -4px rgba(109,94,246,.5);display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;cursor:pointer" hover="filter:brightness(1.06);transform:translateY(-1px);box-shadow:0 10px 22px -6px rgba(109,94,246,.6)">{ic('plus', 15)} Přidat vozidlo do flotily</Hov>
           </div>
         </div>
       </div>
@@ -1532,42 +1579,58 @@ function FleetDetail({ vm }) {
       {fd.isOverview && (
         <>
           {/* rozpady: typ vozidel / pojistné krytí / financování */}
-          <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : 'repeat(3,1fr)'};gap:14px;margin-bottom:14px`)}>
-            {[['Vozidla podle typu', fd.typeBreakdown, null, 'var(--blue)'], ['Pojistné krytí', fd.coverBreakdown, null], ['Financování', fd.finBreakdown, `${fd.financedCount} financováno`]].map(([title, rows, note, fixed], k) => (
-              <div key={k} style={S(`${CARD};padding:18px`)}>
-                <div style={S('display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:14px')}><span style={S('font-size:13.5px;font-weight:700')}>{title}</span>{note && <span style={S('font-size:11.5px;color:var(--ink3)')}>{note}</span>}</div>
-                {rows.length ? rows.map((r, i) => (
-                  <div key={i} style={S('margin-bottom:10px')}>
-                    <div style={S('display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px')}><span style={S('font-weight:600')}>{r.name || r.label}</span><span style={S('color:var(--ink3)')}><b style={S('color:var(--ink)')}>{r.count}</b> · {r.pct}%</span></div>
-                    <div style={S('height:6px;background:#EEF2F9;border-radius:4px;overflow:hidden')}><div style={S(`height:100%;width:${r.pct}%;background:${fixed || r.color || 'var(--blue)'};border-radius:4px`)}></div></div>
-                  </div>
-                )) : <div style={S('font-size:12.5px;color:var(--ink3)')}>Žádné záznamy.</div>}
+          <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : 'repeat(3,1fr)'};gap:14px;margin-bottom:14px;align-items:stretch`)}>
+            <div style={S(`${CARD};padding:20px`)}>
+              <CardHead icon="car" title="Vozidla podle typu" sub={`Rozložení flotily · ${typeItems.reduce((a, r) => a + r.value, 0)} vozidel`} />
+              {typeItems.length ? <BarBreakdown items={typeItems} /> : <div style={S('font-size:12.5px;color:var(--ink3)')}>Žádné záznamy.</div>}
+            </div>
+            <div style={S(`${CARD};padding:20px;display:flex;flex-direction:column`)}>
+              <CardHead icon="shield" title="Pojistné krytí" sub={`Přehled pojištění flotily · ${(coverItems[0] || {}).value || 0} vozidel`} />
+              {coverItems.length ? <BarBreakdown items={coverItems} /> : <div style={S('font-size:12.5px;color:var(--ink3)')}>Žádné krytí.</div>}
+              {(() => { const h = coverItems.find((c) => /havarij/i.test(c.label)); return h ? <div style={S('margin-top:auto;padding-top:16px')}><InsightNote title={`${h.pct} % vozidel má havarijní pojištění`} sub="Stejný podíl platí i pro pojištění skel a asistenci." /></div> : null })()}
+            </div>
+            <div style={S(`${CARD};padding:20px;display:flex;flex-direction:column`)}>
+              <CardHead icon="banknote" title="Financování" sub="Struktura financování flotily" />
+              <div style={S('display:flex;align-items:center;gap:18px')}>
+                <div style={S(`position:relative;width:118px;height:118px;flex-shrink:0;border-radius:50%;background:${finDonut}`)}>
+                  <div style={S('position:absolute;inset:20px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center')}><span style={S('color:var(--blue)')}>{ic('banknote', 18)}</span><div style={S('font-size:19px;font-weight:800;letter-spacing:-.5px;margin-top:2px')}>{vehTotal}</div><div style={S('font-size:10px;color:var(--ink3)')}>vozidel</div></div>
+                </div>
+                <div style={S('flex:1;min-width:0;display:flex;flex-direction:column;gap:11px')}>
+                  <div style={S('display:flex;align-items:center;gap:9px;font-size:12.5px')}><span style={S('width:10px;height:10px;border-radius:3px;background:#4F6FFF;flex-shrink:0')}></span><span style={S('flex:1;color:var(--ink2)')}>Vlastní zdroje</span><span style={S('font-weight:800;font-variant-numeric:tabular-nums')}>{ownCount}</span><span style={S('color:var(--ink3);font-variant-numeric:tabular-nums')}>· {100 - finPct} %</span></div>
+                  <div style={S('display:flex;align-items:center;gap:9px;font-size:12.5px')}><span style={S('width:10px;height:10px;border-radius:3px;background:#E5E1F5;flex-shrink:0')}></span><span style={S('flex:1;color:var(--ink2)')}>Financováno</span><span style={S('font-weight:800;font-variant-numeric:tabular-nums')}>{fd.financedCount}</span><span style={S('color:var(--ink3);font-variant-numeric:tabular-nums')}>· {finPct} %</span></div>
+                </div>
               </div>
-            ))}
+              <div style={S('margin-top:auto;padding-top:16px')}>{fd.financedCount === 0 ? <InsightNote icon="check2" color="var(--green)" title="Všechna vozidla jsou z vlastních zdrojů" sub="Flotila není financována úvěrem ani leasingem." /> : <InsightNote title={`${fd.financedCount} vozidel financováno`} sub="Úvěr nebo leasing — detail v sekci Financování." />}</div>
+            </div>
           </div>
 
           {/* Provozní náklady parku — modelovaný odhad (náklady na 1 auto) */}
           <div style={S(`${CARD};padding:20px;margin-bottom:14px`)}>
-            <div style={S('display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px')}>
-              <span style={S('font-size:15px;font-weight:700')}>Provozní náklady parku</span>
-              <span style={S('font-size:10.5px;font-weight:700;color:var(--purple);background:var(--purple-soft);padding:2px 9px;border-radius:20px')}>modelovaný odhad</span>
+            <div style={S('display:flex;align-items:center;gap:12px;margin-bottom:3px')}>
+              <span style={S('width:40px;height:40px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--purple-soft);color:var(--purple)')}>{ic('fleets', 21)}</span>
+              <div style={S('display:flex;align-items:center;gap:10px;flex-wrap:wrap')}><span style={S('font-size:16px;font-weight:700;letter-spacing:-.3px')}>Provozní náklady parku</span><span style={S('font-size:10.5px;font-weight:700;color:var(--purple);background:var(--purple-soft);padding:2px 9px;border-radius:20px')}>modelovaný odhad</span></div>
             </div>
-            <div style={S('font-size:12px;color:var(--ink3);margin-bottom:16px')}>Odhad provozních nákladů (palivo, servis, pneu, leasing) podle typu vozidel — bez pojistného. Upřesní se napojením telematiky a fakturace.</div>
-            <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '230px 1fr'};gap:20px;align-items:center`)}>
-              <div style={S('display:flex;gap:24px;flex-wrap:wrap')}>
-                <div><div style={S('font-size:11.5px;color:var(--ink3)')}>Náklady na 1 auto</div><div style={S('font-size:26px;font-weight:800;letter-spacing:-.6px;color:var(--ink);margin-top:2px')}>{fd.parkCostPerVehicleF}</div><div style={S('font-size:11px;color:var(--ink3)')}>ročně · Ø</div></div>
-                <div><div style={S('font-size:11.5px;color:var(--ink3)')}>Celkem za park</div><div style={S('font-size:26px;font-weight:800;letter-spacing:-.6px;color:var(--ink);margin-top:2px')}>{fd.parkCostTotalF}</div><div style={S('font-size:11px;color:var(--ink3)')}>ročně</div></div>
-              </div>
-              <div>
-                {fd.parkCostSplit.map((c, i) => (
-                  <div key={i} style={S('margin-bottom:9px')}>
-                    <div style={S('display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px')}>
-                      <span style={S('display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600')}><span style={S(`width:9px;height:9px;border-radius:3px;background:${c.color};flex-shrink:0`)}></span>{c.label}</span>
-                      <span style={S('font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap')}>{c.amountF} <span style={S('font-size:11px;color:var(--ink3);font-weight:600')}>· {c.pct} %</span></span>
-                    </div>
-                    <div style={S('height:6px;border-radius:4px;background:#EEF2F9;overflow:hidden')}><div style={S(`height:100%;width:${c.pct}%;background:${c.color};border-radius:4px`)}></div></div>
+            <div style={S('font-size:12px;color:var(--ink3);margin:0 0 18px 52px')}>Odhad provozních nákladů (palivo, servis, pneu, leasing) podle typu vozidel — bez pojistného. Upřesní se napojením telematiky a fakturace.</div>
+            <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : 'minmax(210px,240px) 1fr minmax(230px,290px)'};gap:22px;align-items:start`)}>
+              <div style={S('display:flex;flex-direction:column;gap:12px')}>
+                {[['Náklady na 1 auto', fd.parkCostPerVehicleF, 'ročně · Ø', 'car'], ['Celkem za park', fd.parkCostTotalF, 'ročně', 'fleets']].map((s, i) => (
+                  <div key={i} style={S('display:flex;align-items:center;gap:13px;padding:15px 16px;background:var(--purple-soft);border-radius:14px')}>
+                    <span style={S('width:40px;height:40px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#fff;color:var(--purple)')}>{ic(s[3], 20)}</span>
+                    <div><div style={S('font-size:11.5px;color:var(--ink3)')}>{s[0]}</div><div style={S('font-size:22px;font-weight:800;letter-spacing:-.6px;line-height:1.05;margin-top:2px')}>{s[1]}</div><div style={S('font-size:11px;color:var(--ink3)')}>{s[2]}</div></div>
                   </div>
                 ))}
+              </div>
+              <BarBreakdown items={costItems} gap={14} />
+              <div>
+                <div style={S('display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;margin-bottom:12px')}><span style={S('display:flex;color:var(--purple)')}>{ic('sparkle', 16)}</span>Klíčové poznatky</div>
+                <div style={S('display:flex;flex-direction:column;gap:10px')}>
+                  {[['fuel', `Pohonné hmoty tvoří ${(costItems[0] || {}).pct || 0} % nákladů`, 'Největší položka v celkových nákladech flotily.'], ['settings', `Servis a opravy: ${(costItems[1] || {}).pct || 0} %`, 'Druhá nejvyšší položka nákladů.'], ['trend', `Celkem: ${fd.parkCostTotalF}`, 'Odhad ročních provozních nákladů celého parku.']].map((p, i) => (
+                    <div key={i} style={S('display:flex;align-items:flex-start;gap:10px')}>
+                      <span style={S('width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--purple-soft);color:var(--purple)')}>{ic(p[0], 15)}</span>
+                      <div style={S('min-width:0')}><div style={S('font-size:12.5px;font-weight:700')}>{p[1]}</div><div style={S('font-size:11.5px;color:var(--ink3);margin-top:1px;line-height:1.4')}>{p[2]}</div></div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -1579,14 +1642,9 @@ function FleetDetail({ vm }) {
           </div>
           <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : 'repeat(3,1fr)'};gap:14px;margin-bottom:14px`)}>
             {/* podle druhu škody */}
-            <div style={S(`${CARD};padding:18px`)}>
-              <div style={S('font-size:13.5px;font-weight:700;margin-bottom:14px')}>Podle druhu škody</div>
-              {fd.claimsByRisk.length ? fd.claimsByRisk.map((r, i) => (
-                <div key={i} style={S('margin-bottom:11px')}>
-                  <div style={S('display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px')}><span style={S('font-weight:600')}>{r.label}</span><span style={S('color:var(--ink3)')}><b style={S('color:var(--ink)')}>{r.count}</b> · {r.pct}%</span></div>
-                  <div style={S('height:6px;background:#EEF2F9;border-radius:4px;overflow:hidden')}><div style={S(`height:100%;width:${r.pct}%;background:${r.color};border-radius:4px`)}></div></div>
-                </div>
-              )) : <div style={S('font-size:12.5px;color:var(--ink3)')}>Žádné škody.</div>}
+            <div style={S(`${CARD};padding:20px`)}>
+              <div style={S('font-size:14px;font-weight:700;margin-bottom:16px')}>Podle druhu škody</div>
+              {fd.claimsByRisk.length ? <BarBreakdown items={fd.claimsByRisk.map((r) => { const m = { 'Havarijní': ['umbrella', '#EF4444'], 'Povinné ručení': ['shield', '#4F6FFF'], 'Pojištění skel': ['glass', '#6D5EF6'], 'Odpovědnost': ['scales', '#F59E0B'] }[r.label] || ['alert', '#64748B']; return { label: r.label, icon: m[0], color: m[1], value: r.count + '×', pct: r.pct } })} gap={14} /> : <div style={S('font-size:12.5px;color:var(--ink3)')}>Žádné škody.</div>}
             </div>
             {/* podle vozidla */}
             <div style={S(`${CARD};padding:18px`)}>
