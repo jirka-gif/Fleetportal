@@ -323,6 +323,9 @@ export default function Render({ vm }) {
             {vm.isVehicleDetail && <VehicleDetail vm={vm} />}
             {vm.isDrivers && <Drivers vm={vm} />}
             {vm.isDriverDetail && <DriverDetail vm={vm} />}
+            {vm.isLinky && <Linky vm={vm} />}
+            {vm.isLinkyDetail && <LinkyDetail vm={vm} />}
+            {vm.isEco && <EmptyState icon="gauge" title="Eco-driving se připravuje" sub="Hospodárnost jízdy, úspora paliva a žebříček řidičů se zobrazí v další fázi. Vyhodnocení jednotlivých linek a řidičů najdete v sekci Linky & JŘ." />}
             {vm.isClaimDetail && <ClaimDetail vm={vm} />}
             {vm.isFinancing && <Financing vm={vm} />}
             {vm.isInsurance && <EmptyState icon="shield" title="Detail pojistného krytí se připravuje" sub="Pojistné smlouvy, pojišťovny a roční pojistné se zobrazí po napojení portálu na systém pojišťovny. Sjednané krytí jednotlivých vozidel (povinné ručení / havarijní / skla / asistence) najdete v detailu vozidla." />}
@@ -3553,6 +3556,133 @@ function ContactRow({ icon, label, value, href }) {
         {href
           ? <a href={href} target={href.startsWith('http') ? '_blank' : undefined} rel="noreferrer" style={S('font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;line-height:1.35;word-break:break-word')}>{value}</a>
           : <span style={S('font-size:13px;font-weight:600;color:var(--ink2);line-height:1.35;word-break:break-word')}>{value}</span>}
+      </div>
+    </div>
+  )
+}
+
+function StatTiles({ items, mb = '16px' }) {
+  return (
+    <div style={S(`display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:${mb}`)}>
+      {items.map((s, i) => (
+        <div key={i} style={S(`${CARD};padding:16px 18px`)}>
+          <div style={S('font-size:12px;color:var(--ink3)')}>{s.label}</div>
+          <div style={S(`font-size:22px;font-weight:800;letter-spacing:-.5px;margin-top:4px;color:${s.color || 'var(--ink)'}`)}>{s.value}</div>
+          <div style={S('font-size:11.5px;color:var(--ink3);margin-top:2px')}>{s.sub}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function Linky({ vm }) {
+  const d = vm.linky
+  return (
+    <div>
+      <StatTiles items={d.stats} mb="18px" />
+      <div style={S('display:flex;align-items:center;gap:9px;margin-bottom:6px')}><span style={S('font-size:15px;font-weight:700')}>Autobusové linky</span><span style={S('font-size:11.5px;font-weight:700;color:var(--ink2);background:#EEF2F9;padding:2px 8px;border-radius:20px')}>{d.rows.length}</span></div>
+      <div style={S('display:flex;align-items:flex-start;gap:7px;font-size:12px;color:var(--ink3);margin-bottom:13px')}><span style={S('display:flex;flex-shrink:0;margin-top:1px')}>{ic('info', 13)}</span><span>Jízdní řády a trasy jsou reálná veřejná data (CIS JŘ / DPMČB, ČSAD AUTOBUSY České Budějovice). Skutečná jízda a telematika jsou pro ukázku modelované — po nasazení jednotky je nahradí reálná měření.</span></div>
+      <div style={S(`${CARD};overflow:hidden`)}>
+        <HScroll minW={980}>
+          <div style={S('display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--border);background:#F7FAFE;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.5px')}>
+            <div style={S('width:52px')}>Linka</div>
+            <div style={S('flex:1;min-width:0')}>Trasa / dopravce</div>
+            <div style={S('width:120px')}>Vůz / řidič</div>
+            <div style={S('width:70px;text-align:center')}>Zast.</div>
+            <div style={S('width:74px;text-align:center')}>Spojů</div>
+            <div style={S('width:104px;text-align:center')}>Dodržení JŘ</div>
+            <div style={S('width:108px;text-align:center')}>Eco řidič</div>
+            <div style={S('width:86px;text-align:center')}>Anomálie</div>
+            <div style={S('width:16px;flex-shrink:0')}></div>
+          </div>
+          {d.rows.map((r) => (
+            <Hov key={r.id} onClick={r.onClick} base="display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--border);cursor:pointer" hover="background:#F2F6FC">
+              <div style={S('width:52px')}><span style={S('display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:28px;padding:0 8px;border-radius:8px;background:#18181B;color:#fff;font-weight:800;font-size:14px;font-variant-numeric:tabular-nums')}>{r.no}</span></div>
+              <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.name}</div><div style={S('font-size:11.5px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.agency} · {r.span}</div></div>
+              <div style={S('width:120px;min-width:0')}><div style={S('font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.busPlate}</div><div style={S('font-size:11px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.driver}</div></div>
+              <div style={S('width:70px;text-align:center;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums')}>{r.nStops}</div>
+              <div style={S('width:74px;text-align:center;font-size:13px;color:var(--ink2);font-variant-numeric:tabular-nums')}>{r.tripsDay}</div>
+              <div style={S('width:104px;text-align:center')}><span style={S(`font-size:13.5px;font-weight:800;font-variant-numeric:tabular-nums;color:${r.onTimeColor}`)}>{r.onTimePct} %</span></div>
+              <div style={S('width:108px;display:flex;justify-content:center')}><span style={S(`display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:${r.ecoBand.color};background:${r.ecoBand.bg};padding:3px 9px;border-radius:20px`)}>{r.ecoScore}<span style={S('opacity:.7;font-weight:600')}>/100</span></span></div>
+              <div style={S('width:86px;text-align:center')}>{r.anomalies ? <span style={S('display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--star)')}>{ic('alert', 13)}{r.anomalies}</span> : <span style={S('font-size:12px;color:var(--green)')}>✓</span>}</div>
+              <span style={S('width:16px;flex-shrink:0;color:var(--ink3);display:flex')}>{ic('arrow', 16)}</span>
+            </Hov>
+          ))}
+        </HScroll>
+      </div>
+    </div>
+  )
+}
+
+function LinkyDetail({ vm }) {
+  const d = vm.linkyDet
+  const mob = vm.vp.isMobile
+  const sevOrder = { high: 0, mid: 1, low: 2 }
+  const ans = [...d.anomalies].sort((a, b) => sevOrder[a.sev] - sevOrder[b.sev])
+  return (
+    <div>
+      <Hov onClick={d.goBack} base="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink3);cursor:pointer;margin-bottom:14px" hover="color:var(--ink)"><span style={S('transform:rotate(180deg);display:flex')}>{ic('arrow', 16)}</span> Linky & jízdní řády</Hov>
+
+      <div style={S(`${CARD};padding:20px 22px;margin-bottom:16px`)}>
+        <div style={S('display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap')}>
+          <span style={S('display:inline-flex;align-items:center;justify-content:center;min-width:52px;height:46px;padding:0 12px;border-radius:12px;background:#18181B;color:#fff;font-weight:800;font-size:22px;font-variant-numeric:tabular-nums;flex-shrink:0')}>{d.no}</span>
+          <div style={S('flex:1;min-width:0')}>
+            <div style={S('font-size:19px;font-weight:800;letter-spacing:-.4px;line-height:1.15')}>{d.name}</div>
+            <div style={S('font-size:12.5px;color:var(--ink3);margin-top:3px')}>{d.agency} · {d.nStops} zastávek · {d.tripsDay} spojů/den · provoz {d.span}</div>
+          </div>
+          <div style={S('display:flex;gap:10px;flex-wrap:wrap')}>
+            {d.bus && <Hov onClick={d.bus.onClick} base={`display:flex;align-items:center;gap:10px;padding:10px 13px;border:1px solid var(--border2);border-radius:12px;cursor:pointer`} hover="border-color:var(--blue);background:#FAFBFF">
+              <span style={S('width:36px;height:36px;border-radius:9px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic('car', 18)}</span>
+              <div><div style={S('font-size:12.5px;font-weight:700')}>{d.bus.name}</div><div style={S('font-size:11px;color:var(--ink3);font-variant-numeric:tabular-nums')}>{d.bus.plate} · {d.bus.fuel}</div></div>
+              <span style={S(`font-size:11px;font-weight:700;color:${d.bus.band.color};background:${d.bus.band.bg};padding:3px 8px;border-radius:20px`)}>{d.bus.score}/100</span>
+            </Hov>}
+            {d.driver && <div style={S('display:flex;align-items:center;gap:10px;padding:10px 13px;border:1px solid var(--border2);border-radius:12px')}>
+              <span style={S('width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#4F6FFF,#6D5EF6);color:#fff;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{d.driver.name.split(' ').map((w) => w[0]).join('').slice(0, 2)}</span>
+              <div><div style={S('font-size:12.5px;font-weight:700')}>{d.driver.name}</div><div style={S('font-size:11px;color:var(--ink3)')}>{d.driver.role}</div></div>
+              <span style={S(`font-size:11px;font-weight:700;color:${d.driver.band.color};background:${d.driver.band.bg};padding:3px 8px;border-radius:20px`)}>{d.driver.score}/100</span>
+            </div>}
+          </div>
+        </div>
+        <div style={S('display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)')}>
+          <span style={S('font-size:11.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px;margin-right:4px')}>Odjezdy</span>
+          {d.departures.map((t, i) => <span key={i} style={S('font-size:12px;font-weight:600;color:var(--ink2);background:#EEF2F9;padding:3px 9px;border-radius:7px;font-variant-numeric:tabular-nums')}>{t}</span>)}
+          <span style={S('font-size:11.5px;color:var(--ink3)')}>… +{Math.max(0, d.tripsDay - d.departures.length)} dalších</span>
+        </div>
+      </div>
+
+      <StatTiles items={d.stats} mb="16px" />
+
+      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1.5fr 1fr'};gap:16px`)}>
+        <div style={S(`${CARD};overflow:hidden`)}>
+          <div style={S('display:flex;align-items:center;justify-content:space-between;padding:15px 20px;border-bottom:1px solid var(--border)')}>
+            <div style={S('font-size:14px;font-weight:700')}>Jízdní řád — plán vs. skutečnost</div>
+            <span style={S('font-size:11.5px;color:var(--ink3)')}>reprezentativní spoj</span>
+          </div>
+          <div style={S('display:grid;grid-template-columns:1fr 62px 62px 90px;gap:10px;padding:9px 20px;border-bottom:1px solid var(--border);background:#F7FAFE;font-size:10.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px')}>
+            <div>Zastávka</div><div style={S('text-align:center')}>Plán</div><div style={S('text-align:center')}>Skut.</div><div style={S('text-align:right')}>Odchylka</div>
+          </div>
+          <div style={S('max-height:560px;overflow-y:auto')}>
+            {d.stops.map((s, i) => (
+              <div key={i} style={S(`display:grid;grid-template-columns:1fr 62px 62px 90px;gap:10px;padding:10px 20px;border-bottom:1px solid var(--border);align-items:center;${s.skipped ? 'background:var(--star-soft)' : ''}`)}>
+                <div style={S('min-width:0;display:flex;align-items:center;gap:8px')}><span style={S(`width:7px;height:7px;border-radius:50%;background:${s.c};flex-shrink:0`)}></span><span style={S(`font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${s.skipped ? 'color:var(--star);text-decoration:line-through' : 'color:var(--ink2)'}`)}>{s.n}</span></div>
+                <div style={S('text-align:center;font-size:12.5px;color:var(--ink3);font-variant-numeric:tabular-nums')}>{s.planned}</div>
+                <div style={S(`text-align:center;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;${s.skipped ? 'color:var(--star)' : ''}`)}>{s.actual}</div>
+                <div style={S('text-align:right')}><span style={S(`font-size:11px;font-weight:700;color:${s.c};background:${s.b};padding:2px 8px;border-radius:20px;white-space:nowrap`)}>{s.delayLabel}</span></div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={S(`${CARD};padding:18px 20px;align-self:start`)}>
+          <div style={S('display:flex;align-items:center;gap:9px;margin-bottom:4px')}><span style={S('font-size:14px;font-weight:700')}>Anomálie spoje</span><span style={S(`font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:20px;${ans.length ? 'color:var(--star);background:var(--star-soft)' : 'color:var(--green);background:var(--green-soft)'}`)}>{ans.length}</span></div>
+          <div style={S('font-size:12px;color:var(--ink3);margin-bottom:14px')}>Automaticky vyhodnocené odchylky od jízdního řádu a hospodárné jízdy.</div>
+          {ans.length ? ans.map((a, i) => (
+            <div key={i} style={S('display:flex;align-items:flex-start;gap:11px;padding:11px 0;border-bottom:1px solid var(--border)')}>
+              <span style={S(`width:34px;height:34px;border-radius:9px;background:${a.bg};color:${a.color};display:flex;align-items:center;justify-content:center;flex-shrink:0`)}>{ic(a.icon, 17)}</span>
+              <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:700')}>{a.type}</div><div style={S('font-size:11.5px;color:var(--ink3);margin-top:1px')}>{a.where}</div><div style={S('font-size:12px;color:var(--ink2);margin-top:3px;line-height:1.4')}>{a.detail}</div></div>
+            </div>
+          )) : <div style={S('display:flex;flex-direction:column;align-items:center;gap:8px;padding:24px 0;color:var(--green)')}><span>{ic('check2', 30, 2.2)}</span><span style={S('font-size:13px;font-weight:600')}>Spoj bez anomálií</span></div>}
+        </div>
       </div>
     </div>
   )

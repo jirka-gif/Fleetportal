@@ -4,6 +4,7 @@ import Render from './Render.jsx'
 import {
   insurersData, brandsData, fleetsData, vehiclesData, claimsData, greenCards, driversData,
   statusMeta, claimStatusMeta, fleetName, statusChip, vehicleTypeCat, vehicleTypeOrder, vehicleStk, vehicleVignette, leasingPartners,
+  linesData, busDrivers, busVehicles, busFleet, ecoScore, ecoBand, ecoSavings, heaterCost, NAFTA_CZK,
 } from './data.js'
 
 const ic = (name, size = 18, sw = 1.8) => <Icon name={name} size={size} sw={sw} />
@@ -13,6 +14,43 @@ const typeCats = vehicleTypeOrder.map((name, i) => {
   const vs = vehiclesData.filter((v) => vehicleTypeCat(v.druh) === name)
   return { id: 't' + (i + 1), name, vehicles: vs.length, hav: vs.filter((v) => v.cov && v.cov.hav).length }
 }).filter((c) => c.vehicles > 0)
+
+// ---- Linky: deterministická simulace „skutečné jízdy" nad reálným jízdním řádem ----
+const _hash = (s) => { let h = 2166136261; s = String(s); for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) } return h >>> 0 }
+const _rng = (seed) => () => { seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296 }
+const _toMin = (t) => { const p = String(t).split(':'); return (+p[0]) * 60 + (+p[1] || 0) }
+const _fmtMin = (m) => { m = ((Math.round(m) % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0') }
+function simulateLineRun(line) {
+  const rnd = _rng(_hash(line.id + 'v6'))
+  const sev = (_hash(line.id + 'sev') % 100) / 100 // náročnost linky 0..1 (provoz, hustota)
+  const bias = 0.05 + sev * 0.16
+  const noiseS = 0.85 + sev * 1.7
+  const spikeP = 0.035 + sev * 0.08
+  const n = line.stops.length
+  const hasSkip = _hash(line.id) % 4 === 1 // ~čtvrtina linek má na spoji vynechanou zastávku
+  const skipIdx = hasSkip ? 3 + Math.floor(rnd() * Math.max(1, n - 6)) : -1
+  const earlyLine = _hash(line.id) % 5 === 2 // část linek má úsek s jízdou před časem
+  let delay = 0
+  const stops = line.stops.map((s, i) => {
+    delay = delay * 0.74 + (rnd() - 0.5) * noiseS + bias // mean-reverting: zpoždění se dohání
+    if (rnd() < spikeP) delay += 2 + rnd() * 5 // krátká kongesce
+    if (earlyLine && i > 2 && i < 5) delay -= 1.2
+    if (delay < -1.6) delay = -1.6
+    if (i === 0) delay = Math.max(-0.4, Math.min(0.6, delay))
+    const d = Math.round(delay)
+    const skipped = i === skipIdx
+    return { n: s.n, planned: s.t, actual: skipped ? '—' : _fmtMin(_toMin(s.t) + d), delay: d, skipped,
+      status: skipped ? 'skip' : d < 0 ? 'early' : d <= 5 ? 'ontime' : 'late' }
+  })
+  const run = stops.filter((s) => !s.skipped)
+  const onTime = run.filter((s) => s.status === 'ontime').length
+  return {
+    stops, onTimePct: run.length ? Math.round(onTime / run.length * 100) : 0,
+    maxDelay: Math.max(0, ...run.map((s) => s.delay)),
+    avgDelay: run.length ? +(run.reduce((a, s) => a + s.delay, 0) / run.length).toFixed(1) : 0,
+    skips: stops.filter((s) => s.skipped).length,
+  }
+}
 
 const ROOT_STYLE =
   "--star:#C8102E;--star-soft:#FDECEE;--star-ink:#9B0E25;--blue:#2058C9;--blue-soft:#EAF0FC;" +
@@ -374,6 +412,7 @@ export default function FleetPortal() {
   const openVehicle = (id) => navigate('vehicle-detail', { vehicleId: id, vehicleTab: 'overview' })
   const openDriver = (id) => navigate('driver-detail', { driverId: id })
   const openClaim = (id) => navigate('claim-detail', { claimId: id })
+  const openLine = (id) => navigate('linky-detail', { lineId: id })
   const toggleNotif = () => setState((s) => ({ notif: !s.notif, companyMenu: false }))
   const toggleAI = () => setState((s) => ({ ai: !s.ai }))
   const openSearch = () => setState({ search: true })
@@ -559,8 +598,10 @@ export default function FleetPortal() {
     const navItems = [
       ['dashboard', 'Přehled', 'dashboard', null],
       ['fleets', 'Vozové parky', 'fleets', null],
-      ['vehicles', 'Vozidla', 'car', '335'],
+      ['vehicles', 'Vozidla', 'car', String(vehiclesData.length)],
       ['drivers', 'Řidiči', 'users', String(driversData.length)],
+      ['linky', 'Linky & JŘ', 'pin', String(linesData.length)],
+      ['eco', 'Eco-driving', 'gauge', null],
       ['insurance', 'Pojištění', 'shield', null],
       ['financing', 'Financování', 'banknote', String(vehiclesData.filter((v) => v.financing && v.financing.active).length)],
       ['claims', 'Škody', 'alert', String(claimsData.filter((c) => c.status !== 'closed').length) || null],
@@ -570,7 +611,7 @@ export default function FleetPortal() {
       ['analytics', 'Analytika', 'chart', null],
       ['settings', 'Nastavení', 'settings', null],
     ]
-    const activeRoute = r === 'fleet-detail' ? 'fleets' : r === 'vehicle-detail' ? 'vehicles' : r === 'driver-detail' ? 'drivers' : r === 'bonifikace-detail' ? 'bonifikace' : r === 'documents-detail' ? 'documents' : r === 'claim-detail' ? 'claims' : r
+    const activeRoute = r === 'fleet-detail' ? 'fleets' : r === 'vehicle-detail' ? 'vehicles' : r === 'driver-detail' ? 'drivers' : r === 'bonifikace-detail' ? 'bonifikace' : r === 'documents-detail' ? 'documents' : r === 'claim-detail' ? 'claims' : r === 'linky-detail' ? 'linky' : r
     const nav = navItems.map(([id, label, icon, badge]) => {
       const on = activeRoute === id
       return {
@@ -583,9 +624,11 @@ export default function FleetPortal() {
     })
     const titles = {
       dashboard: ['Přehled', 'Souhrn vozového parku Jiří Tošovský s.r.o.'],
-      fleets: ['Vozové parky', `${allFleets.length} ${allFleets.length === 1 ? 'lokalita' : allFleets.length < 5 ? 'lokality' : 'lokalit'} · 335 vozidel`],
-      vehicles: ['Vozidla', '335 vozidel celkem'],
+      fleets: ['Vozové parky', `${allFleets.length} ${allFleets.length === 1 ? 'lokalita' : allFleets.length < 5 ? 'lokality' : 'lokalit'} · ${vehiclesData.length} vozidel`],
+      vehicles: ['Vozidla', `${vehiclesData.length} vozidel celkem`],
       drivers: ['Řidiči', `${driversData.length} řidičů vozového parku`],
+      linky: ['Linky & jízdní řády', 'Autobusové linky, jízdní řády a vyhodnocení provozu'],
+      eco: ['Eco-driving', 'Hospodárnost jízdy a úspora paliva napříč parkem'],
       insurance: ['Pojištění', 'Smlouvy a krytí napříč parky'],
       financing: ['Financování', 'Přehled financování vozového parku'],
       claims: ['Škody', `${claimsData.filter((c) => c.status !== 'closed').length} otevřených · ${claimsData.filter((c) => c.status === 'closed').length} uzavřených`],
@@ -603,6 +646,7 @@ export default function FleetPortal() {
     else if (r === 'documents-detail') { const tm = { zk: ['Zelené karty', 'Zelená karta ke každému vozidlu'], orv: ['Technické průkazy', 'Osvědčení o registraci vozidla (ORV)'], faktury: ['Faktury', 'Faktury za pojištění'] }; const t = tm[state.docCat] || ['Pojistné smlouvy', 'Flotilové smlouvy a jejich dokumenty']; title = t[0]; sub = t[1] }
     else if (r === 'claim-detail') { const c = claimsData.find((x) => x.id === state.claimId) || claimsData[0]; title = `Škoda ${c.id}`; sub = `${c.type} · ${c.vehicle}` }
     else if (r === 'driver-detail') { const d = driversData.find((x) => x.id === state.driverId) || driversData[0]; title = d.name; sub = d.position }
+    else if (r === 'linky-detail') { const l = linesData.find((x) => x.id === state.lineId) || linesData[0]; title = `Linka ${l.no} · ${l.name}`; sub = `${l.agency} · ${l.stops.length} zastávek` }
     else { const t = titles[r] || ['', '']; title = t[0]; sub = t[1] }
 
     const aiMessages = state.aiMessages.map((m) => ({
@@ -638,6 +682,7 @@ export default function FleetPortal() {
       isDashboard: r === 'dashboard', isFleets: r === 'fleets', isFleetDetail: r === 'fleet-detail',
       isVehicles: r === 'vehicles', isVehicleDetail: r === 'vehicle-detail',
       isInsurance: r === 'insurance', isInsuranceDetail: r === 'insurance-detail', isClaims: r === 'claims', isDocuments: r === 'documents', isAnalytics: r === 'analytics', isContacts: r === 'contacts', isSettings: r === 'settings', isDrivers: r === 'drivers', isDriverDetail: r === 'driver-detail', isFinancing: r === 'financing',
+      isLinky: r === 'linky', isLinkyDetail: r === 'linky-detail', isEco: r === 'eco',
       isDocumentsDetail: r === 'documents-detail',
       openDocCat: (cat) => navigate('documents-detail', { docCat: cat, docOpen: {} }), goDocuments: () => navigate('documents'),
       docPreview: state.docPreview, closeDocPreview: () => setState({ docPreview: null }),
@@ -1977,6 +2022,69 @@ export default function FleetPortal() {
   const kpiLabel = Object.fromEntries(KPI_CATALOG.map((k) => [k.id, k.label]))
   const dashKpis = state.kpi.filter((k) => k.on).map((k) => ({ label: kpiLabel[k.id], ...(kpiVals[k.id] || { value: '—' }) }))
 
+  const linkyVM = () => {
+    if (state.route !== 'linky') return {}
+    const rows = linesData.map((l) => {
+      const sim = simulateLineRun(l)
+      const drv = busDrivers.find((d) => d.id === l.driverId)
+      const bus = busVehicles.find((v) => v.id === l.busId)
+      const dScore = drv ? ecoScore(drv.tele) : null
+      const anomalies = (sim.maxDelay > 5 ? 1 : 0) + sim.skips + (dScore != null && dScore < 60 ? 1 : 0)
+      return {
+        id: l.id, no: l.no, name: l.name, agency: l.agency, nStops: l.stops.length, tripsDay: l.tripsDay,
+        span: `${l.firstDep}–${l.lastDep}`, bus: bus ? `${bus.brand} ${bus.model}` : '—', busPlate: bus ? bus.plate : '',
+        driver: drv ? drv.name : '—', onTimePct: sim.onTimePct,
+        onTimeColor: sim.onTimePct >= 90 ? 'var(--green)' : sim.onTimePct >= 75 ? 'var(--amber)' : 'var(--star)',
+        ecoScore: dScore, ecoBand: ecoBand(dScore), anomalies, onClick: () => openLine(l.id),
+      }
+    })
+    const avg = (a) => rows.length ? Math.round(a / rows.length) : 0
+    const stats = [
+      { label: 'Autobusových linek', value: String(rows.length), sub: 'v provozu' },
+      { label: 'Ø dodržení JŘ', value: avg(rows.reduce((a, r) => a + r.onTimePct, 0)) + ' %', sub: 'on-time (0 až +5 min)' },
+      { label: 'Anomálií dnes', value: String(rows.reduce((a, r) => a + r.anomalies, 0)), sub: 'napříč linkami' },
+      { label: 'Ø eco-skóre řidičů', value: Math.round(busDrivers.reduce((a, d) => a + ecoScore(d.tele), 0) / busDrivers.length) + '/100', sub: 'hospodárnost jízdy' },
+    ]
+    return { linky: { rows, stats } }
+  }
+
+  const linkyDetailVM = () => {
+    if (state.route !== 'linky-detail') return {}
+    const l = linesData.find((x) => x.id === state.lineId) || linesData[0]
+    const sim = simulateLineRun(l)
+    const drv = busDrivers.find((d) => d.id === l.driverId)
+    const bus = busVehicles.find((v) => v.id === l.busId)
+    const dScore = drv ? ecoScore(drv.tele) : null
+    const bScore = bus ? ecoScore(bus.tele) : null
+    const an = []
+    sim.stops.forEach((s) => { if (s.skipped) an.push({ sev: 'high', icon: 'alert', color: 'var(--star)', bg: 'var(--star-soft)', type: 'Vynechaná zastávka', where: s.n, detail: 'Zastávka nebyla obsloužena' }) })
+    const worst = sim.stops.filter((s) => !s.skipped).reduce((m, s) => (s.delay > (m ? m.delay : -99) ? s : m), null)
+    if (worst && worst.delay > 5) an.push({ sev: 'high', icon: 'clock', color: 'var(--star)', bg: 'var(--star-soft)', type: 'Velké zpoždění', where: worst.n, detail: `+${worst.delay} min oproti jízdnímu řádu` })
+    const early = sim.stops.find((s) => !s.skipped && s.delay < -1)
+    if (early) an.push({ sev: 'mid', icon: 'swap', color: '#B45309', bg: 'var(--amber-soft)', type: 'Odjezd před časem', where: early.n, detail: `${early.delay} min — riziko ujetí spoje cestujícím` })
+    if (bScore != null && bScore < 60) an.push({ sev: 'mid', icon: 'gauge', color: '#B45309', bg: 'var(--amber-soft)', type: 'Nadměrná spotřeba', where: 'úsek linky', detail: `${bus.tele.cons} l/100 km nad referencí ${bus.tele.ref} l` })
+    if (bus && (bus.tele.brake + bus.tele.accel) >= 9) an.push({ sev: 'mid', icon: 'alert', color: '#B45309', bg: 'var(--amber-soft)', type: 'Prudká jízda', where: 'opakovaně na trase', detail: `${bus.tele.brake + bus.tele.accel}× prudké brzdění/akcelerace na 100 km` })
+    if (bus && bus.tele.heater > 90) an.push({ sev: 'low', icon: 'refresh', color: 'var(--ink2)', bg: '#EEF2F9', type: 'Nezávislé topení', where: 'denně', detail: `${bus.tele.heater} min/den — možný zbytečný provoz` })
+    const sm = (st) => st === 'skip' ? { c: 'var(--star)', b: 'var(--star-soft)', lbl: 'Vynecháno' }
+      : st === 'early' ? { c: '#B45309', b: 'var(--amber-soft)', lbl: 'Před časem' }
+      : st === 'late' ? { c: 'var(--star)', b: 'var(--star-soft)', lbl: 'Zpoždění' }
+      : { c: 'var(--green)', b: 'var(--green-soft)', lbl: 'Včas' }
+    const stops = sim.stops.map((s) => ({ n: s.n, planned: s.planned, actual: s.actual, skipped: s.skipped,
+      delayLabel: s.skipped ? '—' : s.delay === 0 ? 'přesně' : (s.delay > 0 ? '+' : '') + s.delay + ' min', ...sm(s.status) }))
+    const stats = [
+      { label: 'Dodržení JŘ', value: sim.onTimePct + ' %', color: sim.onTimePct >= 90 ? 'var(--green)' : sim.onTimePct >= 75 ? 'var(--amber)' : 'var(--star)', sub: 'on-time (0 až +5 min)' },
+      { label: 'Max zpoždění', value: '+' + sim.maxDelay + ' min', color: sim.maxDelay > 5 ? 'var(--star)' : 'var(--ink)', sub: 'na trase' },
+      { label: 'Ø odchylka', value: (sim.avgDelay > 0 ? '+' : '') + sim.avgDelay + ' min', color: 'var(--ink)', sub: 'průměr po zastávkách' },
+      { label: 'Anomálie', value: String(an.length), color: an.length ? 'var(--star)' : 'var(--green)', sub: 'na tomto spoji' },
+    ]
+    return { linkyDet: {
+      no: l.no, name: l.name, agency: l.agency, nStops: l.stops.length, tripsDay: l.tripsDay, span: `${l.firstDep}–${l.lastDep}`, departures: l.departures,
+      bus: bus ? { name: `${bus.brand} ${bus.model}`, plate: bus.plate, fuel: bus.fuel, score: bScore, band: ecoBand(bScore), onClick: () => openVehicle(bus.id) } : null,
+      driver: drv ? { name: drv.name, role: drv.role, score: dScore, band: ecoBand(dScore) } : null,
+      stops, anomalies: an, stats, goBack: () => navigate('linky'),
+    } }
+  }
+
   const vm = {
     dash: state.dash, dashMeta: DASH_WIDGETS, toggleDashWidget, setDashWidth, moveDashWidget, resetDash,
     kpi: state.kpi, kpiCatalog: KPI_CATALOG, kpiVals, kpiLabel, dashKpis, toggleKpi, moveKpi, resetKpi, kpiMax: KPI_MAX, kpiOnCount: state.kpi.filter((k) => k.on).length,
@@ -1985,7 +2093,7 @@ export default function FleetPortal() {
     tireModal: state.tireModal ? { ...state.tireModal, close: () => setState({ tireModal: null }), stop: (e) => e.stopPropagation(), actions: TIRE_ACTIONS, field: (k) => (e) => setTireField(k, e.target.value), onInvoice: (e) => { const f = e.target.files && e.target.files[0]; if (f) setTireField('invoice', f.name) }, save: saveTire } : null,
     fineModal: state.fineModal ? { ...state.fineModal, close: () => setState({ fineModal: null }), stop: (e) => e.stopPropagation(), types: FINE_TYPES, field: (k) => (e) => setFineField(k, e.target.value), togglePaid: () => setState((s) => ({ fineModal: { ...s.fineModal, paid: !s.fineModal.paid } })), save: saveFine } : null,
     ...shellVM(), ...dashboardVM(), ...fleetsVM(), ...fleetDetailVM(), ...vehiclesVM(), ...vehicleDetailVM(),
-    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(),
+    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(), ...linkyVM(), ...linkyDetailVM(),
   }
 
   return <Render vm={vm} />

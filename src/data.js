@@ -25,12 +25,13 @@ export const vehicleTypeCat = (druh) => {
   if (d.includes('motocykl')) return 'Motocykly'
   if (d.includes('tahač')) return 'Tahače' // „tahač návěsů" obsahuje i „návěs" → kontrolovat dřív
   if (d.includes('návěs')) return 'Návěsy'
-  if (d.includes('nákladní') || d.includes('autobus')) return 'Nákladní vozidla'
+  if (d.includes('autobus')) return 'Autobusy'
+  if (d.includes('nákladní')) return 'Nákladní vozidla'
   if (d.includes('přívěs')) return 'Přívěsy'
   if (d.includes('traktor') || d.includes('stroj') || d.includes('malotraktor')) return 'Traktory a stroje'
   return 'Osobní vozidla'
 }
-export const vehicleTypeOrder = ['Osobní vozidla', 'Motocykly', 'Tahače', 'Návěsy', 'Nákladní vozidla', 'Přívěsy', 'Traktory a stroje']
+export const vehicleTypeOrder = ['Osobní vozidla', 'Motocykly', 'Autobusy', 'Tahače', 'Návěsy', 'Nákladní vozidla', 'Přívěsy', 'Traktory a stroje']
 
 // --- STK a dálniční známka (ukázková data; na BE: STK z registru vozidel, známka z eDalnice.cz) ---
 // Veřejné CORS API jako u ARES neexistuje → na produkci přes B2B API / server-side ověření.
@@ -512,4 +513,104 @@ export const driversData = [
   {"id": "dr12", "name": "Michal Beneš", "initials": "MB", "status": "active", "position": "Řidič VPD (vnitrostátní doprava)", "kind": "VPD", "employment": "Hlavní pracovní poměr", "since": "3. 12. 2014", "birth": "5. 7. 1980", "rc": "800705/••••", "phone": "+420 671 243 519", "email": "m.benes@autotos.cz", "address": "Mladá Boleslav", "op": {"number": "211489866", "validTo": "5. 7. 2028"}, "rp": {"number": "JI 147531", "groups": "B, C, C+E", "validTo": "12. 12. 2029", "profValidTo": "12. 12. 2028"}, "tachoCard": {"number": "CZD000000115071", "validTo": "12. 12. 2030"}, "adr": false, "bankAccount": "118-187109/0600", "contractNo": "PS-2014/021", "vehicleIds": ["v223", "v273", "v95"]},
   {"id": "dr13", "name": "Ladislav Fiala", "initials": "LF", "status": "inactive", "position": "Řidič MKD (mezinárodní kamionová doprava)", "kind": "MKD", "employment": "Hlavní pracovní poměr", "since": "4. 1. 2015", "birth": "28. 11. 1963", "rc": "631128/••••", "phone": "+420 672 256 548", "email": "l.fiala@autotos.cz", "address": "Mnichovo Hradiště", "op": {"number": "212492873", "validTo": "28. 11. 2029"}, "rp": {"number": "EJ 151852", "groups": "B, C, C+E", "validTo": "13. 1. 2026", "profValidTo": "13. 1. 2026"}, "tachoCard": {"number": "CZD000000116441", "validTo": "13. 1. 2028"}, "adr": false, "bankAccount": "119-195028/0800", "contractNo": "PS-2015/022", "vehicleIds": ["v224", "v274", "v101"]},
   {"id": "dr14", "name": "Ondřej Kratochvíl", "initials": "OK", "status": "active", "position": "Řidič osobního vozidla", "kind": "osobní", "employment": "Hlavní pracovní poměr", "since": "5. 2. 2016", "birth": "13. 2. 1995", "rc": "950213/••••", "phone": "+420 673 269 577", "email": "o.kratochvil@autotos.cz", "address": "Bakov nad Jizerou", "op": {"number": "213495880", "validTo": "13. 2. 2030"}, "rp": {"number": "FK 156173", "groups": "B", "validTo": "14. 2. 2027", "profValidTo": null}, "tachoCard": null, "adr": false, "bankAccount": "120-202947/0100", "contractNo": "PS-2016/023", "vehicleIds": ["v6", "v66", "v97"]},
+]
+
+// ======================================================================
+// AUTOBUSOVÁ DIVIZE — demo pro prezentaci autobusovým dopravcům.
+// Jízdní řády linek = REÁLNÁ veřejná data (CIS JŘ / GTFS, DPMČB a ČSAD
+// AUTOBUSY České Budějovice). Vozidla a řidiči jsou ukázkoví (demo SPZ),
+// telematická a eco data jsou modelovaná — po nasazení jednotky do vozu
+// je nahradí reálná měření (akcelerace, brzdění, rozjezdy, volnoběh,
+// nezávislé topení, spotřeba). Žádné smyšlené údaje o reálné firmě.
+// ======================================================================
+
+export const NAFTA_CZK = 36 // Kč/l (orientační)
+
+// Eco-skóre 0–100 (100 = ideální hospodárná jízda) z telematických metrik.
+export const ecoScore = (t) => {
+  if (!t) return null
+  let s = 100
+  s -= (t.accel || 0) * 2.0      // prudká akcelerace / 100 km
+  s -= (t.brake || 0) * 2.2      // prudké brzdění / 100 km
+  s -= (t.start || 0) * 1.5      // prudké rozjezdy / 100 km
+  s -= (t.overrev || 0) * 1.2    // přetáčení motoru / 100 km
+  s -= (t.speeding || 0) * 1.8   // překročení rychlosti / 100 km
+  s -= Math.max(0, (t.idle || 0) - 30) * 0.15   // volnoběh nad 30 min/den
+  s -= Math.max(0, (t.heater || 0) - 60) * 0.05 // nezávislé topení nad 60 min/den
+  if (t.fuel !== 'Elektro') s -= Math.max(0, (t.cons || 0) - (t.ref || 0)) * 6 // l/100 km nad referencí
+  return Math.max(5, Math.min(100, Math.round(s)))
+}
+export const ecoBand = (s) => (s == null ? { label: '—', color: 'var(--ink3)', bg: '#EEF2F9' }
+  : s >= 80 ? { label: 'Hospodárná', color: 'var(--green)', bg: 'var(--green-soft)' }
+  : s >= 65 ? { label: 'Dobrá', color: 'var(--blue-ink)', bg: 'var(--blue-soft)' }
+  : s >= 50 ? { label: 'Podprůměr', color: '#B45309', bg: 'var(--amber-soft)' }
+  : { label: 'Rizikový styl', color: 'var(--star)', bg: 'var(--star-soft)' })
+// Potenciál měsíční úspory paliva oproti referenční (hospodárné) spotřebě.
+export const ecoSavings = (t) => {
+  if (!t || t.fuel === 'Elektro') return { liters: 0, czk: 0, co2: 0 }
+  const over = Math.max(0, (t.cons || 0) - (t.ref || 0))
+  const liters = Math.round((over / 100) * (t.km || 0))
+  return { liters, czk: Math.round(liters * NAFTA_CZK), co2: +(liters * 2.64 / 1000).toFixed(2) }
+}
+// Náklad nezávislého topení za měsíc (l → Kč).
+export const heaterCost = (t) => (t && t.fuel !== 'Elektro' ? Math.round((t.heaterL || 0) * NAFTA_CZK) : 0)
+
+export const busFleet = { id: 'f_bus', name: 'Autobusová divize — České Budějovice', address: 'Novohradská 40, 370 01 České Budějovice', manager: 'Ing. Pavel Dvořák', vehicles: 8, premium: 0, claims: 0, risk: null, insurers: [], renewals: 0, policy: '—', policyStart: '—', hav: 8 }
+
+export const busDrivers = [
+  { id: 'bd1', name: 'Václav Toman', role: 'Řidič autobusu MHD', since: '3. 9. 2012', phone: '+420 602 445 118', lineId: 'L1', busId: 'vb1', tele: { fuel: 'Diesel', km: 4200, cons: 38.5, ref: 38, accel: 3, brake: 2, start: 2, overrev: 1, speeding: 1, idle: 28, heater: 45, heaterL: 18 } },
+  { id: 'bd2', name: 'Petr Maršík', role: 'Řidič autobusu MHD', since: '15. 1. 2016', phone: '+420 603 221 740', lineId: 'L2', busId: 'vb2', tele: { fuel: 'CNG', km: 4000, cons: 46, ref: 47, accel: 1, brake: 1, start: 1, overrev: 0, speeding: 0, idle: 18, heater: 30, heaterL: 12 } },
+  { id: 'bd3', name: 'Roman Čížek', role: 'Řidič autobusu MHD', since: '7. 4. 2019', phone: '+420 605 909 332', lineId: 'L3', busId: 'vb3', tele: { fuel: 'Diesel', km: 4500, cons: 40, ref: 37, accel: 5, brake: 6, start: 4, overrev: 2, speeding: 2, idle: 48, heater: 100, heaterL: 40 } },
+  { id: 'bd4', name: 'Jiří Vaněk', role: 'Řidič autobusu MHD', since: '20. 11. 2014', phone: '+420 602 118 905', lineId: 'L4', busId: 'vb4', tele: { fuel: 'Diesel', km: 4300, cons: 38.4, ref: 37.5, accel: 3, brake: 3, start: 2, overrev: 1, speeding: 1, idle: 32, heater: 60, heaterL: 22 } },
+  { id: 'bd5', name: 'Michal Kolář', role: 'Řidič kloubového autobusu', since: '2. 6. 2011', phone: '+420 604 660 214', lineId: 'L5', busId: 'vb5', tele: { fuel: 'Diesel', km: 5000, cons: 44, ref: 43, accel: 4, brake: 4, start: 3, overrev: 2, speeding: 2, idle: 40, heater: 80, heaterL: 30 } },
+  { id: 'bd6', name: 'Stanislav Horák', role: 'Řidič linkové dopravy', since: '11. 3. 2009', phone: '+420 607 332 551', lineId: 'L6', busId: 'vb6', tele: { fuel: 'Diesel', km: 9000, cons: 28.5, ref: 28, accel: 2, brake: 2, start: 1, overrev: 1, speeding: 2, idle: 22, heater: 30, heaterL: 15 } },
+]
+
+const _bus = (id, plate, brand, model, year, fuel, seats, druh, power, engine, weight, mileage, lineId, driverId, tele, fin) => ({
+  id, plate, brand, model, year, driver: (busDrivers.find((d) => d.id === driverId) || {}).name || '—',
+  fleet: 'f_bus', insurer: '—', status: 'active', premium: 0, renewal: '—', fuel,
+  vin: 'DEMO' + id.toUpperCase().padStart(6, '0') + 'BUS', mileage, value: '—', druh,
+  tp: 'CB' + (100000 + parseInt(id.replace(/\D/g, ''), 10) * 137), power, engine, weight, seats: String(seats),
+  firstReg: '1. 3. ' + year, povLimit: '100/100 mil. Kč', order: id,
+  cov: { pov: true, hav: true, skla: true, asist: true, zavaz: false },
+  prihlaska: '#' + id, territory: 'Česká republika',
+  financing: fin || { active: false, type: 'own', typeLabel: 'Vlastní zdroje', owner: 'Autobusová divize' },
+  isBus: true, lineId, tele,
+})
+
+export const busVehicles = [
+  _bus('vb1', '6C2 4471', 'SOR', 'NS 12 City', 2021, 'Diesel', 29, 'autobus městský', '210 kW', '6871 ccm', '11 900 kg', '318 400 km', 'L1', 'bd1', busDrivers[0].tele),
+  _bus('vb2', '6C3 1180', 'SOR', 'NBG 12 (CNG)', 2022, 'CNG', 31, 'autobus městský', '207 kW', '7790 ccm', '12 100 kg', '241 700 km', 'L2', 'bd2', busDrivers[1].tele),
+  _bus('vb3', '5C9 7732', 'Mercedes-Benz', 'Citaro', 2019, 'Diesel', 32, 'autobus městský', '220 kW', '7700 ccm', '12 000 kg', '512 050 km', 'L3', 'bd3', busDrivers[2].tele),
+  _bus('vb4', '6C5 2206', 'Iveco', 'Urbanway 12M', 2020, 'Diesel', 28, 'autobus městský', '228 kW', '7800 ccm', '11 800 kg', '402 900 km', 'L4', 'bd4', busDrivers[3].tele),
+  _bus('vb5', '6C1 8890', 'SOR', 'NS 18 (kloubový)', 2021, 'Diesel', 45, 'autobus městský kloubový', '235 kW', '7700 ccm', '18 200 kg', '366 300 km', 'L5', 'bd5', busDrivers[4].tele),
+  _bus('vb6', '7C0 3345', 'Iveco', 'Crossway LE', 2023, 'Diesel', 45, 'autobus linkový', '243 kW', '6700 ccm', '13 500 kg', '198 600 km', 'L6', 'bd6', busDrivers[5].tele, { active: true, type: 'operating_lease', typeLabel: 'Operativní leasing', provider: 'ČSOB Leasing', owner: 'Autobusová divize' }),
+  _bus('vb7', '6C4 5519', 'SOR', 'BN 12 (CNG)', 2018, 'CNG', 27, 'autobus městský', '206 kW', '7790 ccm', '11 950 kg', '588 200 km', null, null, { fuel: 'CNG', km: 3800, cons: 48.5, ref: 47, accel: 4, brake: 5, start: 3, overrev: 2, speeding: 1, idle: 44, heater: 90, heaterL: 34 }),
+  _bus('vb8', '8C1 2077', 'SOR', 'NS 12 electric', 2024, 'Elektro', 29, 'autobus městský', '160 kW', '— (BEV)', '13 200 kg', '64 800 km', null, null, { fuel: 'Elektro', km: 3600, cons: 128, ref: 120, accel: 2, brake: 2, start: 1, overrev: 0, speeding: 0, idle: 10, heater: 70, heaterL: 0 }),
+]
+
+// Zařadit autobusy a jejich park do hlavních datasetů (řidiči zůstávají
+// samostatně v busDrivers, aby nekolidovali se strukturou driversData).
+vehiclesData.push(...busVehicles)
+fleetsData.push(busFleet)
+
+export const linesData = [
+  { id:'L1', no:'7', name:'Máj (A. Barcala) – Boršov nad Vltavou', agency:'Dopravní podnik města České Budějovice, a.s.', tripsDay:233, firstDep:'04:21', lastDep:'05:51', busId:'vb1', driverId:'bd1',
+    departures:['04:21', '04:35', '04:36', '04:39', '04:51', '04:53', '05:02', '05:06', '05:12', '05:23', '05:26', '05:27', '05:41', '05:51'],
+    stops:[{n:'Boršov nad Vltavou, Březí',t:'06:59'}, {n:'Boršov nad Vltavou, U Mostu',t:'07:01'}, {n:'Boršov nad Vltavou, Podjezd',t:'07:02'}, {n:'Boršov nad Vltavou, železniční stanice',t:'07:04'}, {n:'Včelná, Točna',t:'07:07'}, {n:'Včelná, Jiráskova',t:'07:08'}, {n:'Včelná',t:'07:09'}, {n:'Včelná, Pod Tratí',t:'07:10'}, {n:'České Budějovice, Hrnčířská',t:'07:12'}, {n:'České Budějovice, Rožnov',t:'07:13'}, {n:'České Budějovice, náměstí Bratří Čapků',t:'07:14'}, {n:'České Budějovice, Antala Staška',t:'07:15'}, {n:'České Budějovice, Jana Buděšínského',t:'07:16'}, {n:'České Budějovice, Šumavská',t:'07:18'}, {n:'České Budějovice, Samson',t:'07:19'}, {n:'České Budějovice, Poliklinika Jih',t:'07:20'}, {n:'České Budějovice, KOH-I-NOOR-U Vodárny',t:'07:23'}, {n:'České Budějovice, Stromovka',t:'07:25'}, {n:'České Budějovice, Výstaviště',t:'07:28'}, {n:'České Budějovice, Vysokoškolské koleje',t:'07:30'}, {n:'České Budějovice, Jihočeská univerzita',t:'07:31'}, {n:'České Budějovice, Dubenská',t:'07:33'}, {n:'České Budějovice, Jaroslava Bendy',t:'07:35'}, {n:'České Budějovice, Máj-Antonína Barcala',t:'07:36'}] },
+  { id:'L2', no:'1', name:'Haklovy Dvory – Hlincová Hora', agency:'Dopravní podnik města České Budějovice, a.s.', tripsDay:318, firstDep:'04:15', lastDep:'05:25', busId:'vb2', driverId:'bd2',
+    departures:['04:15', '04:19', '04:23', '04:33', '04:35', '04:53', '04:59', '05:04', '05:08', '05:10', '05:14', '05:18', '05:23', '05:25'],
+    stops:[{n:'České Budějovice, Haklovy Dvory',t:'06:35'}, {n:'České Budějovice, Haklovy Dvory-křižovatka',t:'06:38'}, {n:'České Budějovice, Zavadilka',t:'06:40'}, {n:'České Budějovice, Zavadilka-zahrádky',t:'06:41'}, {n:'České Budějovice, Máj-Milady Horákové',t:'06:43'}, {n:'České Budějovice, Václava Talicha',t:'06:45'}, {n:'České Budějovice, Evžena Rošického',t:'06:46'}, {n:'České Budějovice, U parku',t:'06:47'}, {n:'České Budějovice, Výstaviště',t:'06:49'}, {n:'České Budějovice, U Zelené ratolesti',t:'06:52'}, {n:'České Budějovice, Poliklinika Sever',t:'06:54'}, {n:'České Budějovice, Senovážné náměstí-pošta',t:'06:56'}, {n:'České Budějovice, U Koníčka',t:'06:58'}, {n:'České Budějovice, Nádraží',t:'07:00'}, {n:'České Budějovice, Dobrovodská',t:'07:03'}, {n:'České Budějovice, Madeta',t:'07:04'}, {n:'České Budějovice, Rozcestí Hlinsko',t:'07:05'}, {n:'České Budějovice, Nové Vráto',t:'07:07'}, {n:'České Budějovice, Nové Vráto U pily',t:'07:08'}, {n:'Vráto, Zastávka',t:'07:09'}, {n:'Vráto',t:'07:10'}, {n:'Rudolfov, Rozcestí',t:'07:11'}, {n:'Rudolfov, Hlincohorská',t:'07:13'}, {n:'Rudolfov, Na Americe',t:'07:14'}, {n:'Hlincová Hora, Ke Hřišti',t:'07:17'}, {n:'Hlincová Hora, Východní',t:'07:18'}] },
+  { id:'L3', no:'6', name:'Hrdějovice – Dobrá Voda', agency:'Dopravní podnik města České Budějovice, a.s.', tripsDay:266, firstDep:'04:16', lastDep:'05:28', busId:'vb3', driverId:'bd3',
+    departures:['04:16', '04:17', '04:22', '04:30', '04:31', '04:59', '05:08', '05:10', '05:13', '05:16', '05:23', '05:26', '05:27', '05:28'],
+    stops:[{n:'Hrdějovice, Točna',t:'04:22'}, {n:'Hrdějovice, Těšínská',t:'04:23'}, {n:'Hrdějovice, Náves',t:'04:25'}, {n:'Hrdějovice, U Školy',t:'04:26'}, {n:'České Budějovice, Kněžské Dv. sokolovna',t:'04:27'}, {n:'České Budějovice, Kněžské Dv. točna',t:'04:29'}, {n:'České Budějovice, Kněžské Dv. škola',t:'04:30'}, {n:'České Budějovice, Motor Jikov',t:'04:31'}, {n:'České Budějovice, Kněžskodvorská',t:'04:32'}, {n:'České Budějovice, Suchomelská',t:'04:33'}, {n:'České Budějovice, Strakonická-obchodní zóna',t:'04:35'}, {n:'České Budějovice, U Trojice',t:'04:36'}, {n:'České Budějovice, Družba-IGY',t:'04:37'}, {n:'České Budějovice, Mariánské náměstí',t:'04:38'}, {n:'České Budějovice, Poliklinika Sever',t:'04:40'}, {n:'České Budějovice, Senovážné náměstí-pošta',t:'04:42'}, {n:'České Budějovice, U Koníčka',t:'04:44'}, {n:'České Budějovice, Nádraží',t:'04:50'}, {n:'České Budějovice, Vrbenská',t:'04:53'}, {n:'České Budějovice, Tiskárny',t:'04:55'}, {n:'České Budějovice, Dubičný potok',t:'04:56'}, {n:'České Budějovice, Pekárny',t:'04:57'}, {n:'České Budějovice, Hraniční',t:'04:58'}, {n:'České Budějovice, Kovárna',t:'04:59'}, {n:'České Budějovice, Zvonárna',t:'05:00'}, {n:'Dobrá Voda u Českých Budějovic, U Křížku',t:'05:01'}, {n:'Dobrá Voda u Českých Budějovic, Domov důchodců',t:'05:02'}, {n:'Dobrá Voda u Českých Budějovic, U kapličky',t:'05:03'}, {n:'Dobrá Voda u Českých Budějovic, Točna',t:'05:04'}] },
+  { id:'L4', no:'13', name:'Papírenská – Srubec', agency:'Dopravní podnik města České Budějovice, a.s.', tripsDay:208, firstDep:'04:10', lastDep:'06:09', busId:'vb4', driverId:'bd4',
+    departures:['04:10', '04:30', '04:35', '04:50', '05:09', '05:11', '05:20', '05:23', '05:24', '05:35', '05:49', '05:50', '06:08', '06:09'],
+    stops:[{n:'Srubec, Na Štětkách',t:'05:11'}, {n:'Srubec, Točna MHD',t:'05:16'}, {n:'Srubec, Náves',t:'05:17'}, {n:'Srubec, Na Vyhlídce',t:'05:18'}, {n:'Srubec, U školy',t:'05:19'}, {n:'Srubec, U Naděje',t:'05:20'}, {n:'Srubec, Stará Pohůrka',t:'05:21'}, {n:'České Budějovice, Pohůrka-kulturní dům',t:'05:22'}, {n:'České Budějovice, Pohůrka-U Křížku',t:'05:23'}, {n:'České Budějovice, Želivského',t:'05:24'}, {n:'České Budějovice, Edvarda Beneše',t:'05:25'}, {n:'České Budějovice, Pětidomí',t:'05:26'}, {n:'České Budějovice, Vrbenská',t:'05:28'}, {n:'České Budějovice, Nádraží',t:'05:31'}, {n:'České Budějovice, U Koníčka',t:'05:32'}, {n:'České Budějovice, Metropol',t:'05:34'}, {n:'České Budějovice, U Zimního stadionu',t:'05:36'}, {n:'České Budějovice, Grünwaldova',t:'05:38'}, {n:'České Budějovice, Jánská',t:'05:39'}, {n:'České Budějovice, Šumavská',t:'05:40'}, {n:'České Budějovice, Papírenská',t:'05:41'}, {n:'České Budějovice, Papírenská-točna',t:'05:43'}] },
+  { id:'L5', no:'11', name:'Staré Hodějovice – Pražské sídliště', agency:'Dopravní podnik města České Budějovice, a.s.', tripsDay:192, firstDep:'04:05', lastDep:'05:59', busId:'vb5', driverId:'bd5',
+    departures:['04:05', '04:10', '04:33', '05:00', '05:06', '05:13', '05:25', '05:26', '05:32', '05:35', '05:42', '05:45', '05:47', '05:59'],
+    stops:[{n:'Staré Hodějovice, Náves',t:'07:32'}, {n:'Staré Hodějovice, Zastávka',t:'07:33'}, {n:'České Budějovice, Nové Hodějovice, točna',t:'07:34'}, {n:'České Budějovice, Nové Hodějovice',t:'07:36'}, {n:'České Budějovice, Nové Hodějovice, Za hřbitovem',t:'07:37'}, {n:'České Budějovice, Mladé-točna',t:'07:39'}, {n:'České Budějovice, Družstevní dům',t:'07:40'}, {n:'České Budějovice, Dopravní podnik',t:'07:42'}, {n:'České Budějovice, Průmyslová',t:'07:44'}, {n:'České Budějovice, U Koníčka',t:'07:45'}, {n:'České Budějovice, Nádraží',t:'07:46'}, {n:'České Budějovice, Jeronýmova',t:'07:49'}, {n:'České Budějovice, Poliklinika Sever',t:'07:51'}, {n:'České Budějovice, Mariánské náměstí',t:'07:53'}, {n:'České Budějovice, Družba-IGY',t:'07:54'}, {n:'České Budějovice, Strakonická-obchodní zóna',t:'07:57'}, {n:'České Budějovice, Průběžná',t:'07:59'}, {n:'České Budějovice, Pražské sídliště',t:'08:01'}, {n:'České Budějovice, Čéčova',t:'08:02'}, {n:'České Budějovice, U Trojice',t:'08:04'}, {n:'České Budějovice, Družba-IGY',t:'08:06'}, {n:'České Budějovice, Mariánské náměstí',t:'08:07'}, {n:'České Budějovice, Poliklinika Sever',t:'08:09'}, {n:'České Budějovice, Jeronýmova',t:'08:12'}, {n:'České Budějovice, Nádraží',t:'08:15'}, {n:'České Budějovice, U Koníčka',t:'08:16'}, {n:'České Budějovice, Průmyslová',t:'08:17'}, {n:'České Budějovice, Dopravní podnik',t:'08:19'}, {n:'České Budějovice, Družstevní dům',t:'08:21'}, {n:'České Budějovice, Mladé-točna',t:'08:22'}, {n:'České Budějovice, Nové Hodějovice, Za hřbitovem',t:'08:23'}, {n:'České Budějovice, Nové Hodějovice',t:'08:25'}, {n:'České Budějovice, Nové Hodějovice, točna',t:'08:27'}, {n:'Staré Hodějovice, Zastávka',t:'08:28'}, {n:'Staré Hodějovice, Náves',t:'08:29'}] },
+  { id:'L6', no:'300', name:'Jindřichův Hradec-Třeboň-České Budějovice', agency:'ČSAD AUTOBUSY České Budějovice a.s.', tripsDay:144, firstDep:'04:00', lastDep:'06:55', busId:'vb6', driverId:'bd6',
+    departures:['04:00', '04:45', '04:55', '05:01', '05:05', '05:16', '05:20', '05:25', '05:26', '06:06', '06:25', '06:26', '06:48', '06:55'],
+    stops:[{n:'Jindřichův Hradec, Pravdova',t:'13:20'}, {n:'Jindřichův Hradec, nábřeží',t:'13:23'}, {n:'Jindřichův Hradec, U Václava',t:'13:25'}, {n:'Jindřichův Hradec, OC Hvězdárna',t:'13:26'}, {n:'Jindřichův Hradec, Horní Žďár, pískovna',t:'13:28'}, {n:'Jindřichův Hradec, Horní Žďár, hostinec',t:'13:29'}, {n:'Dolní Žďár',t:'13:31'}, {n:'Dolní Žďár, Horní Lhota, rozcestí 0.2',t:'13:32'}, {n:'Dolní Žďár, Lipovská Bašta',t:'13:33'}, {n:'Lásenice',t:'13:34'}, {n:'Stráž nad Nežárkou, Dolní Lhota',t:'13:37'}, {n:'Stráž nad Nežárkou, náměstí',t:'13:42'}, {n:'Novosedly nad Nežárkou, Mláka, Velká',t:'13:47'}, {n:'Třeboň, Stará Hlína',t:'13:51'}, {n:'Třeboň, Nová Hlína',t:'13:53'}, {n:'Třeboň, autobusové nádraží',t:'14:00'}, {n:'Třeboň, železniční stanice',t:'14:05'}, {n:'Třeboň, Táboritská',t:'14:07'}, {n:'Třeboň, Dvorce, lihovar',t:'14:10'}, {n:'Štěpánovice, Vranín',t:'14:14'}, {n:'Štěpánovice, rozcestí Slavošovice 4.0',t:'14:15'}, {n:'Štěpánovice',t:'14:18'}, {n:'Lišov, Dolní',t:'14:22'}, {n:'Lišov, náměstí Míru',t:'14:25'}, {n:'Lišov, Horní',t:'14:26'}, {n:'České Budějovice, Nerudova',t:'14:39'}, {n:'České Budějovice, Skuherského',t:'14:41'}, {n:'České Budějovice, autobusové nádraží',t:'14:45'}] },
 ]
