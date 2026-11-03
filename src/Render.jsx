@@ -290,18 +290,44 @@ export default function Render({ vm }) {
             {ic('bell', 18)}
             <span style={S('position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--star);color:#fff;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #fff')}>2</span>
           </Hov>
-          <Hov base="display:flex;align-items:center;gap:10px;cursor:pointer;flex-shrink:0;height:42px;padding:0 6px 0 4px;border-radius:13px;transition:background .15s ease" hover="background:var(--canvas)">
-            <div style={S('width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#4F6FFF,#6D5EF6);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px -3px rgba(79,111,255,.5)')}>MK</div>
-            {!mob && (
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <Hov onClick={vm.toggleRoleMenu} base={`display:flex;align-items:center;gap:10px;cursor:pointer;height:42px;padding:0 10px 0 4px;border-radius:13px;border:1px solid ${vm.roleMenu ? 'var(--blue)' : 'transparent'};transition:background .15s ease,border-color .15s ease`} hover="background:var(--canvas)">
+              <div style={S('width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#4F6FFF,#6D5EF6);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px -3px rgba(79,111,255,.5)')}>{vm.currentUser.initials}</div>
+              {!mob && (
+                <>
+                  <div style={S('line-height:1.2;text-align:left')}>
+                    <div style={S('font-size:13.5px;font-weight:600;white-space:nowrap')}>{vm.currentUser.name}</div>
+                    <div style={S('font-size:11.5px;color:var(--blue-ink);font-weight:600')}>{vm.roleObj.short}</div>
+                  </div>
+                  <span style={S(`display:flex;color:var(--ink3);transition:transform .15s ease;transform:rotate(${vm.roleMenu ? '180deg' : '0'})`)}>{ic('chevron', 16)}</span>
+                </>
+              )}
+            </Hov>
+            {vm.roleMenu && (
               <>
-                <div style={S('line-height:1.2')}>
-                  <div style={S('font-size:13.5px;font-weight:600')}>Martin Kovář</div>
-                  <div style={S('font-size:11.5px;color:var(--ink3)')}>Fleet Manager</div>
+                <div onClick={vm.closeRoleMenu} style={S('position:fixed;inset:0;z-index:1000')}></div>
+                <div style={S(`position:fixed;top:62px;right:20px;z-index:1001;width:320px;background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:0 20px 50px -12px rgba(20,16,50,.32);overflow:hidden;animation:fadeUp .16s ease`)}>
+                  <div style={S('padding:13px 16px 9px;border-bottom:1px solid var(--border)')}>
+                    <div style={S('font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--ink3)')}>Přepnout pohled role</div>
+                    <div style={S('font-size:11.5px;color:var(--ink3);margin-top:3px')}>Každá role vidí portál podle svých priorit.</div>
+                  </div>
+                  {vm.roles.map((r) => {
+                    const on = r.id === vm.role
+                    return (
+                      <Hov key={r.id} onClick={() => vm.setRole(r.id)} base={`display:flex;align-items:flex-start;gap:12px;padding:12px 16px;cursor:pointer;background:${on ? 'var(--blue-soft)' : '#fff'};border-left:3px solid ${on ? 'var(--blue)' : 'transparent'}`} hover={on ? '' : 'background:var(--canvas)'}>
+                        <span style={S(`width:38px;height:38px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${on ? 'linear-gradient(135deg,#4F6FFF,#6D5EF6)' : 'var(--purple-soft)'};color:${on ? '#fff' : 'var(--purple)'}`)}>{ic(r.icon, 18)}</span>
+                        <div style={S('min-width:0;flex:1')}>
+                          <div style={S('display:flex;align-items:center;gap:7px')}><span style={S('font-size:13.5px;font-weight:700')}>{r.short}</span>{on && <span style={S('font-size:10px;font-weight:700;color:var(--blue-ink);background:#fff;border:1px solid var(--blue);padding:1px 6px;border-radius:20px')}>aktivní</span>}</div>
+                          <div style={S('font-size:12px;color:var(--ink2);margin-top:1px')}>{r.name} · {r.title}</div>
+                          <div style={S('font-size:11.5px;color:var(--ink3);margin-top:3px;line-height:1.4')}>{r.desc}</div>
+                        </div>
+                      </Hov>
+                    )
+                  })}
                 </div>
-                <span style={S('display:flex;color:var(--ink3)')}>{ic('chevron', 16)}</span>
               </>
             )}
-          </Hov>
+          </div>
         </header>
 
         {/* CONTENT */}
@@ -334,7 +360,7 @@ export default function Render({ vm }) {
             {vm.isDocumentsDetail && <DocumentsDetail vm={vm} />}
             {vm.isBonifikace && <EmptyState icon="percent" title="Bonifikace se připravuje" sub="Výpočet bonifikace — vrácení části pojistného dle škodního průběhu — se zobrazí po napojení na systém pojišťovny a doplnění pojistného a škodní historie." />}
             {vm.isBonifikaceDetail && <BonifikaceDetail vm={vm} />}
-            {vm.isAnalytics && <EmptyState icon="chart" title="Analytika nákladů se připravuje" sub="Náklady, pojistné, trendy a úspory se zobrazí po napojení portálu na backend. Reálná data o složení vozového parku najdete na Přehledu, ve Vozidlech a Vozových parcích." />}
+            {vm.isAnalytics && <Reporting vm={vm} />}
             {vm.isContacts && <Contacts vm={vm} />}
             {vm.isSettings && <Settings vm={vm} />}
 
@@ -1388,31 +1414,223 @@ function Dashboard({ vm }) {
   const mob = vm.vp.isMobile
   const nav = vm.navigate || (() => {})
   const widgets = (vm.dash || []).filter((w) => w.on)
+  const role = vm.role
+  const sub = role === 'majitel' ? 'Náklady, stáří a návratnost celé flotily' : role === 'dispecer' ? 'Provoz linek, jízdní řády a vyhodnocení řidičů' : 'Provoz, servis a pojištění vozového parku'
   return (
     <div>
       {/* TITLE ROW */}
       <div style={S(`position:relative;margin-bottom:${mob ? '20px' : '26px'}`)}>
-      {!mob && <img src="/hero-buses.png" alt="" aria-hidden="true" style={{ position: 'absolute', top: -58, right: 328, width: 'min(470px,40%)', pointerEvents: 'none', userSelect: 'none', zIndex: 0, filter: 'drop-shadow(0 26px 46px rgba(109,94,246,.30))' }} />}
+      {!mob && role === 'spravce' && <img src="/hero-buses.png" alt="" aria-hidden="true" style={{ position: 'absolute', top: -58, right: 328, width: 'min(470px,40%)', pointerEvents: 'none', userSelect: 'none', zIndex: 0, filter: 'drop-shadow(0 26px 46px rgba(109,94,246,.30))' }} />}
       <div style={S('position:relative;z-index:1;display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap')}>
         <div>
           <h1 style={S(`font-size:${mob ? '28px' : '36px'};font-weight:800;letter-spacing:-1.4px;margin:0;line-height:1.02`)}>Přehled</h1>
-          <div style={S('font-size:14.5px;color:var(--ink2);margin-top:7px')}>Aktuální stav vašeho fleetu</div>
+          <div style={S('font-size:14.5px;color:var(--ink2);margin-top:7px;display:flex;align-items:center;gap:8px;flex-wrap:wrap')}>{sub}<span style={S(`display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--blue-ink);background:var(--blue-soft);padding:2px 9px;border-radius:20px`)}>{vm.roleObj.short}</span></div>
         </div>
         {!mob && (
           <div style={S('display:flex;align-items:center;gap:10px')}>
             <Hov base="display:flex;align-items:center;gap:9px;height:42px;padding:0 15px;background:#fff;border:1px solid var(--border2);border-radius:13px;font-size:13.5px;font-weight:600;color:var(--ink);cursor:pointer" hover="background:var(--canvas)"><span style={S('display:flex;color:var(--ink3)')}>{ic('calendar', 16)}</span> Posledních 12 měsíců <span style={S('display:flex;color:var(--ink3)')}>{ic('chevron', 15)}</span></Hov>
-            <Hov onClick={() => nav('settings')} base="display:flex;align-items:center;gap:8px;height:42px;padding:0 14px;background:#fff;border:1px solid var(--border2);border-radius:13px;font-size:13.5px;font-weight:600;color:var(--ink);cursor:pointer" hover="border:1px solid var(--blue);color:var(--blue)">{ic('settings', 16)} Přizpůsobit</Hov>
+            {role === 'spravce' && <Hov onClick={() => nav('settings')} base="display:flex;align-items:center;gap:8px;height:42px;padding:0 14px;background:#fff;border:1px solid var(--border2);border-radius:13px;font-size:13.5px;font-weight:600;color:var(--ink);cursor:pointer" hover="border:1px solid var(--blue);color:var(--blue)">{ic('settings', 16)} Přizpůsobit</Hov>}
           </div>
         )}
       </div>
       </div>
 
-      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:18px;align-items:stretch`)}>
-        {widgets.map((w) => (
-          <div key={w.id} style={{ gridColumn: (mob || w.w === 'full') ? '1 / -1' : 'auto', minWidth: 0 }}>
-            <DashWidget id={w.id} vm={vm} nav={nav} />
+      {role === 'majitel' ? <OwnerDashboard vm={vm} /> : role === 'dispecer' ? <DispatchDashboard vm={vm} /> : (
+        <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:18px;align-items:stretch`)}>
+          {widgets.map((w) => (
+            <div key={w.id} style={{ gridColumn: (mob || w.w === 'full') ? '1 / -1' : 'auto', minWidth: 0 }}>
+              <DashWidget id={w.id} vm={vm} nav={nav} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ---- MAJITEL dashboard: TCO, stáří, náklady podle parku, příležitosti ---- */
+function OwnerDashboard({ vm }) {
+  const mob = vm.vp.isMobile
+  const d = vm.ownerDash
+  if (!d) return null
+  return (
+    <div>
+      <KpiRow items={d.kpis} mb="18px" featuredFirst />
+      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:18px;align-items:start`)}>
+        <div style={S(`${CARD};padding:22px`)}>
+          <CardHead icon="banknote" title="Provozní náklady podle kategorie" sub="Modelový odhad za 12 měsíců · bez pojistného" />
+          <BarBreakdown items={d.catItems} />
+        </div>
+        <div style={S(`${CARD};padding:22px`)}>
+          <CardHead icon="fleets" color="var(--blue)" title="Náklady podle parku" sub="Kde se tvoří náklady flotily" />
+          <BarBreakdown items={d.parkItems} />
+        </div>
+        <div style={S(`${CARD};padding:22px`)}>
+          <CardHead icon="calendar" color="#F59E0B" title="Stáří flotily" sub={`Počet vozidel podle věku`} />
+          <BarBreakdown items={d.ages} />
+        </div>
+        <div style={S(`${CARD};padding:22px`)}>
+          <CardHead icon="car" color="var(--star)" title="Nejnákladnější vozidla" sub="Kandidáti na obměnu" />
+          {d.topVeh.map((v, i) => (
+            <Hov key={v.id} onClick={v.onClick} base={`display:flex;align-items:center;gap:12px;padding:10px 10px;border-radius:12px;cursor:pointer${i ? ';margin-top:2px' : ''}`} hover="background:var(--canvas)">
+              <span style={S('width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--star-soft);color:var(--star);font-size:12px;font-weight:800')}>{i + 1}</span>
+              <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{v.name}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{v.plate} · r. {v.year}</div></div>
+              <span style={S('font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap')}>{v.totalF}</span>
+            </Hov>
+          ))}
+        </div>
+      </div>
+      <div style={S(`${CARD};padding:22px;margin-top:18px`)}>
+        <div style={S('display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap')}>
+          <CardHead icon="sparkle" color="var(--green)" title="Příležitosti a doporučení" sub="Kde ušetřit a na co se zaměřit" />
+          <Hov onClick={d.goReport} base="display:flex;align-items:center;gap:7px;height:38px;padding:0 15px;background:linear-gradient(135deg,#5B6BF5,#7A5CF8);color:#fff;border-radius:11px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 8px 18px -8px rgba(108,94,246,.7)" hover="transform:translateY(-1px)">Otevřít reporting {ic('arrow', 14)}</Hov>
+        </div>
+        <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr 1fr'};gap:12px`)}>
+          {d.recs.map((r, i) => <InsightNote key={i} title={r.title} sub={r.sub} icon={r.icon} color={r.color} />)}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ---- DISPEČER dashboard: linky, anomálie, řidiči ---- */
+function DispatchDashboard({ vm }) {
+  const mob = vm.vp.isMobile
+  const d = vm.dispatchDash
+  if (!d) return null
+  const anBadge = (n) => n === 0
+    ? <span style={S('font-size:11.5px;font-weight:700;color:var(--green);background:var(--green-soft);padding:3px 9px;border-radius:20px')}>v pořádku</span>
+    : <span style={S('font-size:11.5px;font-weight:700;color:var(--star);background:var(--star-soft);padding:3px 9px;border-radius:20px')}>{n} {n === 1 ? 'anomálie' : n < 5 ? 'anomálie' : 'anomálií'}</span>
+  return (
+    <div>
+      <KpiRow items={d.kpis} mb="18px" featuredFirst />
+      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1.5fr 1fr'};gap:18px;align-items:start`)}>
+        <div style={S(`${CARD};padding:22px`)}>
+          <div style={S('display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap')}>
+            <CardHead icon="pin" color="var(--blue)" title="Linky dnes" sub="Dodržení jízdního řádu a anomálie" />
+            <Hov onClick={d.goLinky} base="font-size:13px;font-weight:600;color:var(--blue-ink);cursor:pointer;display:flex;align-items:center;gap:5px" hover="color:var(--blue)">Všechny linky {ic('arrow', 14)}</Hov>
           </div>
-        ))}
+          {d.rows.map((r, i) => (
+            <Hov key={r.id} onClick={r.onClick} base={`display:flex;align-items:center;gap:12px;padding:11px 10px;border-radius:12px;cursor:pointer;border-top:${i ? '1px solid var(--border)' : 'none'}`} hover="background:var(--canvas)">
+              <span style={S('min-width:42px;height:28px;padding:0 9px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#18181B;color:#fff;font-size:13px;font-weight:800')}>{r.no}</span>
+              <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{r.name}</div><div style={S('font-size:11.5px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{r.driver} · {r.bus}</div></div>
+              <span style={S(`font-size:13.5px;font-weight:800;font-variant-numeric:tabular-nums;color:${r.onTimeColor};flex-shrink:0`)}>{r.onTimePct} %</span>
+              <span style={{ flexShrink: 0 }}>{anBadge(r.anomalies)}</span>
+            </Hov>
+          ))}
+        </div>
+        <div style={S('display:flex;flex-direction:column;gap:18px')}>
+          <div style={S(`${CARD};padding:22px`)}>
+            <CardHead icon="alert" color="var(--star)" title="Vyžaduje pozornost" sub="Linky s anomáliemi dnes" />
+            {d.anomalyLines.length === 0 ? <div style={S('font-size:13px;color:var(--ink3);padding:8px 2px')}>Žádné anomálie. Provoz jede podle jízdních řádů.</div> : d.anomalyLines.map((r, i) => (
+              <Hov key={r.id} onClick={r.onClick} base={`display:flex;align-items:center;gap:11px;padding:10px 10px;border-radius:11px;cursor:pointer${i ? ';margin-top:2px' : ''}`} hover="background:var(--canvas)">
+                <span style={S('width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--star-soft);color:var(--star)')}>{ic('alert', 16)}</span>
+                <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:650')}>Linka {r.no}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{r.skips ? r.skips + '× vynecháno · ' : ''}{r.maxDelay > 5 ? 'max +' + r.maxDelay + ' min' : 'styl jízdy'}</div></div>
+                {anBadge(r.anomalies)}
+              </Hov>
+            ))}
+          </div>
+          <div style={S(`${CARD};padding:22px`)}>
+            <div style={S('display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px')}>
+              <CardHead icon="gauge" color="var(--green)" title="Řidiči" sub="Eco-skóre dnes" />
+              <Hov onClick={d.goEco} base="font-size:13px;font-weight:600;color:var(--blue-ink);cursor:pointer;display:flex;align-items:center;gap:5px" hover="color:var(--blue)">Žebříček {ic('arrow', 14)}</Hov>
+            </div>
+            {[...d.driverTop.map((x) => ({ ...x, top: true })), ...d.driverBottom.map((x) => ({ ...x, top: false }))].map((x, i) => (
+              <div key={x.id} style={S(`display:flex;align-items:center;gap:11px;padding:9px 6px${i ? ';border-top:1px solid var(--border)' : ''}`)}>
+                <span style={S(`width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${x.band.bg};color:${x.band.color};font-size:12px;font-weight:800`)}>{x.score}</span>
+                <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{x.name}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>Linka {x.line} · {x.bus}</div></div>
+                <span style={S(`font-size:11.5px;font-weight:700;color:${x.band.color};background:${x.band.bg};padding:3px 9px;border-radius:20px;flex-shrink:0`)}>{x.band.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ============================ REPORTING ============================ */
+function Reporting({ vm }) {
+  const mob = vm.vp.isMobile
+  const r = vm.reporting
+  if (!r) return null
+  const trendMax = r.trend
+  return (
+    <div>
+      <KpiRow items={r.anKpis} mb="20px" featuredFirst />
+
+      {/* plán vs. skutečnost */}
+      <div style={S(`${CARD};padding:22px;margin-bottom:18px;background:linear-gradient(135deg,#F1ECFF 0%,#FBFAFF 60%);border:1px solid rgba(109,94,246,.2)`)}>
+        <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr 1fr'};gap:18px`)}>
+          <div><div style={S('font-size:12px;color:var(--ink3);font-weight:600')}>Rozpočet (plán)</div><div style={S('font-size:26px;font-weight:800;letter-spacing:-1px;margin-top:4px')}>{r.planVsReal.planF}</div></div>
+          <div><div style={S('font-size:12px;color:var(--ink3);font-weight:600')}>Skutečnost</div><div style={S('font-size:26px;font-weight:800;letter-spacing:-1px;margin-top:4px')}>{r.planVsReal.realF}</div></div>
+          <div><div style={S('font-size:12px;color:var(--ink3);font-weight:600')}>Úspora oproti plánu</div><div style={S('font-size:26px;font-weight:800;letter-spacing:-1px;margin-top:4px;color:var(--green)')}>{r.planVsReal.savedF} <span style={S('font-size:14px;font-weight:700')}>· {r.planVsReal.savedPct} %</span></div></div>
+        </div>
+      </div>
+
+      {/* trend 12 měsíců */}
+      <div style={S(`${CARD};padding:22px;margin-bottom:18px`)}>
+        <CardHead icon="trend" title="Provozní náklady v čase" sub={`Posledních 12 měsíců · celkem najeto ${r.kmTotalF}`} />
+        <div style={S(`display:flex;align-items:flex-end;gap:${mob ? '5px' : '12px'};height:160px;padding-top:10px`)}>
+          {trendMax.map((m, i) => (
+            <div key={i} style={S('flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;height:100%')}>
+              <div style={S('flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center')}>
+                <div title={m.value} style={S(`width:${mob ? '70%' : '62%'};height:${m.h};border-radius:7px 7px 3px 3px;background:linear-gradient(180deg,#B7A6FC 0%,#8E79F8 45%,#6D5EF6 100%);min-height:6px`)}></div>
+              </div>
+              <span style={S('font-size:10.5px;color:var(--ink3);font-weight:600')}>{m.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* breakdowns */}
+      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:18px;align-items:start;margin-bottom:18px`)}>
+        <div style={S(`${CARD};padding:22px`)}>
+          <CardHead icon="banknote" title="Náklady podle kategorie" sub="Z čeho se skládají provozní náklady" />
+          <BarBreakdown items={r.catItems} />
+        </div>
+        <div style={S(`${CARD};padding:22px`)}>
+          <CardHead icon="fleets" color="var(--blue)" title="Náklady podle parku" sub="Srovnání lokalit" />
+          <BarBreakdown items={r.parkItems} />
+        </div>
+        <div style={S(`${CARD};padding:22px`)}>
+          <CardHead icon="bus" color="#6D5EF6" title="Náklady podle typu vozidla" sub="Kde flotila utrácí nejvíc" />
+          <BarBreakdown items={r.typeItems} />
+        </div>
+        <div style={S(`${CARD};padding:22px`)}>
+          <CardHead icon="calendar" color="#F59E0B" title="Stáří flotily" sub="Počet vozidel podle věku" />
+          <BarBreakdown items={r.ages} />
+        </div>
+      </div>
+
+      {/* nejnákladnější vozidla */}
+      <div style={S(`${CARD};padding:22px;margin-bottom:18px`)}>
+        <CardHead icon="car" color="var(--star)" title="Nejnákladnější vozidla" sub="Modelové roční provozní náklady · kandidáti na obměnu" />
+        <div style={S('overflow-x:auto')}>
+          <div style={S('min-width:520px')}>
+            <div style={S('display:flex;align-items:center;gap:14px;padding:9px 10px;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border)')}>
+              <div style={S('width:28px')}></div><div style={S('flex:1')}>Vozidlo</div><div style={S('width:90px')}>Typ</div><div style={S('width:90px;text-align:right')}>Nájezd</div><div style={S('width:110px;text-align:right')}>Náklady / rok</div>
+            </div>
+            {r.topVeh.map((v, i) => (
+              <Hov key={v.id} onClick={v.onClick} base="display:flex;align-items:center;gap:14px;padding:11px 10px;border-bottom:1px solid var(--border);cursor:pointer" hover="background:var(--canvas)">
+                <span style={S('width:28px;height:28px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--star-soft);color:var(--star);font-size:12px;font-weight:800')}>{i + 1}</span>
+                <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{v.name}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{v.plate} · r. {v.year}</div></div>
+                <div style={S('width:90px;font-size:12.5px;color:var(--ink2)')}>{v.cat}</div>
+                <div style={S('width:90px;text-align:right;font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums')}>{v.kmF}</div>
+                <div style={S('width:110px;text-align:right;font-size:13.5px;font-weight:800;font-variant-numeric:tabular-nums')}>{v.totalF}</div>
+              </Hov>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* doporučení */}
+      <div style={S(`${CARD};padding:22px`)}>
+        <CardHead icon="sparkle" color="var(--green)" title="Příležitosti a doporučení" sub="Kde ušetřit a na co se zaměřit" />
+        <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr 1fr'};gap:12px`)}>
+          {r.recs.map((x, i) => <InsightNote key={i} title={x.title} sub={x.sub} icon={x.icon} color={x.color} />)}
+        </div>
+        <div style={S('font-size:11.5px;color:var(--ink3);margin-top:16px;line-height:1.5')}>Provozní náklady jsou modelový odhad z typu vozidla, stáří, paliva a odhadovaného nájezdu. Po napojení telematiky a účetnictví je nahradí reálná data. Pojistné a škodní průběh doplní napojení na pojišťovnu.</div>
       </div>
     </div>
   )

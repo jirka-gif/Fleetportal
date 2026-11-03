@@ -5,6 +5,7 @@ import {
   insurersData, brandsData, fleetsData, vehiclesData, claimsData, greenCards, driversData,
   statusMeta, claimStatusMeta, fleetName, statusChip, vehicleTypeCat, vehicleTypeOrder, vehicleStk, vehicleVignette, leasingPartners,
   linesData, busDrivers, ecoScore, ecoBand, ecoSavings, heaterCost, NAFTA_CZK,
+  vehicleAnnualCost, vehicleAgeBand, vehicleAgeBandOrder,
 } from './data.js'
 
 const ic = (name, size = 18, sw = 1.8) => <Icon name={name} size={size} sw={sw} />
@@ -360,9 +361,20 @@ const nextAnniv = (start, today) => { const d = parseCz(start); let c = new Date
 const BROKER = { name: 'Petrisk a.s.', role: 'Pojišťovací makléř', reg: 'ČNB, reg. č. 197542PM', ico: '264 18 920', person: 'Martin Kovář', email: 'martin.kovar@petrisk.cz', phone: '+420 222 119 350' }
 const POJISTNIK = { name: 'ČSAD AUTOBUSY České Budějovice a.s.', ico: '26060451' }
 
+// Role (persony) — každá vidí portál svýma očima. Přepínání v topbaru.
+const ROLES = [
+  { id: 'majitel', name: 'Ing. Pavel Šimek', title: 'Ředitel společnosti', initials: 'PŠ', short: 'Majitel / ředitel',
+    desc: 'Strategie, náklady a návratnost celé flotily.', icon: 'trend' },
+  { id: 'spravce', name: 'Josef Moučka', title: 'Vedoucí správy vozového parku', initials: 'JM', short: 'Správce parku',
+    desc: 'Provoz, servis, STK, pojištění a škody.', icon: 'wrench' },
+  { id: 'dispecer', name: 'Marie Dvořáková', title: 'Vedoucí dopravního dispečinku', initials: 'MD', short: 'Dispečer',
+    desc: 'Linky, jízdní řády, řidiči a anomálie provozu.', icon: 'pin' },
+]
+
 export default function FleetPortal() {
   const [state, setStateRaw] = useState(() => ({
     dash: loadDash(), kpi: loadKpi(),
+    role: 'majitel', roleMenu: false,
     route: 'dashboard',
     fleetId: 'f1', vehicleId: 'v1',
     fleetTab: 'overview', vehicleTab: 'overview', fleetsView: 'grid', finTab: 'prehled', rfq: null, rfqs: SEED_RFQS,
@@ -405,7 +417,9 @@ export default function FleetPortal() {
   const allFleets = [...fleetsData, ...state.newFleets]
 
   // ---------- ACTIONS ----------
-  const navigate = (route, patch) => setState({ route, ...(patch || {}), search: false, notif: false, companyMenu: false, sidebar: false })
+  const navigate = (route, patch) => setState({ route, ...(patch || {}), search: false, notif: false, companyMenu: false, sidebar: false, roleMenu: false })
+  const setRole = (id) => setState({ role: id, roleMenu: false, route: 'dashboard', search: false, notif: false })
+  const toggleRoleMenu = () => setState((s) => ({ roleMenu: !s.roleMenu, notif: false, companyMenu: false }))
   const openFleet = (id) => navigate('fleet-detail', { fleetId: id, fleetTab: 'overview' })
   // Vozové parky: když je jen jeden, přeskoč dlaždice a jdi rovnou na jeho detail.
   const goParks = () => allFleets.length === 1 ? openFleet(allFleets[0].id) : navigate('fleets')
@@ -635,7 +649,7 @@ export default function FleetPortal() {
       'documents-detail': ['Pojistné smlouvy', 'Flotilové smlouvy a jejich dokumenty'],
       bonifikace: ['Bonifikace', 'Vrácení části pojistného dle škodního průběhu'],
       contacts: ['Kontakty', 'Správa vozového parku a pojišťovací makléř'],
-      analytics: ['Analytika', 'Náklady, trendy a úspory'],
+      analytics: ['Reporting', 'Náklady, stáří a úspory celé flotily'],
       settings: ['Nastavení', 'Profil a předvolby portálu'],
     }
     let title, sub
@@ -711,7 +725,8 @@ export default function FleetPortal() {
         return { vehCostsExtra: { ...s.vehCostsExtra, [c.vid]: [item, ...(s.vehCostsExtra[c.vid] || [])] }, costDone: true }
       }),
       costTypes: ['Servis a opravy', 'Dálniční známka', 'Pneumatiky / přezutí', 'STK a emise', 'Palivo', 'Mytí a péče o vůz', 'Parkování', 'Mýtné (zahraničí)', 'Pokuta', 'Náhradní vozidlo', 'Leasing / splátka', 'Ostatní'],
-      noteModal: state.noteModal, noteText: state.noteText, currentUser: { name: 'Martin Kovář', initials: 'MK', role: 'Fleet Manager · ČSAD AUTOBUSY České Budějovice a.s.' },
+      noteModal: state.noteModal, noteText: state.noteText, currentUser: (() => { const rr = ROLES.find((x) => x.id === state.role) || ROLES[0]; return { name: rr.name, initials: rr.initials, role: rr.title + ' · ČSAD AUTOBUSY České Budějovice a.s.' } })(),
+      role: state.role, roles: ROLES, roleObj: ROLES.find((x) => x.id === state.role) || ROLES[0], roleMenu: state.roleMenu, setRole, toggleRoleMenu, closeRoleMenu: () => setState({ roleMenu: false }), roleIcon: (n) => ic(n, 18),
       closeNoteModal: () => setState({ noteModal: null, noteText: '' }),
       setNoteText: (e) => setState({ noteText: e.target.value }),
       submitNote: () => setState((s) => {
@@ -1521,25 +1536,110 @@ export default function FleetPortal() {
     return { dd: { cat: 'smlouvy', contracts, count: contracts.length, goBack } }
   }
 
+  // ---- Fleet-wide TCO rollup (provozní náklady, modelový výpočet) ----
+  const mil = (n) => (n / 1e6).toFixed(1).replace('.', ',') + ' mil. Kč'
+  const CAT_META = { phm: ['Pohonné hmoty', 'fuel', '#F59E0B'], servis: ['Servis a opravy', 'wrench', '#6D5EF6'], pneu: ['Pneumatiky', 'tire', '#0E9AA6'], dalnice: ['Mýto a dálniční známky', 'banknote', '#4F6FFF'], pokuty: ['Pokuty', 'alert', '#EF4444'] }
+  const PARK_COLORS = ['#6D5EF6', '#4F6FFF', '#0E9AA6', '#F59E0B', '#8B5CF6', '#22C55E']
+  const fleetCostRollup = () => {
+    const costs = vehiclesData.map((v) => ({ v, c: vehicleAnnualCost(v) }))
+    const total = costs.reduce((a, x) => a + x.c.total, 0)
+    const count = vehiclesData.length
+    const kmTotal = costs.reduce((a, x) => a + x.c.km, 0)
+    const cat = { phm: 0, servis: 0, pneu: 0, dalnice: 0, pokuty: 0 }
+    costs.forEach((x) => { cat.phm += x.c.phm; cat.servis += x.c.servis; cat.pneu += x.c.pneu; cat.dalnice += x.c.dalnice; cat.pokuty += x.c.pokuty })
+    const parkTot = {}; costs.forEach((x) => { parkTot[x.v.fleet] = (parkTot[x.v.fleet] || 0) + x.c.total })
+    const typeTot = {}; costs.forEach((x) => { const t = vehicleTypeCat(x.v.druh); typeTot[t] = (typeTot[t] || 0) + x.c.total })
+    const ageTot = {}; vehiclesData.forEach((v) => { const b = vehicleAgeBand(v); ageTot[b] = (ageTot[b] || 0) + 1 })
+    const avgAge = Math.round(vehiclesData.reduce((a, v) => a + Math.max(0, 2026 - (v.year || 2026)), 0) / count)
+    const oldCount = vehiclesData.filter((v) => (2026 - (v.year || 2026)) >= 20).length
+    const ecoVeh = vehiclesData.filter((v) => v.tele)
+    const monthlySavePerVeh = ecoVeh.length ? ecoVeh.reduce((a, v) => a + ecoSavings(v.tele).czk, 0) / ecoVeh.length : 0
+    const busCount = vehiclesData.filter((v) => vehicleTypeCat(v.druh) === 'Autobusy').length
+    const ecoPotentialYear = Math.round(monthlySavePerVeh * busCount * 12)
+    return { costs, total, count, kmTotal, cat, parkTot, typeTot, ageTot, avgAge, oldCount, ecoPotentialYear, busCount,
+      perVehicle: Math.round(total / count), perMonth: Math.round(total / 12) }
+  }
+  // sdílené breakdown položky (pro Reporting i majitelský dashboard)
+  const costCatItems = (r) => {
+    const keys = ['phm', 'servis', 'pneu', 'dalnice', 'pokuty'].filter((k) => r.cat[k] > 0).sort((a, b) => r.cat[b] - r.cat[a])
+    return keys.map((k) => { const m = CAT_META[k]; return { label: m[0], icon: m[1], color: m[2], value: mil(r.cat[k]), pct: Math.round(r.cat[k] / r.total * 100) } })
+  }
+  const parkCostItems = (r) => Object.keys(r.parkTot).sort((a, b) => r.parkTot[b] - r.parkTot[a]).map((fid, i) => {
+    const f = allFleets.find((x) => x.id === fid)
+    return { label: f ? f.name : fid, icon: 'fleets', color: PARK_COLORS[i % PARK_COLORS.length], value: mil(r.parkTot[fid]), pct: Math.round(r.parkTot[fid] / r.total * 100), onClick: () => openFleet(fid) }
+  })
+  const ageItems = (r) => { const mx = Math.max(1, ...vehicleAgeBandOrder.map((b) => r.ageTot[b] || 0)); const colors = { '0–5 let': '#22C55E', '6–10 let': '#4F6FFF', '11–15 let': '#6D5EF6', '16–20 let': '#F59E0B', '21+ let': '#EF4444' }
+    return vehicleAgeBandOrder.map((b) => ({ label: b, icon: 'calendar', color: colors[b], value: String(r.ageTot[b] || 0), pct: Math.round((r.ageTot[b] || 0) / mx * 100) })) }
+  const ownerRecs = (r) => {
+    const recs = []
+    if (r.oldCount > 0) recs.push({ title: `${r.oldCount} vozidel starších 20 let`, sub: `Odepsané vozy, ale rostoucí servis a spotřeba. Obměna může snížit provozní náklady i emise. Makléř připraví financování i pojištění nových vozů.`, icon: 'refresh', color: 'var(--star)' })
+    recs.push({ title: `Potenciál úspory paliva ${mil(r.ecoPotentialYear)} ročně`, sub: `Modelový odhad po nasazení telematických jednotek do všech ${r.busCount} autobusů (plynulejší jízda, méně volnoběhu a nezávislého topení).`, icon: 'gauge', color: 'var(--green)' })
+    recs.push({ title: 'Pojistné zatím není v nákladech', sub: 'Po napojení na pojišťovnu se do TCO promítne i roční pojistné a škodní průběh, včetně bonifikace podle historie.', icon: 'shield', color: 'var(--blue)' })
+    return recs
+  }
+
   const analyticsVM = () => {
     if (state.route !== 'analytics') return {}
-    const anStats = [
-      { label: 'TCO flotily (rok)', value: '31,4 mil.', delta: '▼ 6 % r/r', dColor: 'var(--green)' },
-      { label: 'Náklady na škody', value: '1,24 mil.', delta: '▼ 14 % r/r', dColor: 'var(--green)' },
-      { label: 'Frekvence škod', value: '7,4 %', delta: '▼ 1,2 pb', dColor: 'var(--green)' },
-      { label: 'Ø oprava', value: '43 200 Kč', delta: '▲ 4 % r/r', dColor: 'var(--star)' },
+    const r = fleetCostRollup()
+    const anKpis = [
+      { value: mil(r.total).replace(' Kč', ''), unit: 'Kč', label: 'Provozní náklady flotily / rok', icon: 'banknote', note: 'PHM, servis, pneu, mýto, pokuty', trend: '6 %', dir: 'down', trendColor: 'var(--green)' },
+      { value: czk(r.perVehicle), label: 'Ø náklad na vozidlo / rok', icon: 'car', note: czk(r.perMonth) + ' měsíčně' },
+      { value: String(r.avgAge), unit: 'let', label: 'Průměrné stáří flotily', icon: 'calendar', note: `${r.oldCount} vozů nad 20 let` },
+      { value: mil(r.ecoPotentialYear).replace(' Kč', ''), unit: 'Kč', label: 'Potenciál úspor paliva / rok', icon: 'gauge', note: 'po nasazení telematiky', trend: 'eco', trendColor: 'var(--green)' },
     ]
-    const ins = [1.05, 1.07, 1.09, 1.10, 1.13, 1.15, 1.18, 1.17, 1.20, 1.22, 1.21, 1.24]
-    const rep = [0.12, 0.08, 0.15, 0.05, 0.11, 0.07, 0.18, 0.09, 0.14, 0.06, 0.10, 0.05]
-    const mx = Math.max(...ins.map((v, i) => v + rep[i]))
-    const anBars = ins.map((v, i) => ({ label: MONTHS[i], h1: Math.round(v / mx * 100) + '%', h2: Math.round(rep[i] / mx * 100) + '%' }))
-    const anYears = [{ year: '2024', value: '34,8 mil.', w: '100%', color: '#A1A1AA' }, { year: '2025', value: '33,2 mil.', w: '95%', color: '#3A7BE0' }, { year: '2026', value: '31,4 mil.', w: '90%', color: 'var(--green)' }]
-    const anMini = [
-      { title: 'Úspora vs. trh', value: '12,4 %', sub: 'pod průměrem segmentu', w: '78%', color: 'var(--green)' },
-      { title: 'Bonus / malus', value: '+8 stupňů', sub: 'průměr flotily', w: '82%', color: 'var(--blue)' },
-      { title: 'Elektrifikace', value: '22 %', sub: 'cíl 35 % do 2028', w: '62%', color: 'var(--green)' },
+    const catItems = costCatItems(r)
+    const parkItems = parkCostItems(r)
+    const typeItems = Object.keys(r.typeTot).sort((a, b) => r.typeTot[b] - r.typeTot[a]).map((t, i) => ({ label: t, icon: t === 'Autobusy' ? 'bus' : t === 'Osobní vozidla' ? 'car' : 'truck', color: PARK_COLORS[i % PARK_COLORS.length], value: mil(r.typeTot[t]), pct: Math.round(r.typeTot[t] / r.total * 100) }))
+    const ages = ageItems(r)
+    // plán vs. skutečnost (rozpočet = skutečnost +6 %, tj. úspora oproti plánu)
+    const plan = Math.round(r.total * 1.06)
+    const planVsReal = { planF: mil(plan), realF: mil(r.total), savedF: mil(plan - r.total), savedPct: Math.round((plan - r.total) / plan * 100) }
+    // 12měsíční trend provozních nákladů (sezónní, seeded)
+    const season = [1.02, 0.98, 1.0, 0.97, 0.99, 1.03, 1.06, 1.05, 1.0, 1.01, 1.04, 1.07]
+    const base = r.total / 12
+    const mx = Math.max(...season)
+    const trend = season.map((s, i) => ({ label: MONTHS[i], value: mil(Math.round(base * s)), h: Math.round(s / mx * 100) + '%' }))
+    const recs = ownerRecs(r)
+    const topVeh = [...r.costs].sort((a, b) => b.c.total - a.c.total).slice(0, 6).map((x) => ({ id: x.v.id, name: `${x.v.brand} ${x.v.model}`, plate: x.v.plate, year: x.v.year, cat: vehicleTypeCat(x.v.druh), totalF: czk(x.c.total), kmF: (x.c.km / 1000).toFixed(0) + ' tis. km', onClick: () => openVehicle(x.v.id) }))
+    return { reporting: { anKpis, catItems, parkItems, typeItems, ages, planVsReal, trend, recs, topVeh, kmTotalF: (r.kmTotal / 1e6).toFixed(1).replace('.', ',') + ' mil. km' } }
+  }
+
+  const ownerDashVM = () => {
+    if (state.route !== 'dashboard' || state.role !== 'majitel') return {}
+    const r = fleetCostRollup()
+    const kpis = [
+      { value: mil(r.total).replace(' Kč', ''), unit: 'Kč', label: 'Provozní náklady flotily / rok', icon: 'banknote', note: 'modelový odhad TCO', trend: '6 %', dir: 'down', trendColor: 'var(--green)' },
+      { value: czk(r.perMonth), label: 'Ø náklady flotily / měsíc', icon: 'trend', note: czk(r.perVehicle) + ' / vozidlo / rok' },
+      { value: String(r.avgAge), unit: 'let', label: 'Průměrné stáří flotily', icon: 'calendar', note: `${r.oldCount} vozů nad 20 let` },
+      { value: mil(r.ecoPotentialYear).replace(' Kč', ''), unit: 'Kč', label: 'Potenciál úspor / rok', icon: 'gauge', note: 'telematika + eco-driving' },
     ]
-    return { anStats, anBars, anYears, anMini }
+    const topVeh = [...r.costs].sort((a, b) => b.c.total - a.c.total).slice(0, 5).map((x) => ({ id: x.v.id, name: `${x.v.brand} ${x.v.model}`, plate: x.v.plate, year: x.v.year, totalF: czk(x.c.total), onClick: () => openVehicle(x.v.id) }))
+    return { ownerDash: { kpis, catItems: costCatItems(r), parkItems: parkCostItems(r), ages: ageItems(r), recs: ownerRecs(r), topVeh, goReport: () => navigate('analytics') } }
+  }
+
+  const dispatchDashVM = () => {
+    if (state.route !== 'dashboard' || state.role !== 'dispecer') return {}
+    const rows = linesData.map((l) => {
+      const sim = simulateLineRun(l)
+      const drv = busDrivers.find((d) => d.id === l.driverId)
+      const bus = vehiclesData.find((v) => v.id === l.busId)
+      const dScore = drv ? ecoScore(drv.tele) : null
+      const anomalies = (sim.maxDelay > 5 ? 1 : 0) + sim.skips + (dScore != null && dScore < 60 ? 1 : 0)
+      return { id: l.id, no: l.no, name: l.name, driver: drv ? drv.name : '—', bus: bus ? `${bus.brand} ${bus.model}` : '—',
+        onTimePct: sim.onTimePct, onTimeColor: sim.onTimePct >= 90 ? 'var(--green)' : sim.onTimePct >= 75 ? 'var(--amber)' : 'var(--star)',
+        maxDelay: sim.maxDelay, skips: sim.skips, anomalies, onClick: () => openLine(l.id) }
+    })
+    const avg = (a) => rows.length ? Math.round(a / rows.length) : 0
+    const kpis = [
+      { value: String(rows.length), label: 'Autobusových linek', icon: 'pin', note: 'v provozu dnes' },
+      { value: avg(rows.reduce((a, x) => a + x.onTimePct, 0)) + ' %', label: 'Ø dodržení JŘ', icon: 'check2', note: 'on-time (0 až +5 min)', trend: '2 %', dir: 'up', trendColor: 'var(--green)' },
+      { value: String(rows.reduce((a, x) => a + x.anomalies, 0)), label: 'Anomálií dnes', icon: 'alert', note: 'napříč linkami', trendColor: 'var(--star)' },
+      { value: Math.round(busDrivers.reduce((a, d) => a + ecoScore(d.tele), 0) / busDrivers.length) + '/100', label: 'Ø eco-skóre řidičů', icon: 'gauge', note: 'hospodárnost jízdy' },
+    ]
+    const anomalyLines = rows.filter((x) => x.anomalies > 0).sort((a, b) => b.anomalies - a.anomalies)
+    const drv = busDrivers.map((d) => { const sc = ecoScore(d.tele); const bus = vehiclesData.find((v) => v.id === d.busId); const line = linesData.find((l) => l.id === d.lineId)
+      return { id: d.id, name: d.name, score: sc, band: ecoBand(sc), line: line ? line.no : '—', bus: bus ? `${bus.brand} ${bus.model}` : '—' } }).sort((a, b) => b.score - a.score)
+    return { dispatchDash: { kpis, rows, anomalyLines, driverTop: drv.slice(0, 3), driverBottom: drv.slice(-2).reverse(), goLinky: () => navigate('linky'), goEco: () => navigate('eco') } }
   }
 
   const contactsVM = () => {
@@ -1587,8 +1687,8 @@ export default function FleetPortal() {
     const drStats = [
       { value: String(driversData.length), label: 'Řidičů celkem' },
       { value: String(driversData.filter((d) => d.status === 'active').length), label: 'Aktivních' },
-      { value: String(driversData.filter((d) => d.kind === 'MKD').length), label: 'Řidičů MKD' },
-      { value: String(driversData.filter((d) => d.adr).length), label: 'S ADR oprávněním' },
+      { value: String(driversData.filter((d) => d.kind === 'linka' || d.kind === 'mhd' || d.kind === 'dalkova').length), label: 'Řidičů autobusů' },
+      { value: String(driversData.filter((d) => d.rp && d.rp.profValidTo).length), label: 'S profesní způsobilostí' },
     ]
     return { driverRows: rows, drStats }
   }
@@ -1602,7 +1702,7 @@ export default function FleetPortal() {
     }))
     const claims = claimsData.filter((c) => d.vehicleIds.includes(c.vId)).map(buildClaimRow)
     const personal = [['Datum narození', d.birth], ['Rodné číslo', d.rc], ['Adresa', d.address], ['Telefon', d.phone], ['E-mail', d.email]]
-    const employment = [['Pozice', d.position], ['Pracovní poměr', d.employment], ['Ve firmě od', d.since], ['Číslo pracovní smlouvy', d.contractNo], ['Číslo účtu', d.bankAccount], ['ADR oprávnění', d.adr ? 'Ano' : 'Ne']]
+    const employment = [['Pozice', d.position], ['Pracovní poměr', d.employment], ['Ve firmě od', d.since], ['Číslo pracovní smlouvy', d.contractNo], ['Číslo účtu', d.bankAccount], ['Lékařská prohlídka', d.lekarska ? 'platná do ' + d.lekarska.validTo : 'nevyžaduje se']]
     const docStatus = (dateStr) => { const due = dueInfo(dateStr, 60); if (!due) return null; return due.expired ? { label: `propadlý · ${-due.days} dnů`, color: 'var(--star)', bg: 'var(--star-soft)', days: due.days } : due.days <= 60 ? { label: `končí za ${due.days} ${due.days === 1 ? 'den' : due.days < 5 ? 'dny' : 'dní'}`, color: '#B45309', bg: 'var(--amber-soft)', days: due.days } : { label: 'platný', color: 'var(--green)', bg: 'var(--green-soft)', days: due.days } }
     const worse = (a, b) => { if (!a) return b; if (!b) return a; return a.days <= b.days ? a : b }
     const rpStatus = worse(docStatus(d.rp.validTo), d.rp.profValidTo ? docStatus(d.rp.profValidTo) : null)
@@ -1611,7 +1711,7 @@ export default function FleetPortal() {
       { title: 'Řidičský průkaz (ŘP)', icon: ic('car', 18), color: 'var(--green)', bg: 'var(--green-soft)', status: rpStatus, rows: [['Číslo ŘP', d.rp.number], ['Skupiny', d.rp.groups], ['Platnost do', d.rp.validTo], ['Profesní způsobilost', d.rp.profValidTo ? 'do ' + d.rp.profValidTo : 'nevyžaduje se']] },
     ]
     if (d.tachoCard) idDocs.push({ title: 'Karta řidiče (tachograf)', icon: ic('hash', 18), color: 'var(--purple)', bg: 'var(--purple-soft)', status: docStatus(d.tachoCard.validTo), rows: [['Číslo karty', d.tachoCard.number], ['Platnost do', d.tachoCard.validTo]] })
-    if (d.adr) idDocs.push({ title: 'ADR – přeprava nebezpečných věcí', icon: ic('alert', 18), color: 'var(--amber)', bg: 'var(--amber-soft)', status: docStatus(d.rp.validTo), rows: [['Osvědčení', 'Platné'], ['Rozsah', 'Kusy + cisterny'], ['Platnost do', d.rp.validTo]] })
+    if (d.lekarska) idDocs.push({ title: 'Lékařská prohlídka řidiče', icon: ic('shield', 18), color: 'var(--green)', bg: 'var(--green-soft)', status: docStatus(d.lekarska.validTo), rows: [['Typ', 'Pravidelná prohlídka (§ 87 z. 361/2000)'], ['Platnost do', d.lekarska.validTo]] })
     const files = [
       { name: `Pracovní smlouva ${d.contractNo}.pdf`, type: 'Pracovní smlouva', color: 'var(--blue)' },
       { name: `Kopie OP ${d.name}.pdf`, type: 'Občanský průkaz', color: 'var(--green)' },
@@ -2126,7 +2226,7 @@ export default function FleetPortal() {
     tireModal: state.tireModal ? { ...state.tireModal, close: () => setState({ tireModal: null }), stop: (e) => e.stopPropagation(), actions: TIRE_ACTIONS, field: (k) => (e) => setTireField(k, e.target.value), onInvoice: (e) => { const f = e.target.files && e.target.files[0]; if (f) setTireField('invoice', f.name) }, save: saveTire } : null,
     fineModal: state.fineModal ? { ...state.fineModal, close: () => setState({ fineModal: null }), stop: (e) => e.stopPropagation(), types: FINE_TYPES, field: (k) => (e) => setFineField(k, e.target.value), togglePaid: () => setState((s) => ({ fineModal: { ...s.fineModal, paid: !s.fineModal.paid } })), save: saveFine } : null,
     ...shellVM(), ...dashboardVM(), ...fleetsVM(), ...fleetDetailVM(), ...vehiclesVM(), ...vehicleDetailVM(),
-    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(), ...linkyVM(), ...linkyDetailVM(), ...ecoVM(),
+    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...ownerDashVM(), ...dispatchDashVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(), ...linkyVM(), ...linkyDetailVM(), ...ecoVM(),
   }
 
   return <Render vm={vm} />
