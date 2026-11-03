@@ -325,7 +325,7 @@ export default function Render({ vm }) {
             {vm.isDriverDetail && <DriverDetail vm={vm} />}
             {vm.isLinky && <Linky vm={vm} />}
             {vm.isLinkyDetail && <LinkyDetail vm={vm} />}
-            {vm.isEco && <EmptyState icon="gauge" title="Eco-driving se připravuje" sub="Hospodárnost jízdy, úspora paliva a žebříček řidičů se zobrazí v další fázi. Vyhodnocení jednotlivých linek a řidičů najdete v sekci Linky & JŘ." />}
+            {vm.isEco && <Eco vm={vm} />}
             {vm.isClaimDetail && <ClaimDetail vm={vm} />}
             {vm.isFinancing && <Financing vm={vm} />}
             {vm.isInsurance && <EmptyState icon="shield" title="Detail pojistného krytí se připravuje" sub="Pojistné smlouvy, pojišťovny a roční pojistné se zobrazí po napojení portálu na systém pojišťovny. Sjednané krytí jednotlivých vozidel (povinné ručení / havarijní / skla / asistence) najdete v detailu vozidla." />}
@@ -3683,6 +3683,72 @@ function LinkyDetail({ vm }) {
             </div>
           )) : <div style={S('display:flex;flex-direction:column;align-items:center;gap:8px;padding:24px 0;color:var(--green)')}><span>{ic('check2', 30, 2.2)}</span><span style={S('font-size:13px;font-weight:600')}>Spoj bez anomálií</span></div>}
         </div>
+      </div>
+    </div>
+  )
+}
+
+function Eco({ vm }) {
+  const d = vm.eco
+  const mob = vm.vp.isMobile
+  return (
+    <div>
+      <StatTiles items={d.stats} mb="16px" />
+      <div style={S('display:flex;align-items:flex-start;gap:7px;font-size:12px;color:var(--ink3);margin-bottom:16px')}><span style={S('display:flex;flex-shrink:0;margin-top:1px')}>{ic('info', 13)}</span><span>Jednotka ve voze čte akceleraci, brzdění, rozjezdy, volnoběh, nezávislé topení a spotřebu paliva. Hodnoty jsou pro ukázku modelované — po nasazení jednotky je nahradí reálná telematika.</span></div>
+
+      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1.55fr 1fr'};gap:16px;margin-bottom:16px`)}>
+        <div style={S(`${CARD};overflow:hidden`)}>
+          <div style={S('display:flex;align-items:center;justify-content:space-between;padding:15px 20px;border-bottom:1px solid var(--border)')}>
+            <div style={S('font-size:14px;font-weight:700')}>Žebříček řidičů</div>
+            <span style={S('font-size:11.5px;color:var(--ink3)')}>podle eco-skóre</span>
+          </div>
+          {d.drivers.map((r, i) => (
+            <div key={r.id} style={S('display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--border)')}>
+              <div style={S(`width:24px;text-align:center;font-size:${i < 3 ? '17px' : '13px'};font-weight:800;color:var(--ink3);flex-shrink:0`)}>{i < 3 ? d.medals[i] : i + 1}</div>
+              <div style={S('width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#4F6FFF,#6D5EF6);color:#fff;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{r.name.split(' ').map((w) => w[0]).join('').slice(0, 2)}</div>
+              <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.name}</div><div style={S('font-size:11px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>Linka {r.line} · Akc {r.accel}× · Brzd {r.brake}× · Volnoběh {r.idle}′</div></div>
+              <div style={S('text-align:right;flex-shrink:0')}><div style={S('font-size:10.5px;color:var(--ink3)')}>potenciál</div><div style={S('font-size:12.5px;font-weight:700;color:var(--green);white-space:nowrap')}>{r.savingsF}</div></div>
+              <span style={S(`display:inline-flex;align-items:baseline;gap:3px;font-size:14px;font-weight:800;color:${r.band.color};background:${r.band.bg};padding:5px 11px;border-radius:20px;flex-shrink:0`)}>{r.score}<span style={S('font-size:9.5px;font-weight:600;opacity:.7')}>/100</span></span>
+            </div>
+          ))}
+        </div>
+        <div style={S(`${CARD};padding:18px 20px`)}>
+          <div style={S('font-size:14px;font-weight:700;margin-bottom:3px')}>Rozpad prudkých událostí</div>
+          <div style={S('font-size:12px;color:var(--ink3);margin-bottom:16px')}>Ø na vůz / 100 km</div>
+          {d.evAgg.map((e, i) => (
+            <div key={i} style={S('margin-bottom:13px')}>
+              <div style={S('display:flex;justify-content:space-between;align-items:center;margin-bottom:5px')}><span style={S('display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600')}><span style={S(`width:9px;height:9px;border-radius:3px;background:${e.color};flex-shrink:0`)}></span>{e.label}</span><span style={S('font-size:13px;font-weight:700;font-variant-numeric:tabular-nums')}>{e.val}×</span></div>
+              <div style={S('height:7px;border-radius:5px;background:#EEF2F9;overflow:hidden')}><div style={S(`height:100%;width:${e.bar}%;background:${e.color};border-radius:5px`)}></div></div>
+            </div>
+          ))}
+          <div style={S('margin-top:14px;padding:11px 13px;background:var(--blue-soft);border-radius:11px;font-size:12px;color:var(--blue-ink);line-height:1.5')}>Hospodárnější styl jízdy (plynulé rozjezdy, předvídavé brzdění, méně volnoběhu) typicky šetří <b>5–15 % paliva</b>.</div>
+        </div>
+      </div>
+
+      <div style={S('display:flex;align-items:center;gap:9px;margin-bottom:10px')}><span style={S('font-size:15px;font-weight:700')}>Autobusy — hospodárnost a nezávislé topení</span><span style={S('font-size:11.5px;font-weight:700;color:var(--ink2);background:#EEF2F9;padding:2px 8px;border-radius:20px')}>{d.vehicles.length}</span></div>
+      <div style={S(`${CARD};overflow:hidden`)}>
+        <HScroll minW={940}>
+          <div style={S('display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--border);background:#F7FAFE;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.5px')}>
+            <div style={S('flex:1;min-width:0')}>Vůz</div>
+            <div style={S('width:84px')}>Palivo</div>
+            <div style={S('width:96px;text-align:center')}>Eco-skóre</div>
+            <div style={S('width:150px')}>Spotřeba vs. ref.</div>
+            <div style={S('width:110px;text-align:right')}>Úspora/měs.</div>
+            <div style={S('width:150px;text-align:right')}>Nezávislé topení</div>
+            <div style={S('width:16px;flex-shrink:0')}></div>
+          </div>
+          {d.vehicles.map((v) => (
+            <Hov key={v.id} onClick={v.onClick} base="display:flex;align-items:center;gap:14px;padding:13px 20px;border-bottom:1px solid var(--border);cursor:pointer" hover="background:#F2F6FC">
+              <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{v.name}</div><div style={S('font-size:11px;color:var(--ink3);font-variant-numeric:tabular-nums')}>{v.plate}</div></div>
+              <div style={S('width:84px;font-size:12px;color:var(--ink2)')}>{v.fuel}</div>
+              <div style={S('width:96px;display:flex;justify-content:center')}><span style={S(`display:inline-flex;align-items:baseline;gap:3px;font-size:13px;font-weight:800;color:${v.band.color};background:${v.band.bg};padding:4px 10px;border-radius:20px`)}>{v.score}<span style={S('font-size:9px;font-weight:600;opacity:.7')}>/100</span></span></div>
+              <div style={S('width:150px;font-size:12.5px;font-variant-numeric:tabular-nums')}><span style={S('font-weight:700')}>{v.cons}</span><span style={S('color:var(--ink3)')}> / {v.ref} {v.unit}</span>{v.over > 0 ? <span style={S('font-size:10.5px;font-weight:700;color:var(--star);background:var(--star-soft);padding:1px 6px;border-radius:5px;margin-left:6px')}>+{v.over}</span> : v.over === 0 ? <span style={S('font-size:10.5px;font-weight:700;color:var(--green);background:var(--green-soft);padding:1px 6px;border-radius:5px;margin-left:6px')}>OK</span> : null}</div>
+              <div style={S('width:110px;text-align:right;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:' + '#166534')}>{v.savingsF}</div>
+              <div style={S('width:150px;text-align:right;font-size:12.5px;font-variant-numeric:tabular-nums')}><span style={S(`font-weight:600;color:${v.heaterMin > 90 ? 'var(--star)' : 'var(--ink2)'}`)}>{v.heaterMin}′/den</span><span style={S('color:var(--ink3)')}> · {v.heaterF}</span></div>
+              <span style={S('width:16px;flex-shrink:0;color:var(--ink3);display:flex')}>{ic('arrow', 16)}</span>
+            </Hov>
+          ))}
+        </HScroll>
       </div>
     </div>
   )

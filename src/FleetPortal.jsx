@@ -2085,6 +2085,39 @@ export default function FleetPortal() {
     } }
   }
 
+  const ecoVM = () => {
+    if (state.route !== 'eco') return {}
+    const drivers = busDrivers.map((d) => {
+      const sc = ecoScore(d.tele); const sv = ecoSavings(d.tele)
+      const bus = busVehicles.find((v) => v.id === d.busId); const line = linesData.find((l) => l.id === d.lineId)
+      return { id: d.id, name: d.name, role: d.role, score: sc, band: ecoBand(sc), savingsF: sv.czk ? czk(sv.czk) : '—', savingsL: sv.liters,
+        line: line ? line.no : '—', bus: bus ? `${bus.brand} ${bus.model}` : '—', accel: d.tele.accel, brake: d.tele.brake, idle: d.tele.idle }
+    }).sort((a, b) => b.score - a.score)
+    const vehicles = busVehicles.map((v) => {
+      const sc = ecoScore(v.tele); const sv = ecoSavings(v.tele); const elec = v.fuel === 'Elektro'
+      return { id: v.id, name: `${v.brand} ${v.model}`, plate: v.plate, fuel: v.fuel, score: sc, band: ecoBand(sc),
+        cons: v.tele.cons, ref: v.tele.ref, unit: elec ? 'kWh' : 'l', over: elec ? null : +(v.tele.cons - v.tele.ref).toFixed(1),
+        savingsF: elec ? '—' : (sv.czk ? czk(sv.czk) : '0 Kč'), savingsL: sv.liters, heaterMin: v.tele.heater, heaterL: v.tele.heaterL, heaterF: heaterCost(v.tele) ? czk(heaterCost(v.tele)) : '—',
+        onClick: () => openVehicle(v.id) }
+    }).sort((a, b) => b.score - a.score)
+    const avgScore = Math.round(busDrivers.reduce((a, d) => a + ecoScore(d.tele), 0) / busDrivers.length)
+    const totalSaveL = busVehicles.reduce((a, v) => a + ecoSavings(v.tele).liters, 0)
+    const totalSaveCzk = busVehicles.reduce((a, v) => a + ecoSavings(v.tele).czk, 0)
+    const totalHeaterCzk = busVehicles.reduce((a, v) => a + heaterCost(v.tele), 0)
+    const totalHeaterL = busVehicles.reduce((a, v) => a + (v.tele.fuel !== 'Elektro' ? v.tele.heaterL : 0), 0)
+    const evDef = [['accel', 'Prudká akcelerace', 'var(--amber)'], ['brake', 'Prudké brzdění', 'var(--star)'], ['start', 'Prudké rozjezdy', 'var(--purple)'], ['overrev', 'Přetáčení motoru', 'var(--blue)'], ['speeding', 'Překročení rychlosti', '#0E9AA6']]
+    const evAgg = evDef.map(([k, label, color]) => ({ key: k, label, color, val: +(busVehicles.reduce((a, v) => a + v.tele[k], 0) / busVehicles.length).toFixed(1) }))
+    const evMax = Math.max(1, ...evAgg.map((e) => e.val))
+    evAgg.forEach((e) => { e.bar = Math.round(e.val / evMax * 100) })
+    const stats = [
+      { label: 'Ø eco-skóre parku', value: avgScore + '/100', color: ecoBand(avgScore).color, sub: 'hospodárnost jízdy' },
+      { label: 'Potenciál úspory paliva', value: czk(totalSaveCzk), color: 'var(--green)', sub: totalSaveL + ' l / měsíc' },
+      { label: 'Nezávislé topení', value: czk(totalHeaterCzk), color: 'var(--amber)', sub: totalHeaterL + ' l / měsíc' },
+      { label: 'Vozů ve vyhodnocení', value: String(busVehicles.length), sub: 'autobusů s jednotkou' },
+    ]
+    return { eco: { stats, drivers, vehicles, evAgg, medals: ['🥇', '🥈', '🥉'] } }
+  }
+
   const vm = {
     dash: state.dash, dashMeta: DASH_WIDGETS, toggleDashWidget, setDashWidth, moveDashWidget, resetDash,
     kpi: state.kpi, kpiCatalog: KPI_CATALOG, kpiVals, kpiLabel, dashKpis, toggleKpi, moveKpi, resetKpi, kpiMax: KPI_MAX, kpiOnCount: state.kpi.filter((k) => k.on).length,
@@ -2093,7 +2126,7 @@ export default function FleetPortal() {
     tireModal: state.tireModal ? { ...state.tireModal, close: () => setState({ tireModal: null }), stop: (e) => e.stopPropagation(), actions: TIRE_ACTIONS, field: (k) => (e) => setTireField(k, e.target.value), onInvoice: (e) => { const f = e.target.files && e.target.files[0]; if (f) setTireField('invoice', f.name) }, save: saveTire } : null,
     fineModal: state.fineModal ? { ...state.fineModal, close: () => setState({ fineModal: null }), stop: (e) => e.stopPropagation(), types: FINE_TYPES, field: (k) => (e) => setFineField(k, e.target.value), togglePaid: () => setState((s) => ({ fineModal: { ...s.fineModal, paid: !s.fineModal.paid } })), save: saveFine } : null,
     ...shellVM(), ...dashboardVM(), ...fleetsVM(), ...fleetDetailVM(), ...vehiclesVM(), ...vehicleDetailVM(),
-    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(), ...linkyVM(), ...linkyDetailVM(),
+    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(), ...linkyVM(), ...linkyDetailVM(), ...ecoVM(),
   }
 
   return <Render vm={vm} />
