@@ -269,7 +269,7 @@ export default function Render({ vm }) {
             <div style={S('display:flex;align-items:center;gap:10px;min-width:0;flex-shrink:0')}>
               <span onClick={() => vm.navigate && vm.navigate('dashboard')} style={S('font-size:14px;font-weight:600;color:var(--ink3);cursor:pointer;white-space:nowrap')}>Fleet Portal</span>
               <span style={S('color:var(--ink3);opacity:.5;display:flex;transform:rotate(-90deg)')}>{ic('chevron', 15)}</span>
-              <span style={S('display:flex;align-items:center;gap:7px;height:30px;padding:0 11px;background:var(--blue-soft);border-radius:9px;white-space:nowrap')}><span style={S('display:flex;color:var(--blue)')}>{ic('pin', 14)}</span><span style={S('font-size:13px;font-weight:600;color:var(--blue-ink)')}>Jiří Tošovský s.r.o. · 335 vozidel</span></span>
+              <span style={S('display:flex;align-items:center;gap:7px;height:30px;padding:0 11px;background:var(--blue-soft);border-radius:9px;white-space:nowrap')}><span style={S('display:flex;color:var(--blue)')}>{ic('pin', 14)}</span><span style={S('font-size:13px;font-weight:600;color:var(--blue-ink)')}>ČSAD AUTOBUSY České Budějovice a.s. · {vm.companyVehicles} vozidel</span></span>
             </div>
           )}
           <div style={{ flex: 1 }}></div>
@@ -744,7 +744,7 @@ function InvoicePreview({ vm }) {
               </div>
               <div style={S('border:1px solid var(--border);border-radius:8px;padding:12px 14px')}>
                 <div style={S('font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:.3px;margin-bottom:5px')}>Odběratel</div>
-                <div style={S('font-size:13px;font-weight:700')}>Jiří Tošovský s.r.o.</div>
+                <div style={S('font-size:13px;font-weight:700')}>ČSAD AUTOBUSY České Budějovice a.s.</div>
                 <div style={S('font-size:11.5px;color:var(--ink2);margin-top:2px;line-height:1.5')}>Jankovcova 1827/41, 170 00 Praha 7<br />IČO 25612348 · DIČ CZ25612348</div>
               </div>
             </div>
@@ -800,7 +800,7 @@ function ClaimDocPreview({ vm }) {
             </div>
             <div style={S('font-size:21px;font-weight:800;letter-spacing:-.3px;margin-bottom:18px')}>{d.type}</div>
             <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;padding:16px 18px;background:#F7FAFE;border:1px solid var(--border);border-radius:8px;margin-bottom:28px')}>
-              {[['Číslo škody', d.claimId], ['Pojistitel', d.insurer], ['Vozidlo', `${d.brand} ${d.model}`], ['SPZ', d.plate], ['Datum nahlášení', d.date], ['Pojistník', 'Jiří Tošovský s.r.o.']].map((r, i) => (
+              {[['Číslo škody', d.claimId], ['Pojistitel', d.insurer], ['Vozidlo', `${d.brand} ${d.model}`], ['SPZ', d.plate], ['Datum nahlášení', d.date], ['Pojistník', 'ČSAD AUTOBUSY České Budějovice a.s.']].map((r, i) => (
                 <div key={i}><div style={S('font-size:10.5px;color:var(--ink3);text-transform:uppercase;letter-spacing:.3px')}>{r[0]}</div><div style={S('font-size:13px;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums')}>{r[1]}</div></div>
               ))}
             </div>
@@ -882,8 +882,8 @@ function OrvPreview({ vm }) {
             {/* holder */}
             <div style={S('border:1px solid #C9C9CF;border-top:none;padding:8px 10px;background:#F7FAFE')}>
               <div style={S('display:flex;align-items:baseline;gap:7px')}><span style={S('font-size:9px;font-weight:800;color:#1A47A3;min-width:22px')}>C.1</span><span style={S(LBL)}>Provozovatel vozidla</span></div>
-              <div style={S('font-size:13px;font-weight:700;color:#111;margin-top:3px')}>Jiří Tošovský s.r.o.</div>
-              <div style={S('font-size:11.5px;color:#27272A;margin-top:1px')}>Jankovcova 1827/41, 170 00 Praha 7, IČO 02043858</div>
+              <div style={S('font-size:13px;font-weight:700;color:#111;margin-top:3px')}>ČSAD AUTOBUSY České Budějovice a.s.</div>
+              <div style={S('font-size:11.5px;color:#27272A;margin-top:1px')}>Hálkova 781/9, 370 04 České Budějovice, IČO 26060451</div>
             </div>
 
             <div style={S(SUB + ';margin-top:12px;line-height:1.45')}>Osvědčení o registraci vozidla část I se předkládá při kontrole vozidla. Údaje odpovídají zápisu v registru silničních vozidel.</div>
@@ -950,7 +950,7 @@ function GreenCardPreview({ vm }) {
               <div style={S(CELL)}>
                 <div style={S(LBL)}>9. Jméno a adresa pojistníka (nebo provozovatele vozidla)</div>
                 <div style={S(SUB)}>Name and Address of the Policyholder (or User of the Vehicle)</div>
-                <div style={S(VAL)}>Jiří Tošovský s.r.o.</div>
+                <div style={S(VAL)}>ČSAD AUTOBUSY České Budějovice a.s.</div>
                 <div style={S('font-size:11.5px;color:#27272A;margin-top:1px')}>Jankovcova 1827/41, 170 00 Praha 7, Česká republika</div>
               </div>
               <div style={S(CELL + ';border-left:none')}>
@@ -1048,7 +1048,7 @@ function DocPreviewModal({ vm }) {
             <div style={S('font-size:13px;color:var(--ink2);margin-bottom:26px')}>č. <span style={S('font-weight:700;font-variant-numeric:tabular-nums')}>{d.policy}</span></div>
 
             <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;padding:16px 18px;background:#F7FAFE;border:1px solid var(--border);border-radius:8px;margin-bottom:28px')}>
-              {[['Pojistník', 'Jiří Tošovský s.r.o.'], ['Pojistitel', d.insurer], ['Vozový park', d.fleetName], ['Platnost od', d.date], ['Číslo smlouvy', d.policy], ['IČO pojistníka', '02043858']].map((r, i) => (
+              {[['Pojistník', 'ČSAD AUTOBUSY České Budějovice a.s.'], ['Pojistitel', d.insurer], ['Vozový park', d.fleetName], ['Platnost od', d.date], ['Číslo smlouvy', d.policy], ['IČO pojistníka', '26060451']].map((r, i) => (
                 <div key={i}><div style={S('font-size:10.5px;color:var(--ink3);text-transform:uppercase;letter-spacing:.3px')}>{r[0]}</div><div style={S('font-size:13px;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums')}>{r[1]}</div></div>
               ))}
             </div>
@@ -1872,7 +1872,7 @@ function Vehicles({ vm }) {
         ))}
         </HScroll>
         <div style={S('display:flex;align-items:center;justify-content:space-between;padding:12px 18px;font-size:12.5px;color:var(--ink3)')}>
-          <span>Zobrazeno {vm.vehicleRows.length} z 335 vozidel</span>
+          <span>Zobrazeno {vm.vehicleRows.length} z {vm.companyVehicles} vozidel</span>
           <div style={S('display:flex;gap:6px;align-items:center')}><span style={S('padding:4px 9px;border:1px solid var(--border);border-radius:7px;cursor:pointer')}>←</span><span style={S('padding:4px 10px;border:1px solid var(--blue);color:var(--blue);background:var(--blue-soft);border-radius:7px;font-weight:700;cursor:pointer')}>1</span><span style={S('padding:4px 10px;border:1px solid var(--border);border-radius:7px;cursor:pointer')}>2</span><span style={S('padding:4px 10px;border:1px solid var(--border);border-radius:7px;cursor:pointer')}>3</span><span style={S('padding:4px 9px;border:1px solid var(--border);border-radius:7px;cursor:pointer')}>→</span></div>
         </div>
       </div>
@@ -3887,7 +3887,7 @@ function Settings({ vm }) {
     <div style={S('max-width:760px')}>
       <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:22px;margin-bottom:14px')}>
         <div style={S('font-size:15px;font-weight:700;margin-bottom:16px')}>Profil</div>
-        <div style={S('display:flex;align-items:center;gap:16px')}><div style={S('width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#4F6FFF,#6D5EF6);color:#fff;font-weight:700;font-size:20px;display:flex;align-items:center;justify-content:center')}>MK</div><div><div style={S('font-size:16px;font-weight:700')}>Martin Kovář</div><div style={S('font-size:13px;color:var(--ink3)')}>Fleet Manager · Jiří Tošovský s.r.o.</div><div style={S('font-size:13px;color:var(--blue);margin-top:3px')}>martin.kovar@tosovsky.cz</div></div></div>
+        <div style={S('display:flex;align-items:center;gap:16px')}><div style={S('width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#4F6FFF,#6D5EF6);color:#fff;font-weight:700;font-size:20px;display:flex;align-items:center;justify-content:center')}>MK</div><div><div style={S('font-size:16px;font-weight:700')}>Martin Kovář</div><div style={S('font-size:13px;color:var(--ink3)')}>Fleet Manager · ČSAD AUTOBUSY České Budějovice a.s.</div><div style={S('font-size:13px;color:var(--blue);margin-top:3px')}>martin.kovar@csadbus.cz</div></div></div>
       </div>
 
       <KpiEditor vm={vm} />

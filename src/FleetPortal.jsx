@@ -4,7 +4,7 @@ import Render from './Render.jsx'
 import {
   insurersData, brandsData, fleetsData, vehiclesData, claimsData, greenCards, driversData,
   statusMeta, claimStatusMeta, fleetName, statusChip, vehicleTypeCat, vehicleTypeOrder, vehicleStk, vehicleVignette, leasingPartners,
-  linesData, busDrivers, busVehicles, busFleet, ecoScore, ecoBand, ecoSavings, heaterCost, NAFTA_CZK,
+  linesData, busDrivers, ecoScore, ecoBand, ecoSavings, heaterCost, NAFTA_CZK,
 } from './data.js'
 
 const ic = (name, size = 18, sw = 1.8) => <Icon name={name} size={size} sw={sw} />
@@ -358,7 +358,7 @@ const fmtCz = (dt) => `${dt.getDate()}. ${dt.getMonth() + 1}. ${dt.getFullYear()
 const nextAnniv = (start, today) => { const d = parseCz(start); let c = new Date(today.getFullYear(), d.getMonth(), d.getDate()); if (c < today) c = new Date(today.getFullYear() + 1, d.getMonth(), d.getDate()); return c }
 // Zprostředkovatel pojištění (makléř)
 const BROKER = { name: 'Petrisk a.s.', role: 'Pojišťovací makléř', reg: 'ČNB, reg. č. 197542PM', ico: '264 18 920', person: 'Martin Kovář', email: 'martin.kovar@petrisk.cz', phone: '+420 222 119 350' }
-const POJISTNIK = { name: 'Jiří Tošovský s.r.o.', ico: '02043858' }
+const POJISTNIK = { name: 'ČSAD AUTOBUSY České Budějovice a.s.', ico: '26060451' }
 
 export default function FleetPortal() {
   const [state, setStateRaw] = useState(() => ({
@@ -385,7 +385,7 @@ export default function FleetPortal() {
     av: false, avStep: 1, avMethod: 'spz', avInput: '', avLoaded: false, avLoading: false, avFleet: 'f1',
     avCover: { pr: true, hav: true, skla: true, uraz: false, zavazadla: false, zver: true, nahradni: false, strojni: false, gap: false, zivel: false, asist: true, prac: false },
     avHavRozsah: 'allrisk', avHavSpoluucast: '5% / 5 000 Kč', avPrLimit: '100 / 100 mil. Kč', avUziti: 'Běžné užití', avTerritory: 'Evropská unie',
-    avPojistnik: 'Jiří Tošovský s.r.o.', avStart: '1. 7. 2026',
+    avPojistnik: 'ČSAD AUTOBUSY České Budějovice a.s.', avStart: '1. 7. 2026',
     avOwnerSame: true, avOwner: '', avOwnerKind: 'firma', avOwnerIco: '', avOwnerAddr: '', avOwnerBirth: '',
     avOperatorSame: true, avOperator: '', avOperatorKind: 'firma', avOperatorIco: '', avOperatorAddr: '', avOperatorBirth: '',
     avPlate: '', avValue: '', avPricing: 'idle',
@@ -546,7 +546,7 @@ export default function FleetPortal() {
     if (l.includes('škod') || l.includes('damage') || l.includes('nehod')) return 'Spustil jsem průvodce nahlášením škody. Vyberte vozidlo a popište událost — zbytek doplním z dat parku.'
     if (l.includes('claim') || l.includes('událost')) return 'Aktuálně je 9 otevřených událostí. Nejvyšší odhad: Audi A6 — odcizení kol, 58 000 Kč (Generali, v likvidaci).'
     if (l.includes('úspor') || l.includes('saving')) return 'Oproti loňsku šetříte 1,84 mil. Kč (−11 %). Konsolidací havarijního u Kooperativy lze ušetřit dalších ~320 000 Kč ročně.'
-    return `Rozumím. Pracuji s daty 335 vozidel (${typeCats.length} typů) ve ${allFleets.length === 1 ? 'vozovém parku ' + allFleets[0].name : allFleets.length + ' vozových parcích'}. Zkuste např. „Najdi vozidla bez GAP" nebo „Kolik máme tahačů?".`
+    return `Rozumím. Pracuji s daty ${vehiclesData.length} vozidel (${typeCats.length} typů) ve ${allFleets.length === 1 ? 'vozovém parku ' + allFleets[0].name : allFleets.length + ' vozových parcích'}. Zkuste např. „Najdi vozidla bez GAP" nebo „Kolik máme tahačů?".`
   }
   const sendAi = (t) => {
     const q = (typeof t === 'string' ? t : state.aiInput).trim()
@@ -623,7 +623,7 @@ export default function FleetPortal() {
       }
     })
     const titles = {
-      dashboard: ['Přehled', 'Souhrn vozového parku Jiří Tošovský s.r.o.'],
+      dashboard: ['Přehled', 'Souhrn vozového parku ČSAD AUTOBUSY České Budějovice a.s.'],
       fleets: ['Vozové parky', `${allFleets.length} ${allFleets.length === 1 ? 'lokalita' : allFleets.length < 5 ? 'lokality' : 'lokalit'} · ${vehiclesData.length} vozidel`],
       vehicles: ['Vozidla', `${vehiclesData.length} vozidel celkem`],
       drivers: ['Řidiči', `${driversData.length} řidičů vozového parku`],
@@ -678,7 +678,7 @@ export default function FleetPortal() {
 
     return {
       vp, sidebarOpen: state.sidebar, toggleSidebar: () => setState((s) => ({ sidebar: !s.sidebar })), closeSidebar: () => setState({ sidebar: false }),
-      nav, pageTitle: title, pageSubtitle: sub, route: r,
+      nav, pageTitle: title, pageSubtitle: sub, route: r, companyVehicles: vehiclesData.length,
       isDashboard: r === 'dashboard', isFleets: r === 'fleets', isFleetDetail: r === 'fleet-detail',
       isVehicles: r === 'vehicles', isVehicleDetail: r === 'vehicle-detail',
       isInsurance: r === 'insurance', isInsuranceDetail: r === 'insurance-detail', isClaims: r === 'claims', isDocuments: r === 'documents', isAnalytics: r === 'analytics', isContacts: r === 'contacts', isSettings: r === 'settings', isDrivers: r === 'drivers', isDriverDetail: r === 'driver-detail', isFinancing: r === 'financing',
@@ -697,7 +697,7 @@ export default function FleetPortal() {
       setUnsubDate: (e) => setState({ unsubDate: e.target.value }),
       submitUnsub: () => setState({ unsubDone: true }),
       unsubReasons: ['Prodej vozidla', 'Vyřazení z provozu', 'Totální škoda', 'Ukončení leasingu / úvěru', 'Převod na jiného provozovatele', 'Jiný důvod'],
-      unsubApprover: { name: 'Ing. Tomáš Bartoš', role: 'Vedoucí správy vozového parku · Jiří Tošovský s.r.o.', initials: 'TB' },
+      unsubApprover: { name: 'Ing. Tomáš Bartoš', role: 'Vedoucí správy vozového parku · ČSAD AUTOBUSY České Budějovice a.s.', initials: 'TB' },
       costModal: state.costModal, costDone: state.costDone, costType: state.costType, costDesc: state.costDesc, costAmount: state.costAmount, costDate: state.costDate, costFile: state.costFile,
       closeCostModal: () => setState({ costModal: null }),
       setCostType: (e) => setState({ costType: e.target.value }),
@@ -712,7 +712,7 @@ export default function FleetPortal() {
         return { vehCostsExtra: { ...s.vehCostsExtra, [c.vid]: [item, ...(s.vehCostsExtra[c.vid] || [])] }, costDone: true }
       }),
       costTypes: ['Servis a opravy', 'Dálniční známka', 'Pneumatiky / přezutí', 'STK a emise', 'Palivo', 'Mytí a péče o vůz', 'Parkování', 'Mýtné (zahraničí)', 'Pokuta', 'Náhradní vozidlo', 'Leasing / splátka', 'Ostatní'],
-      noteModal: state.noteModal, noteText: state.noteText, currentUser: { name: 'Martin Kovář', initials: 'MK', role: 'Fleet Manager · Jiří Tošovský s.r.o.' },
+      noteModal: state.noteModal, noteText: state.noteText, currentUser: { name: 'Martin Kovář', initials: 'MK', role: 'Fleet Manager · ČSAD AUTOBUSY České Budějovice a.s.' },
       closeNoteModal: () => setState({ noteModal: null, noteText: '' }),
       setNoteText: (e) => setState({ noteText: e.target.value }),
       submitNote: () => setState((s) => {
@@ -1099,7 +1099,7 @@ export default function FleetPortal() {
     ]
     const assign = [
       { k: 'Vozový park', v: fleetName(v.fleet), icon: ic('fleets', 18), bg: 'var(--blue-soft)', color: 'var(--blue)' },
-      { k: 'Vlastník / držitel', v: 'Jiří Tošovský s.r.o.', icon: ic('users', 18), bg: 'var(--green-soft)', color: 'var(--green)' },
+      { k: 'Vlastník / držitel', v: 'ČSAD AUTOBUSY České Budějovice a.s.', icon: ic('users', 18), bg: 'var(--green-soft)', color: 'var(--green)' },
       { k: 'Limit povinného ručení', v: v.povLimit, icon: ic('shield', 18), bg: 'var(--amber-soft)', color: 'var(--amber)' },
       { k: 'Územní platnost pojištění', v: v.territory || 'Evropská unie', icon: ic('fleets', 18), bg: 'var(--purple-soft)', color: 'var(--purple)' },
       { k: 'Datum uvedení do provozu', v: v.firstReg, icon: ic('calendar', 18), bg: '#EEF2F9', color: 'var(--ink2)' },
@@ -1158,7 +1158,7 @@ export default function FleetPortal() {
       { name: `Technický průkaz ${plateNo}.pdf`, type: 'Osvědčení o registraci vozidla', meta: 'ORV část I · velký TP', size: '118 kB', icon: ic('car', 17), bg: 'var(--blue-soft)', color: 'var(--blue)', preview: prev, download: dl, openPreview: open({ kind: 'orv', name: `Technický průkaz ${plateNo}.pdf`, type: 'Osvědčení o registraci vozidla', size: '118 kB', plate: v.plate, vin: v.vin, brand: v.brand, model: v.model, year: v.year, fuel: v.fuel }) },
       { name: `STK a emise ${plateNo}.pdf`, type: 'Protokol STK', meta: 'platná do 5. 2. 2028', size: '88 kB', icon: ic('check2', 17), bg: 'var(--green-soft)', color: 'var(--green)', preview: prev, download: dl, openPreview: open({ kind: 'vehdoc', name: `STK a emise ${plateNo}.pdf`, type: 'Protokol STK', size: '88 kB', title: 'Protokol o technické prohlídce a měření emisí', issuer: 'Stanice technické kontroly', plate: v.plate, vin: v.vin, brand: v.brand, model: v.model, accent: 'var(--green)', rows: [['Evidenční číslo', 'STK-' + plateNo], ['Datum prohlídky', '5. 2. 2026'], ['Platnost do', '5. 2. 2028'], ['Výsledek', 'Způsobilé k provozu'], ['Stav tachometru', v.mileage], ['Měření emisí', 'Vyhovuje']] }) },
       { name: `Dálniční známka ${plateNo}.pdf`, type: 'Dálniční známka', meta: 'roční · ČR · 2026', size: '42 kB', icon: ic('calendar', 17), bg: 'var(--amber-soft)', color: 'var(--amber)', preview: prev, download: dl, openPreview: open({ kind: 'vehdoc', name: `Dálniční známka ${plateNo}.pdf`, type: 'Dálniční známka', size: '42 kB', title: 'Elektronická dálniční známka (e-známka)', issuer: 'Státní fond dopravní infrastruktury', plate: v.plate, vin: v.vin, brand: v.brand, model: v.model, accent: 'var(--amber)', rows: [['Typ kupónu', 'Roční (12 měsíců)'], ['Platnost od', '1. 1. 2026'], ['Platnost do', '31. 1. 2027'], ['Země platnosti', 'Česká republika'], ['Cena', '2 440 Kč'], ['Stav', 'Aktivní']] }) },
-      { name: `Servisní kniha ${plateNo}.pdf`, type: 'Servisní historie', meta: 'poslední servis 12. 3. 2026', size: '156 kB', icon: ic('wrench', 17), bg: '#F1F1F3', color: 'var(--ink2)', preview: prev, download: dl, openPreview: open({ kind: 'vehdoc', name: `Servisní kniha ${plateNo}.pdf`, type: 'Servisní historie', size: '156 kB', title: 'Servisní kniha vozidla', issuer: 'Jiří Tošovský s.r.o. — autorizovaný servis', plate: v.plate, vin: v.vin, brand: v.brand, model: v.model, accent: 'var(--ink2)', rows: [['Poslední servis', '12. 3. 2026'], ['Stav tachometru', v.mileage], ['Provedené úkony', 'Výměna oleje a filtrů'], ['Příští servis', 'za 15 000 km'], ['Záruka', 'do ' + (v.year + 5)], ['Servisní partner', 'Jiří Tošovský s.r.o.']] }) },
+      { name: `Servisní kniha ${plateNo}.pdf`, type: 'Servisní historie', meta: 'poslední servis 12. 3. 2026', size: '156 kB', icon: ic('wrench', 17), bg: '#F1F1F3', color: 'var(--ink2)', preview: prev, download: dl, openPreview: open({ kind: 'vehdoc', name: `Servisní kniha ${plateNo}.pdf`, type: 'Servisní historie', size: '156 kB', title: 'Servisní kniha vozidla', issuer: 'ČSAD AUTOBUSY České Budějovice a.s. — autorizovaný servis', plate: v.plate, vin: v.vin, brand: v.brand, model: v.model, accent: 'var(--ink2)', rows: [['Poslední servis', '12. 3. 2026'], ['Stav tachometru', v.mileage], ['Provedené úkony', 'Výměna oleje a filtrů'], ['Příští servis', 'za 15 000 km'], ['Záruka', 'do ' + (v.year + 5)], ['Servisní partner', 'ČSAD AUTOBUSY České Budějovice a.s.']] }) },
       { name: `Leasingová smlouva ${plateNo}.pdf`, type: 'Financování', meta: 'operativní leasing', size: '198 kB', icon: ic('banknote', 17), bg: 'var(--blue-soft)', color: 'var(--blue)', preview: prev, download: dl, openPreview: open({ kind: 'vehdoc', name: `Leasingová smlouva ${plateNo}.pdf`, type: 'Financování', size: '198 kB', title: 'Smlouva o operativním leasingu', issuer: 'ČSOB Leasing, a.s.', plate: v.plate, vin: v.vin, brand: v.brand, model: v.model, accent: 'var(--blue)', rows: [['Číslo smlouvy', 'LE-' + plateNo], ['Typ financování', 'Operativní leasing'], ['Měsíční splátka', '12 900 Kč'], ['Doba trvání', '48 měsíců'], ['Konec leasingu', '31. 3. 2028'], ['Účetní hodnota', v.value]] }) },
     ]
     const mgr = fleetsData.find((f) => f.id === v.fleet).manager
@@ -1548,7 +1548,7 @@ export default function FleetPortal() {
     const ADDR = 'Brumlovka – budova G, Michelská 1552/58, 141 00 Praha 4'
     const contactGroups = [
       { name: 'Za klienta · správa vozového parku', people: [
-        { name: 'Josef Moučka', role: 'Správa vozového parku · Jiří Tošovský s.r.o.', initials: 'JM', bg: 'var(--blue-soft)', color: 'var(--blue)', email: 'josef.moucka@autotos.cz', telefon: '+420 602 215 732' },
+        { name: 'Josef Moučka', role: 'Správa vozového parku · ČSAD AUTOBUSY České Budějovice a.s.', initials: 'JM', bg: 'var(--blue-soft)', color: 'var(--blue)', email: 'josef.moucka@csadbus.cz', telefon: '+420 602 215 732' },
       ] },
       { name: 'Za makléře · Petrisk a.s.', broker: { name: 'Petrisk a.s.', tagline: 'Pojišťovací makléř · spravuje váš Fleet Portal', address: ADDR, web: 'petrisk.cz', phone: '+420 272 769 586', email: 'info@petrisk.cz' }, people: [
         { name: 'Ing. Michal Zeman', role: 'Vedoucí oddělení pojištění motorových vozidel', initials: 'MZ', bg: 'var(--purple-soft)', color: 'var(--purple)', email: 'zeman@petrisk.cz', mobil: '+420 777 282 996', telefon: '+420 272 769 586', adresa: ADDR, www: 'www.petrisk.cz' },
@@ -2027,7 +2027,7 @@ export default function FleetPortal() {
     const rows = linesData.map((l) => {
       const sim = simulateLineRun(l)
       const drv = busDrivers.find((d) => d.id === l.driverId)
-      const bus = busVehicles.find((v) => v.id === l.busId)
+      const bus = vehiclesData.find((v) => v.id === l.busId)
       const dScore = drv ? ecoScore(drv.tele) : null
       const anomalies = (sim.maxDelay > 5 ? 1 : 0) + sim.skips + (dScore != null && dScore < 60 ? 1 : 0)
       return {
@@ -2053,7 +2053,7 @@ export default function FleetPortal() {
     const l = linesData.find((x) => x.id === state.lineId) || linesData[0]
     const sim = simulateLineRun(l)
     const drv = busDrivers.find((d) => d.id === l.driverId)
-    const bus = busVehicles.find((v) => v.id === l.busId)
+    const bus = vehiclesData.find((v) => v.id === l.busId)
     const dScore = drv ? ecoScore(drv.tele) : null
     const bScore = bus ? ecoScore(bus.tele) : null
     const an = []
@@ -2087,13 +2087,14 @@ export default function FleetPortal() {
 
   const ecoVM = () => {
     if (state.route !== 'eco') return {}
+    const ecoVehicles = vehiclesData.filter((v) => v.tele)
     const drivers = busDrivers.map((d) => {
       const sc = ecoScore(d.tele); const sv = ecoSavings(d.tele)
-      const bus = busVehicles.find((v) => v.id === d.busId); const line = linesData.find((l) => l.id === d.lineId)
+      const bus = vehiclesData.find((v) => v.id === d.busId); const line = linesData.find((l) => l.id === d.lineId)
       return { id: d.id, name: d.name, role: d.role, score: sc, band: ecoBand(sc), savingsF: sv.czk ? czk(sv.czk) : '—', savingsL: sv.liters,
         line: line ? line.no : '—', bus: bus ? `${bus.brand} ${bus.model}` : '—', accel: d.tele.accel, brake: d.tele.brake, idle: d.tele.idle }
     }).sort((a, b) => b.score - a.score)
-    const vehicles = busVehicles.map((v) => {
+    const vehicles = ecoVehicles.map((v) => {
       const sc = ecoScore(v.tele); const sv = ecoSavings(v.tele); const elec = v.fuel === 'Elektro'
       return { id: v.id, name: `${v.brand} ${v.model}`, plate: v.plate, fuel: v.fuel, score: sc, band: ecoBand(sc),
         cons: v.tele.cons, ref: v.tele.ref, unit: elec ? 'kWh' : 'l', over: elec ? null : +(v.tele.cons - v.tele.ref).toFixed(1),
@@ -2101,19 +2102,19 @@ export default function FleetPortal() {
         onClick: () => openVehicle(v.id) }
     }).sort((a, b) => b.score - a.score)
     const avgScore = Math.round(busDrivers.reduce((a, d) => a + ecoScore(d.tele), 0) / busDrivers.length)
-    const totalSaveL = busVehicles.reduce((a, v) => a + ecoSavings(v.tele).liters, 0)
-    const totalSaveCzk = busVehicles.reduce((a, v) => a + ecoSavings(v.tele).czk, 0)
-    const totalHeaterCzk = busVehicles.reduce((a, v) => a + heaterCost(v.tele), 0)
-    const totalHeaterL = busVehicles.reduce((a, v) => a + (v.tele.fuel !== 'Elektro' ? v.tele.heaterL : 0), 0)
+    const totalSaveL = ecoVehicles.reduce((a, v) => a + ecoSavings(v.tele).liters, 0)
+    const totalSaveCzk = ecoVehicles.reduce((a, v) => a + ecoSavings(v.tele).czk, 0)
+    const totalHeaterCzk = ecoVehicles.reduce((a, v) => a + heaterCost(v.tele), 0)
+    const totalHeaterL = ecoVehicles.reduce((a, v) => a + (v.tele.fuel !== 'Elektro' ? v.tele.heaterL : 0), 0)
     const evDef = [['accel', 'Prudká akcelerace', 'var(--amber)'], ['brake', 'Prudké brzdění', 'var(--star)'], ['start', 'Prudké rozjezdy', 'var(--purple)'], ['overrev', 'Přetáčení motoru', 'var(--blue)'], ['speeding', 'Překročení rychlosti', '#0E9AA6']]
-    const evAgg = evDef.map(([k, label, color]) => ({ key: k, label, color, val: +(busVehicles.reduce((a, v) => a + v.tele[k], 0) / busVehicles.length).toFixed(1) }))
+    const evAgg = evDef.map(([k, label, color]) => ({ key: k, label, color, val: +(ecoVehicles.reduce((a, v) => a + v.tele[k], 0) / (ecoVehicles.length || 1)).toFixed(1) }))
     const evMax = Math.max(1, ...evAgg.map((e) => e.val))
     evAgg.forEach((e) => { e.bar = Math.round(e.val / evMax * 100) })
     const stats = [
       { label: 'Ø eco-skóre parku', value: avgScore + '/100', color: ecoBand(avgScore).color, sub: 'hospodárnost jízdy' },
       { label: 'Potenciál úspory paliva', value: czk(totalSaveCzk), color: 'var(--green)', sub: totalSaveL + ' l / měsíc' },
       { label: 'Nezávislé topení', value: czk(totalHeaterCzk), color: 'var(--amber)', sub: totalHeaterL + ' l / měsíc' },
-      { label: 'Vozů ve vyhodnocení', value: String(busVehicles.length), sub: 'autobusů s jednotkou' },
+      { label: 'Vozů ve vyhodnocení', value: String(ecoVehicles.length), sub: 'autobusů s jednotkou' },
     ]
     return { eco: { stats, drivers, vehicles, evAgg, medals: ['🥇', '🥈', '🥉'] } }
   }
