@@ -375,7 +375,7 @@ export default function FleetPortal() {
   const [state, setStateRaw] = useState(() => ({
     dash: loadDash(), kpi: loadKpi(),
     role: 'majitel', roleMenu: false,
-    route: 'dashboard',
+    route: 'dashboard', attnCat: null,
     fleetId: 'f1', vehicleId: 'v1',
     fleetTab: 'overview', vehicleTab: 'overview', fleetsView: 'grid', finTab: 'prehled', rfq: null, rfqs: SEED_RFQS,
     vehEquip: SEED_EQUIP, equipModal: null,
@@ -650,6 +650,7 @@ export default function FleetPortal() {
       bonifikace: ['Bonifikace', 'Vrácení části pojistného dle škodního průběhu'],
       contacts: ['Kontakty', 'Správa vozového parku a pojišťovací makléř'],
       analytics: ['Reporting', 'Náklady, stáří a úspory celé flotily'],
+      attention: ['Vyžaduje pozornost', 'Co je potřeba řešit napříč flotilou'],
       settings: ['Nastavení', 'Profil a předvolby portálu'],
     }
     let title, sub
@@ -695,7 +696,7 @@ export default function FleetPortal() {
       isDashboard: r === 'dashboard', isFleets: r === 'fleets', isFleetDetail: r === 'fleet-detail',
       isVehicles: r === 'vehicles', isVehicleDetail: r === 'vehicle-detail',
       isInsurance: r === 'insurance', isInsuranceDetail: r === 'insurance-detail', isClaims: r === 'claims', isDocuments: r === 'documents', isAnalytics: r === 'analytics', isContacts: r === 'contacts', isSettings: r === 'settings', isDrivers: r === 'drivers', isDriverDetail: r === 'driver-detail', isFinancing: r === 'financing',
-      isLinky: r === 'linky', isLinkyDetail: r === 'linky-detail', isEco: r === 'eco',
+      isLinky: r === 'linky', isLinkyDetail: r === 'linky-detail', isEco: r === 'eco', isAttention: r === 'attention',
       isDocumentsDetail: r === 'documents-detail',
       openDocCat: (cat) => navigate('documents-detail', { docCat: cat, docOpen: {} }), goDocuments: () => navigate('documents'),
       docPreview: state.docPreview, closeDocPreview: () => setState({ docPreview: null }),
@@ -815,12 +816,14 @@ export default function FleetPortal() {
     const finEnd = financingEnding(90)
     const amberGreen = (n) => n ? { color: 'var(--amber)', bg: 'var(--amber-soft)' } : { color: 'var(--green)', bg: 'var(--green-soft)' }
     const starGreen = (n) => n ? { color: 'var(--star)', bg: 'var(--star-soft)' } : { color: 'var(--green)', bg: 'var(--green-soft)' }
+    const lekExpCount = driversData.filter((d) => { const due = dueInfo(d.lekarska && d.lekarska.validTo, 60); return due && due.days <= 60 }).length
+    const goAttn = (cat) => navigate('attention', { attnCat: cat })
     const quickStats = [
-      { icon: ic('alert', 18), ...starGreen(claimsOpen), label: 'Otevřené škody', sub: claimsReserve ? `rezervy ${czk(claimsReserve)}` : 'v likvidaci', value: String(claimsOpen), onClick: () => navigate('claims') },
-      { icon: ic('banknote', 18), ...starGreen(finEnd.length), label: 'Končící financování', sub: 'smlouvy do 90 dnů', value: String(finEnd.length), onClick: () => navigate('financing') },
-      { icon: ic('check2', 18), ...amberGreen(stkExpCount), label: 'Končící STK', sub: 'do 60 dnů / po platnosti', value: String(stkExpCount), onClick: () => navigate('vehicles') },
-      { icon: ic('doc2', 18), ...amberGreen(vigExpCount), label: 'Končící dálniční známky', sub: 'do 60 dnů / po platnosti', value: String(vigExpCount), onClick: () => navigate('vehicles') },
-      { icon: ic('user1', 18), ...amberGreen(rpExpCount), label: 'Končící řidičské průkazy', sub: 'ŘP / profesní do 60 dnů', value: String(rpExpCount), onClick: () => navigate('drivers') },
+      { icon: ic('alert', 18), ...starGreen(claimsOpen), label: 'Otevřené škody', sub: claimsReserve ? `rezervy ${czk(claimsReserve)}` : 'v likvidaci', value: String(claimsOpen), onClick: () => goAttn('claims') },
+      { icon: ic('check2', 18), ...amberGreen(stkExpCount), label: 'Končící STK a emise', sub: 'do 60 dnů / po platnosti', value: String(stkExpCount), onClick: () => goAttn('stk') },
+      { icon: ic('shield', 18), ...amberGreen(lekExpCount), label: 'Končící lékařské prohlídky', sub: 'řidiči do 60 dnů', value: String(lekExpCount), onClick: () => goAttn('lekarska') },
+      { icon: ic('user1', 18), ...amberGreen(rpExpCount), label: 'Končící řidičské průkazy', sub: 'ŘP / profesní do 60 dnů', value: String(rpExpCount), onClick: () => goAttn('rp') },
+      { icon: ic('doc2', 18), ...amberGreen(vigExpCount), label: 'Končící dálniční známky', sub: 'do 60 dnů / po platnosti', value: String(vigExpCount), onClick: () => goAttn('vignette') },
     ]
 
     // karty vozových parků (lokalit) — hav dopočítán z vozidel parku
@@ -1642,6 +1645,53 @@ export default function FleetPortal() {
     return { dispatchDash: { kpis, rows, anomalyLines, driverTop: drv.slice(0, 3), driverBottom: drv.slice(-2).reverse(), goLinky: () => navigate('linky'), goEco: () => navigate('eco') } }
   }
 
+  // ---- Vyžaduje pozornost: konkrétní seznamy + akce (nástroj, ne nástěnka) ----
+  const attentionVM = () => {
+    if (state.route !== 'attention') return {}
+    const dayWord = (n) => { const a = Math.abs(n); return a === 1 ? 'den' : (a >= 2 && a <= 4 ? 'dny' : 'dní') }
+    const badge = (due) => !due ? null : due.expired
+      ? { label: `po platnosti · ${-due.days} ${dayWord(due.days)}`, color: 'var(--star)', bg: 'var(--star-soft)', sev: 2 }
+      : { label: `končí za ${due.days} ${dayWord(due.days)}`, color: '#B45309', bg: 'var(--amber-soft)', sev: 1 }
+    const vehRow = (v, due, actLabel, actMsg) => ({ title: `${v.brand} ${v.model}`, sub: `${v.plate} · ${fleetName(v.fleet)}`, icon: ic('car', 17), badge: badge(due),
+      onClick: () => openVehicle(v.id), actionLabel: actLabel, action: () => showToast(`${actMsg} · ${v.brand} ${v.model} (${v.plate})`) })
+    // STK
+    const stk = vehiclesData.map((v) => ({ v, due: dueInfo(vehicleStk(v), 60) })).filter((x) => x.due && x.due.days <= 60).sort((a, b) => a.due.days - b.due.days)
+      .map(({ v, due }) => vehRow(v, due, 'Objednat STK', 'Objednávka STK odeslána do servisu'))
+    // dálniční známky
+    const vig = vehiclesData.map((v) => { const g = vehicleVignette(v); return { v, g, due: g ? dueInfo(g.validTo, 60) : null } }).filter((x) => x.due && x.due.days <= 60).sort((a, b) => a.due.days - b.due.days)
+      .map(({ v, due }) => vehRow(v, due, 'Obnovit známku', 'Dálniční známka obnovena'))
+    // řidičské průkazy / profesní způsobilost
+    const rp = driversData.map((d) => {
+      const a = dueInfo(d.rp && d.rp.validTo, 60); const b = d.rp && d.rp.profValidTo ? dueInfo(d.rp.profValidTo, 60) : null
+      const cand = [a && a.days <= 60 ? { due: a, what: 'Řidičský průkaz' } : null, b && b.days <= 60 ? { due: b, what: 'Profesní způsobilost' } : null].filter(Boolean).sort((x, y) => x.due.days - y.due.days)
+      return cand.length ? { d, due: cand[0].due, what: cand[0].what } : null
+    }).filter(Boolean).sort((x, y) => x.due.days - y.due.days)
+      .map(({ d, due, what }) => ({ title: d.name, sub: `${what} · ${d.position}`, icon: ic('user1', 17), badge: badge(due), onClick: () => openDriver(d.id), actionLabel: 'Připomenout řidiči', action: () => showToast(`Připomínka odeslána řidiči · ${d.name} (${what.toLowerCase()})`) }))
+    // lékařské prohlídky
+    const lek = driversData.map((d) => ({ d, due: d.lekarska ? dueInfo(d.lekarska.validTo, 60) : null })).filter((x) => x.due && x.due.days <= 60).sort((a, b) => a.due.days - b.due.days)
+      .map(({ d, due }) => ({ title: d.name, sub: `Pravidelná lékařská prohlídka · ${d.position}`, icon: ic('shield', 17), badge: badge(due), onClick: () => openDriver(d.id), actionLabel: 'Objednat prohlídku', action: () => showToast(`Termín prohlídky domluven · ${d.name}`) }))
+    // otevřené škody
+    const claims = claimsData.filter((c) => c.status !== 'closed').map((c) => { const v = vehiclesData.find((x) => x.id === c.vId)
+      return { title: c.vehicle, sub: `${c.type} · nahlášeno ${c.date}`, icon: ic('alert', 17), badge: { label: 'v likvidaci', color: 'var(--amber)', bg: 'var(--amber-soft)' }, onClick: () => openClaim(c.id), actionLabel: 'Otevřít', action: () => openClaim(c.id) } })
+    // financování
+    const fin = financingEnding(90).map(({ v, daysToEnd }) => vehRow(v, { days: daysToEnd, expired: false }, 'Poptat obměnu', 'Poptávka obměny připravena'))
+
+    const defs = [
+      { id: 'stk', label: 'Končící STK a emise', icon: 'check2', color: 'var(--amber)', hint: 'Technická prohlídka do 60 dnů nebo po platnosti', items: stk },
+      { id: 'lekarska', label: 'Končící lékařské prohlídky', icon: 'shield', color: 'var(--green)', hint: 'Pravidelná prohlídka řidiče (§ 87 z. 361/2000)', items: lek },
+      { id: 'rp', label: 'Končící řidičské průkazy a profesní způsobilost', icon: 'user1', color: 'var(--blue)', hint: 'ŘP nebo profesní způsobilost do 60 dnů', items: rp },
+      { id: 'vignette', label: 'Končící dálniční známky', icon: 'doc2', color: '#6D8BFF', hint: 'Roční kupon do 60 dnů nebo po platnosti', items: vig },
+      { id: 'claims', label: 'Otevřené škody', icon: 'alert', color: 'var(--star)', hint: 'Pojistné události v likvidaci', items: claims },
+      { id: 'financing', label: 'Končící financování', icon: 'banknote', color: 'var(--purple)', hint: 'Úvěr / leasing do 90 dnů', items: fin },
+    ]
+    const cat = state.attnCat
+    const ordered = cat ? [...defs.filter((d) => d.id === cat), ...defs.filter((d) => d.id !== cat)] : defs
+    const sections = ordered.filter((d) => d.items.length > 0)
+    const totalOpen = defs.reduce((a, d) => a + d.items.length, 0)
+    const chips = defs.map((d) => ({ id: d.id, label: d.label.replace('Končící ', '').replace('Otevřené ', ''), count: d.items.length, active: d.id === cat, color: d.color, onClick: () => setState({ attnCat: d.id === cat ? null : d.id }) }))
+    return { attention: { sections, chips, totalOpen, cat, clearCat: () => setState({ attnCat: null }), goDash: () => navigate('dashboard') } }
+  }
+
   const contactsVM = () => {
     if (state.route !== 'contacts') return {}
     const ADDR = 'Brumlovka – budova G, Michelská 1552/58, 141 00 Praha 4'
@@ -2226,7 +2276,7 @@ export default function FleetPortal() {
     tireModal: state.tireModal ? { ...state.tireModal, close: () => setState({ tireModal: null }), stop: (e) => e.stopPropagation(), actions: TIRE_ACTIONS, field: (k) => (e) => setTireField(k, e.target.value), onInvoice: (e) => { const f = e.target.files && e.target.files[0]; if (f) setTireField('invoice', f.name) }, save: saveTire } : null,
     fineModal: state.fineModal ? { ...state.fineModal, close: () => setState({ fineModal: null }), stop: (e) => e.stopPropagation(), types: FINE_TYPES, field: (k) => (e) => setFineField(k, e.target.value), togglePaid: () => setState((s) => ({ fineModal: { ...s.fineModal, paid: !s.fineModal.paid } })), save: saveFine } : null,
     ...shellVM(), ...dashboardVM(), ...fleetsVM(), ...fleetDetailVM(), ...vehiclesVM(), ...vehicleDetailVM(),
-    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...ownerDashVM(), ...dispatchDashVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(), ...linkyVM(), ...linkyDetailVM(), ...ecoVM(),
+    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...ownerDashVM(), ...dispatchDashVM(), ...attentionVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(), ...linkyVM(), ...linkyDetailVM(), ...ecoVM(),
   }
 
   return <Render vm={vm} />

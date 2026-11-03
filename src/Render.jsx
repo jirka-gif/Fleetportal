@@ -361,6 +361,7 @@ export default function Render({ vm }) {
             {vm.isBonifikace && <EmptyState icon="percent" title="Bonifikace se připravuje" sub="Výpočet bonifikace — vrácení části pojistného dle škodního průběhu — se zobrazí po napojení na systém pojišťovny a doplnění pojistného a škodní historie." />}
             {vm.isBonifikaceDetail && <BonifikaceDetail vm={vm} />}
             {vm.isAnalytics && <Reporting vm={vm} />}
+            {vm.isAttention && <Attention vm={vm} />}
             {vm.isContacts && <Contacts vm={vm} />}
             {vm.isSettings && <Settings vm={vm} />}
 
@@ -1632,6 +1633,68 @@ function Reporting({ vm }) {
         </div>
         <div style={S('font-size:11.5px;color:var(--ink3);margin-top:16px;line-height:1.5')}>Provozní náklady jsou modelový odhad z typu vozidla, stáří, paliva a odhadovaného nájezdu. Po napojení telematiky a účetnictví je nahradí reálná data. Pojistné a škodní průběh doplní napojení na pojišťovnu.</div>
       </div>
+    </div>
+  )
+}
+
+/* ============================ VYŽADUJE POZORNOST ============================ */
+function Attention({ vm }) {
+  const mob = vm.vp.isMobile
+  const a = vm.attention
+  if (!a) return null
+  return (
+    <div>
+      {/* souhrn + chipy kategorií */}
+      <div style={S(`${CARD};padding:18px 20px;margin-bottom:18px`)}>
+        <div style={S('display:flex;align-items:center;gap:14px;flex-wrap:wrap')}>
+          <div style={S(`width:46px;height:46px;border-radius:13px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${a.totalOpen ? 'var(--star-soft)' : 'var(--green-soft)'};color:${a.totalOpen ? 'var(--star)' : 'var(--green)'}`)}>{ic(a.totalOpen ? 'alert' : 'check', 23)}</div>
+          <div style={S('flex:1;min-width:0')}>
+            <div style={S('font-size:17px;font-weight:800;letter-spacing:-.4px')}>{a.totalOpen ? `${a.totalOpen} položek vyžaduje akci` : 'Vše vyřízeno'}</div>
+            <div style={S('font-size:13px;color:var(--ink3);margin-top:2px')}>Termíny, doklady a události napříč celou flotilou. Klikni na kategorii pro filtr.</div>
+          </div>
+        </div>
+        <div style={S('display:flex;gap:8px;flex-wrap:wrap;margin-top:15px')}>
+          {a.chips.map((c) => (
+            <Hov key={c.id} onClick={c.onClick} base={`display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 13px;border-radius:20px;cursor:pointer;font-size:12.5px;font-weight:650;border:1px solid ${c.active ? c.color : 'var(--border)'};background:${c.active ? c.color : '#fff'};color:${c.active ? '#fff' : 'var(--ink2)'}`} hover={c.active ? '' : 'border:1px solid var(--ink3)'}>
+              {c.label}
+              <span style={S(`font-weight:800;font-variant-numeric:tabular-nums;color:${c.active ? '#fff' : (c.count ? c.color : 'var(--ink3)')}`)}>{c.count}</span>
+            </Hov>
+          ))}
+          {a.cat && <Hov onClick={a.clearCat} base="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 13px;border-radius:20px;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--ink3)" hover="color:var(--ink)">Zrušit filtr</Hov>}
+        </div>
+      </div>
+
+      {a.sections.length === 0 ? (
+        <div style={S(`${CARD};padding:48px 28px;text-align:center`)}>
+          <div style={S('width:54px;height:54px;border-radius:15px;background:var(--green-soft);color:var(--green);display:flex;align-items:center;justify-content:center;margin:0 auto 16px')}>{ic('check', 26)}</div>
+          <div style={S('font-size:16px;font-weight:700')}>Nic k řešení</div>
+          <div style={S('font-size:13px;color:var(--ink3);margin-top:6px')}>V této kategorii nejsou žádné otevřené položky.</div>
+        </div>
+      ) : (
+        <div style={S('display:flex;flex-direction:column;gap:18px')}>
+          {a.sections.map((sec) => (
+            <div key={sec.id} style={S(`${CARD};padding:20px 22px`)}>
+              <div style={S('display:flex;align-items:center;gap:12px;margin-bottom:14px')}>
+                <span style={S(`width:38px;height:38px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${sec.color}1F;color:${sec.color}`)}>{ic(sec.icon, 20)}</span>
+                <div style={S('flex:1;min-width:0')}><div style={S('font-size:15.5px;font-weight:700;letter-spacing:-.3px')}>{sec.label}</div><div style={S('font-size:12px;color:var(--ink3);margin-top:1px')}>{sec.hint}</div></div>
+                <span style={S(`font-size:12px;font-weight:800;color:${sec.color};background:${sec.color}1F;padding:4px 11px;border-radius:20px;flex-shrink:0`)}>{sec.items.length}</span>
+              </div>
+              <div>
+                {sec.items.map((it, i) => (
+                  <div key={i} style={S(`display:flex;align-items:center;gap:12px;padding:11px 10px;border-top:${i ? '1px solid var(--border)' : 'none'}`)}>
+                    <Hov onClick={it.onClick} base="display:flex;align-items:center;gap:12px;flex:1;min-width:0;cursor:pointer;border-radius:10px;padding:2px 4px;margin:-2px -4px" hover="background:var(--canvas)">
+                      <span style={S('width:32px;height:32px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#F1F1F3;color:var(--ink2)')}>{it.icon}</span>
+                      <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{it.title}</div><div style={S('font-size:11.5px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{it.sub}</div></div>
+                    </Hov>
+                    {it.badge && <span style={S(`font-size:11.5px;font-weight:700;color:${it.badge.color};background:${it.badge.bg};padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;${mob ? 'display:none' : ''}`)}>{it.badge.label}</span>}
+                    <Hov onClick={it.action} base={`display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 13px;border-radius:9px;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--blue-ink);background:var(--blue-soft);white-space:nowrap;flex-shrink:0`} hover="background:var(--blue);color:#fff">{it.actionLabel}</Hov>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
