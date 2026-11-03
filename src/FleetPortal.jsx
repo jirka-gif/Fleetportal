@@ -1220,10 +1220,19 @@ export default function FleetPortal() {
     const fin = v.financing
     const monthlyLease = fin && fin.active ? moneyNum(fin.monthlyPayment) : 0
     const annualPrem = moneyNum(v.premium)
+    // Modelový odhad provozních nákladů z TCO enginu — použije se, když nejsou
+    // evidované reálné položky (servis/pneu/pokuty/faktury). Po napojení
+    // účetnictví/telematiky ho nahradí reálná data.
+    const costModel = vehicleAnnualCost(v)
+    const costModeled = costEntries.length < 2 && !monthlyLease && !annualPrem
     const catTotals = {}
-    costEntries.forEach((e) => { catTotals[e.cat] = (catTotals[e.cat] || 0) + e.amount })
-    if (monthlyLease) catTotals.leasing = (catTotals.leasing || 0) + monthlyLease * 12
-    if (annualPrem) catTotals.pojisteni = (catTotals.pojisteni || 0) + annualPrem
+    if (costModeled) {
+      ;['phm', 'servis', 'pneu', 'dalnice', 'pokuty'].forEach((k) => { if (costModel[k]) catTotals[k] = costModel[k] })
+    } else {
+      costEntries.forEach((e) => { catTotals[e.cat] = (catTotals[e.cat] || 0) + e.amount })
+      if (monthlyLease) catTotals.leasing = (catTotals.leasing || 0) + monthlyLease * 12
+      if (annualPrem) catTotals.pojisteni = (catTotals.pojisteni || 0) + annualPrem
+    }
     const yearTotal = Object.values(catTotals).reduce((a, b) => a + b, 0)
     const catBreak = COST_CATS.filter((c) => catTotals[c.key]).map((c) => ({ key: c.key, label: c.label, color: c.color, amount: catTotals[c.key], amountF: czk(catTotals[c.key]), pct: Math.round((catTotals[c.key] / (yearTotal || 1)) * 100) })).sort((a, b) => b.amount - a.amount)
     const catMax = Math.max(1, ...catBreak.map((c) => c.amount))
@@ -1236,6 +1245,12 @@ export default function FleetPortal() {
     if (monthlyLease) forecast.push({ label: 'Leasing / splátky (12×)', sub: czk(monthlyLease) + ' měsíčně', date: 'měsíčně', amount: monthlyLease * 12, color: 'var(--green)', bg: 'var(--green-soft)', icon: 'banknote', recurring: true })
     const dz = extraRaw.find((x) => x.cat === 'dalnice')
     if (dz) forecast.push({ label: 'Obnova dálniční známky', sub: 'roční kupón ČR', date: 'leden 2027', amount: moneyNum(dz.amount), color: '#6D8BFF', bg: 'var(--blue-soft)', icon: 'calendar' })
+    // Modelová predikce, když nejsou evidované reálné položky
+    if (costModeled && forecast.length === 0) {
+      if (costModel.servis) forecast.push({ label: 'Pravidelný servis (odhad)', sub: 'dle najetých km a stáří', date: 'za ~6 měsíců', amount: Math.round(costModel.servis / 2), color: 'var(--purple)', bg: 'var(--purple-soft)', icon: 'wrench' })
+      if (costModel.pneu) forecast.push({ label: 'Sezónní přezutí (odhad)', sub: 'výměna pneu + uskladnění', date: 'podzim / jaro', amount: Math.round(costModel.pneu / 2), color: '#0E9AA6', bg: '#E3F4F5', icon: 'swap' })
+      if (costModel.dalnice) forecast.push({ label: 'Mýto a dálniční známky', sub: 'roční', date: 'leden 2027', amount: costModel.dalnice, color: '#6D8BFF', bg: 'var(--blue-soft)', icon: 'calendar' })
+    }
     forecast.forEach((f) => { f.amountF = czk(f.amount) })
     const forecast12 = forecast.reduce((a, f) => a + f.amount, 0)
     // Nákladová kniha (ledger)
@@ -1264,7 +1279,7 @@ export default function FleetPortal() {
         premiumF: czk(v.premium), productCount: products.filter((p) => p.status !== 'nocasco').length, renewal: v.renewal,
         isOverview: tab === 'overview', isInsurance: tab === 'insurance', isClaims: tab === 'claims', isTimeline: tab === 'timeline',
         isNotes: tab === 'notes',
-        isCosts: tab === 'costs', openCostModal: () => openCostModal(v), costStats, catBreak, forecast, forecast12F: czk(forecast12), yearTotalF: czk(yearTotal), monthlyAvgF: czk(monthlyAvg), ledger, costCount: costEntries.length,
+        isCosts: tab === 'costs', openCostModal: () => openCostModal(v), costStats, catBreak, forecast, forecast12F: czk(forecast12), yearTotalF: czk(yearTotal), monthlyAvgF: czk(monthlyAvg), ledger, costCount: costEntries.length, costModeled,
         isService: tab === 'service', serviceList, serviceCount: svcRaw.length, onAddService: () => openServiceModal(v),
         upcomingSvc: upcomingSvc ? { date: upcomingSvc.nextDate, km: upcomingSvc.nextKm ? fmtKm(upcomingSvc.nextKm) : '' } : null,
         isTires: tab === 'tires', tireList, tireCount: tireRaw.length, onAddTire: () => openTireModal(v),
