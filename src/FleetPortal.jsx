@@ -53,6 +53,52 @@ function simulateLineRun(line) {
   }
 }
 
+// ---- Dispečink: oběhy vozidel a turnusy řidičů pro vybraný den (modelové) ----
+const DISPATCH_DAY_LABEL = 'úterý 3. 11. 2026'
+const DISPATCH_T0 = 180  // 03:00 (začátek osy)
+const DISPATCH_T1 = 1440 // 24:00 (konec osy)
+const _durLabel = (m) => { const h = Math.floor(m / 60), mm = m % 60; return mm ? `${h} h ${mm} min` : `${h} h` }
+const dutyStatusOf = (drive, brk) => drive > 9 * 60 ? { label: 'Překročena doba řízení', sev: 2, color: 'var(--star)', bg: 'var(--star-soft)' }
+  : brk < 45 ? { label: 'Krátká přestávka', sev: 1, color: '#B45309', bg: 'var(--amber-soft)' }
+  : drive > 8.5 * 60 ? { label: 'Blíží se limitu', sev: 1, color: '#B45309', bg: 'var(--amber-soft)' }
+  : { label: 'V normě', sev: 0, color: 'var(--green)', bg: 'var(--green-soft)' }
+function buildDispatch() {
+  return linesData.map((l, i) => {
+    const bus = vehiclesData.find((v) => v.id === l.busId)
+    const amDrv = busDrivers.find((d) => d.id === l.driverId) || busDrivers[i % busDrivers.length]
+    const pmDrv = driversData[(i * 2 + 3) % driversData.length]
+    const isLong = l.no === '300'
+    const depotOut = _toMin(l.firstDep) - 15
+    const amSpan = isLong ? 600 : 480 - (i % 2) * 15
+    const pmSpan = isLong ? 420 : 480 - (i % 3) * 20
+    const handover = depotOut + amSpan
+    const depotIn = handover + pmSpan
+    const sStart = depotOut + 15, sEnd = depotIn - 15
+    const amBreakLen = i === 2 ? 30 : 45
+    const pmBreakLen = 45
+    const amBreakS = depotOut + Math.round(amSpan * 0.52)
+    const pmBreakS = handover + Math.round(pmSpan * 0.5)
+    const seg = (kind, label, s, e, drv) => ({ kind, label, s, e, drv, w: (e - s) })
+    const blocks = [
+      seg('depot', 'Výjezd z vozovny', depotOut, sStart, amDrv.name),
+      seg('line', `Linka ${l.no}`, sStart, amBreakS, amDrv.name),
+      seg('break', 'Přestávka', amBreakS, amBreakS + amBreakLen, amDrv.name),
+      seg('line', `Linka ${l.no}`, amBreakS + amBreakLen, handover, amDrv.name),
+      seg('line', `Linka ${l.no}`, handover, pmBreakS, pmDrv.name),
+      seg('break', 'Přestávka', pmBreakS, pmBreakS + pmBreakLen, pmDrv.name),
+      seg('line', `Linka ${l.no}`, pmBreakS + pmBreakLen, sEnd, pmDrv.name),
+      seg('depot', 'Zátah do vozovny', sEnd, depotIn, pmDrv.name),
+    ]
+    const amDrive = (handover - depotOut) - amBreakLen
+    const pmDrive = (depotIn - handover) - pmBreakLen
+    const duties = [
+      { turnus: `${l.no}/R`, part: 'Ranní', driver: amDrv.name, role: amDrv.role, driverId: amDrv.id, start: depotOut, end: handover, drive: amDrive, brk: amBreakLen, status: dutyStatusOf(amDrive, amBreakLen) },
+      { turnus: `${l.no}/O`, part: 'Odpolední', driver: pmDrv.name, role: pmDrv.position, driverId: pmDrv.id, start: handover, end: depotIn, drive: pmDrive, brk: pmBreakLen, status: dutyStatusOf(pmDrive, pmBreakLen) },
+    ]
+    return { line: l, bus, blocks, duties, depotOut, depotIn, sStart, sEnd, handover, span: depotIn - depotOut, drive: amDrive + pmDrive }
+  })
+}
+
 const ROOT_STYLE =
   "--star:#C8102E;--star-soft:#FDECEE;--star-ink:#9B0E25;--blue:#2058C9;--blue-soft:#EAF0FC;" +
   "--blue-ink:#1A47A3;--green:#16A34A;--green-soft:#E7F6ED;--amber:#C2780C;--amber-soft:#FBF1DF;" +
@@ -427,6 +473,7 @@ export default function FleetPortal() {
   const openDriver = (id) => navigate('driver-detail', { driverId: id })
   const openClaim = (id) => navigate('claim-detail', { claimId: id })
   const openLine = (id) => navigate('linky-detail', { lineId: id })
+  const openStazka = (lineId) => navigate('stazka', { stazkaLine: lineId })
   const toggleNotif = () => setState((s) => ({ notif: !s.notif, companyMenu: false }))
   const toggleAI = () => setState((s) => ({ ai: !s.ai }))
   const openSearch = () => setState({ search: true })
@@ -615,6 +662,7 @@ export default function FleetPortal() {
       ['vehicles', 'Vozidla', 'car', String(vehiclesData.length)],
       ['drivers', 'Řidiči', 'users', String(driversData.length)],
       ['linky', 'Linky & JŘ', 'pin', String(linesData.length)],
+      ['dispatch', 'Dispečink', 'calendar', null],
       ['eco', 'Eco-driving', 'gauge', null],
       ['insurance', 'Pojištění', 'shield', null],
       ['financing', 'Financování', 'banknote', String(vehiclesData.filter((v) => v.financing && v.financing.active).length)],
@@ -624,7 +672,7 @@ export default function FleetPortal() {
       ['contacts', 'Kontakty', 'users', null],
       ['settings', 'Nastavení', 'settings', null],
     ]
-    const activeRoute = r === 'fleet-detail' ? 'fleets' : r === 'vehicle-detail' ? 'vehicles' : r === 'driver-detail' ? 'drivers' : r === 'bonifikace-detail' ? 'bonifikace' : r === 'documents-detail' ? 'documents' : r === 'claim-detail' ? 'claims' : r === 'linky-detail' ? 'linky' : r
+    const activeRoute = r === 'fleet-detail' ? 'fleets' : r === 'vehicle-detail' ? 'vehicles' : r === 'driver-detail' ? 'drivers' : r === 'bonifikace-detail' ? 'bonifikace' : r === 'documents-detail' ? 'documents' : r === 'claim-detail' ? 'claims' : r === 'linky-detail' ? 'linky' : r === 'stazka' ? 'dispatch' : r
     const nav = navItems.map(([id, label, icon, badge]) => {
       const on = activeRoute === id
       return {
@@ -651,6 +699,7 @@ export default function FleetPortal() {
       contacts: ['Kontakty', 'Správa vozového parku a pojišťovací makléř'],
       analytics: ['Reporting', 'Náklady, stáří a úspory celé flotily'],
       attention: ['Vyžaduje pozornost', 'Co je potřeba řešit napříč flotilou'],
+      dispatch: ['Dispečink', 'Oběhy vozidel, turnusy řidičů a stazka'],
       settings: ['Nastavení', 'Profil a předvolby portálu'],
     }
     let title, sub
@@ -661,6 +710,7 @@ export default function FleetPortal() {
     else if (r === 'claim-detail') { const c = claimsData.find((x) => x.id === state.claimId) || claimsData[0]; title = `Škoda ${c.id}`; sub = `${c.type} · ${c.vehicle}` }
     else if (r === 'driver-detail') { const d = driversData.find((x) => x.id === state.driverId) || driversData[0]; title = d.name; sub = d.position }
     else if (r === 'linky-detail') { const l = linesData.find((x) => x.id === state.lineId) || linesData[0]; title = `Linka ${l.no} · ${l.name}`; sub = `${l.agency} · ${l.stops.length} zastávek` }
+    else if (r === 'stazka') { const l = linesData.find((x) => x.id === state.stazkaLine) || linesData[0]; const b = vehiclesData.find((x) => x.id === l.busId); title = `Stazka · linka ${l.no}`; sub = `${b ? b.brand + ' ' + b.model + ' · ' + b.plate : ''} · ${DISPATCH_DAY_LABEL}` }
     else { const t = titles[r] || ['', '']; title = t[0]; sub = t[1] }
 
     const aiMessages = state.aiMessages.map((m) => ({
@@ -696,7 +746,7 @@ export default function FleetPortal() {
       isDashboard: r === 'dashboard', isFleets: r === 'fleets', isFleetDetail: r === 'fleet-detail',
       isVehicles: r === 'vehicles', isVehicleDetail: r === 'vehicle-detail',
       isInsurance: r === 'insurance', isInsuranceDetail: r === 'insurance-detail', isClaims: r === 'claims', isDocuments: r === 'documents', isAnalytics: r === 'analytics', isContacts: r === 'contacts', isSettings: r === 'settings', isDrivers: r === 'drivers', isDriverDetail: r === 'driver-detail', isFinancing: r === 'financing',
-      isLinky: r === 'linky', isLinkyDetail: r === 'linky-detail', isEco: r === 'eco', isAttention: r === 'attention',
+      isLinky: r === 'linky', isLinkyDetail: r === 'linky-detail', isEco: r === 'eco', isAttention: r === 'attention', isDispatch: r === 'dispatch', isStazka: r === 'stazka',
       isDocumentsDetail: r === 'documents-detail',
       openDocCat: (cat) => navigate('documents-detail', { docCat: cat, docOpen: {} }), goDocuments: () => navigate('documents'),
       docPreview: state.docPreview, closeDocPreview: () => setState({ docPreview: null }),
@@ -1644,10 +1694,10 @@ export default function FleetPortal() {
     if (state.route !== 'analytics') return {}
     const r = fleetCostRollup()
     const anKpis = [
-      { value: mil(r.total).replace(' Kč', ''), unit: 'Kč', label: 'Provozní náklady flotily / rok', icon: 'banknote', note: 'PHM, servis, pneu, mýto, pokuty', trend: '6 %', dir: 'down', trendColor: 'var(--green)' },
+      { value: (r.total / 1e6).toFixed(1).replace('.', ','), unit: 'mil. Kč', label: 'Provozní náklady flotily / rok', icon: 'banknote', note: 'PHM, servis, pneu, mýto, pokuty' },
       { value: czk(r.perVehicle), label: 'Ø náklad na vozidlo / rok', icon: 'car', note: czk(r.perMonth) + ' měsíčně' },
       { value: String(r.avgAge), unit: 'let', label: 'Průměrné stáří flotily', icon: 'calendar', note: `${r.oldCount} vozů nad 20 let` },
-      { value: mil(r.ecoPotentialYear).replace(' Kč', ''), unit: 'Kč', label: 'Potenciál úspor paliva / rok', icon: 'gauge', note: 'po nasazení telematiky', trend: 'eco', trendColor: 'var(--green)' },
+      { value: (r.ecoPotentialYear / 1e6).toFixed(1).replace('.', ','), unit: 'mil. Kč', label: 'Potenciál úspor paliva / rok', icon: 'gauge', note: 'po nasazení telematiky' },
     ]
     const catItems = costCatItems(r)
     const parkItems = parkCostItems(r)
@@ -1670,10 +1720,10 @@ export default function FleetPortal() {
     if (state.route !== 'dashboard' || state.role !== 'majitel') return {}
     const r = fleetCostRollup()
     const kpis = [
-      { value: mil(r.total).replace(' Kč', ''), unit: 'Kč', label: 'Provozní náklady flotily / rok', icon: 'banknote', note: 'modelový odhad TCO', trend: '6 %', dir: 'down', trendColor: 'var(--green)' },
-      { value: czk(r.perMonth), label: 'Ø náklady flotily / měsíc', icon: 'trend', note: czk(r.perVehicle) + ' / vozidlo / rok' },
+      { value: (r.total / 1e6).toFixed(1).replace('.', ','), unit: 'mil. Kč', label: 'Provozní náklady flotily / rok', icon: 'banknote', note: 'modelový odhad TCO · ▼ 6 % r/r' },
+      { value: (r.perMonth / 1e6).toFixed(1).replace('.', ','), unit: 'mil. Kč', label: 'Ø náklady flotily / měsíc', icon: 'trend', note: czk(r.perVehicle) + ' / vozidlo / rok' },
       { value: String(r.avgAge), unit: 'let', label: 'Průměrné stáří flotily', icon: 'calendar', note: `${r.oldCount} vozů nad 20 let` },
-      { value: mil(r.ecoPotentialYear).replace(' Kč', ''), unit: 'Kč', label: 'Potenciál úspor / rok', icon: 'gauge', note: 'telematika + eco-driving' },
+      { value: (r.ecoPotentialYear / 1e6).toFixed(1).replace('.', ','), unit: 'mil. Kč', label: 'Potenciál úspor / rok', icon: 'gauge', note: 'telematika + eco-driving' },
     ]
     const topVeh = [...r.costs].sort((a, b) => b.c.total - a.c.total).slice(0, 5).map((x) => ({ id: x.v.id, name: `${x.v.brand} ${x.v.model}`, plate: x.v.plate, year: x.v.year, totalF: czk(x.c.total), onClick: () => openVehicle(x.v.id) }))
     return { ownerDash: { kpis, catItems: costCatItems(r), parkItems: parkCostItems(r), ages: ageItems(r), recs: ownerRecs(r), topVeh, goReport: () => navigate('analytics') } }
@@ -1749,6 +1799,78 @@ export default function FleetPortal() {
     const totalOpen = defs.reduce((a, d) => a + d.items.length, 0)
     const chips = defs.map((d) => ({ id: d.id, label: d.label.replace('Končící ', '').replace('Otevřené ', ''), count: d.items.length, active: d.id === cat, color: d.color, onClick: () => setState({ attnCat: d.id === cat ? null : d.id }) }))
     return { attention: { sections, chips, totalOpen, cat, clearCat: () => setState({ attnCat: null }), goDash: () => navigate('dashboard') } }
+  }
+
+  // ---- Dispečink: oběhy vozidel (Gantt) + turnusy řidičů ----
+  const dispatchVM = () => {
+    if (state.route !== 'dispatch') return {}
+    const circ = buildDispatch()
+    const t0 = DISPATCH_T0, t1 = DISPATCH_T1, span = t1 - t0
+    const pct = (m) => (m - t0) / span * 100
+    const colors = { depot: '#94A3B8', line: '#6D5EF6', break: '#F59E0B' }
+    const rows = circ.map((c) => ({
+      id: c.line.id, no: c.line.no, name: c.line.name,
+      bus: c.bus ? `${c.bus.brand} ${c.bus.model}` : '—', plate: c.bus ? c.bus.plate : '',
+      spanLabel: `${_fmtMin(c.depotOut)}–${_fmtMin(c.depotIn)}`, driveLabel: _durLabel(c.drive),
+      blocks: c.blocks.map((b) => ({ kind: b.kind, label: b.label, left: pct(b.s), width: b.w / span * 100, color: colors[b.kind],
+        title: `${b.label} · ${_fmtMin(b.s)}–${_fmtMin(b.e)} · ${b.drv}`, showLabel: b.w > 55 })),
+      anomalies: c.duties.filter((d) => d.status.sev > 0).length,
+      onStazka: () => openStazka(c.line.id),
+    }))
+    const ticks = []
+    for (let h = Math.ceil(t0 / 60); h * 60 <= t1; h += 2) ticks.push({ label: String(h % 24).padStart(2, '0') + ':00', left: pct(h * 60) })
+    const duties = circ.flatMap((c) => c.duties.map((d) => ({
+      turnus: d.turnus, part: d.part, driver: d.driver, role: d.role, line: c.line.no,
+      bus: c.bus ? `${c.bus.brand} ${c.bus.model}` : '—', plate: c.bus ? c.bus.plate : '',
+      startF: _fmtMin(d.start), endF: _fmtMin(d.end), driveF: _durLabel(d.drive), brkF: `${d.brk} min`, status: d.status,
+      onClick: (d.driverId && d.driverId.startsWith('dr')) ? () => openDriver(d.driverId) : () => openStazka(c.line.id),
+    }))).sort((a, b) => b.status.sev - a.status.sev || a.turnus.localeCompare(b.turnus))
+    const anoms = duties.filter((d) => d.status.sev > 0)
+    const uniqDrivers = new Set(duties.map((d) => d.driver)).size
+    const kpis = [
+      { value: String(circ.length), label: 'Vozidel v oběhu', icon: 'bus', note: 'dnes v provozu' },
+      { value: String(duties.length), label: 'Turnusů řidičů', icon: 'users', note: `${uniqDrivers} řidičů ve směně` },
+      { value: _durLabel(Math.round(circ.reduce((a, c) => a + c.span, 0) / circ.length)), label: 'Ø délka oběhu', icon: 'calendar', note: 'výjezd–zátah' },
+      { value: String(anoms.length), label: 'Anomálie směn', icon: 'alert', note: 'doba řízení / přestávky', trendColor: anoms.length ? 'var(--star)' : 'var(--green)' },
+    ]
+    return { dispatch: { rows, ticks, duties, kpis, anoms, day: DISPATCH_DAY_LABEL } }
+  }
+
+  // ---- Elektronická stazka: deník spojů vybraného oběhu ----
+  const stazkaVM = () => {
+    if (state.route !== 'stazka') return {}
+    const l = linesData.find((x) => x.id === state.stazkaLine) || linesData[0]
+    const bus = vehiclesData.find((v) => v.id === l.busId)
+    const amDrv = busDrivers.find((d) => d.id === l.driverId)
+    const isLong = l.no === '300'
+    const kmTrip = isLong ? 40 : 7 + (_hash(l.id) % 5)
+    const rtMin = isLong ? 40 : 22 + (_hash(l.id + 'rt') % 10)
+    const rng = _rng(_hash(l.id + 'stazka'))
+    const trips = l.departures.map((dep, i) => {
+      const d = Math.round((rng() - 0.32) * 7)
+      const dep2 = Math.max(-2, d)
+      return { spoj: `${l.no}/${String(i + 1).padStart(2, '0')}`, dir: i % 2 === 0 ? 'tam' : 'zpět',
+        planned: dep, actual: _fmtMin(_toMin(dep) + dep2), delay: dep2, km: kmTrip, min: rtMin,
+        status: dep2 < 0 ? 'early' : dep2 <= 5 ? 'ontime' : 'late' }
+    })
+    const totalKm = trips.reduce((a, t) => a + t.km, 0)
+    const totalMin = trips.reduce((a, t) => a + t.min, 0)
+    const consL = +(totalKm / 100 * (bus && bus.tele ? bus.tele.cons : 34)).toFixed(0)
+    const sm = (s) => s === 'early' ? { c: '#B45309', b: 'var(--amber-soft)', lbl: 'před časem' } : s === 'late' ? { c: 'var(--star)', b: 'var(--star-soft)', lbl: 'zpoždění' } : { c: 'var(--green)', b: 'var(--green-soft)', lbl: 'včas' }
+    const rows = trips.map((t) => ({ ...t, delayLabel: t.delay === 0 ? 'přesně' : (t.delay > 0 ? '+' : '') + t.delay + ' min', ...sm(t.status) }))
+    const onTime = trips.filter((t) => t.status === 'ontime').length
+    const stats = [
+      { label: 'Spojů ve směně', value: String(trips.length), sub: 'odjeto', icon: 'pin' },
+      { label: 'Ujeté km', value: totalKm.toLocaleString('cs-CZ') + ' km', sub: 'za den', icon: 'car' },
+      { label: 'Doba v provozu', value: _durLabel(totalMin), sub: 'motohodiny', icon: 'calendar' },
+      { label: 'Spotřeba (odhad)', value: consL + ' l', sub: `Ø ${bus && bus.tele ? bus.tele.cons : 34} l/100 km`, icon: 'fuel' },
+    ]
+    return { stazka: {
+      line: l, no: l.no, name: l.name, agency: l.agency, day: DISPATCH_DAY_LABEL,
+      bus: bus ? { name: `${bus.brand} ${bus.model}`, plate: bus.plate, onClick: () => openVehicle(bus.id) } : null,
+      driver: amDrv ? amDrv.name : '—', stats, rows, onTimePct: trips.length ? Math.round(onTime / trips.length * 100) : 0,
+      goBack: () => navigate('dispatch'),
+    } }
   }
 
   const contactsVM = () => {
@@ -2335,7 +2457,7 @@ export default function FleetPortal() {
     tireModal: state.tireModal ? { ...state.tireModal, close: () => setState({ tireModal: null }), stop: (e) => e.stopPropagation(), actions: TIRE_ACTIONS, field: (k) => (e) => setTireField(k, e.target.value), onInvoice: (e) => { const f = e.target.files && e.target.files[0]; if (f) setTireField('invoice', f.name) }, save: saveTire } : null,
     fineModal: state.fineModal ? { ...state.fineModal, close: () => setState({ fineModal: null }), stop: (e) => e.stopPropagation(), types: FINE_TYPES, field: (k) => (e) => setFineField(k, e.target.value), togglePaid: () => setState((s) => ({ fineModal: { ...s.fineModal, paid: !s.fineModal.paid } })), save: saveFine } : null,
     ...shellVM(), ...dashboardVM(), ...fleetsVM(), ...fleetDetailVM(), ...vehiclesVM(), ...vehicleDetailVM(),
-    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...ownerDashVM(), ...dispatchDashVM(), ...attentionVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(), ...linkyVM(), ...linkyDetailVM(), ...ecoVM(),
+    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...ownerDashVM(), ...dispatchDashVM(), ...attentionVM(), ...dispatchVM(), ...stazkaVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(), ...linkyVM(), ...linkyDetailVM(), ...ecoVM(),
   }
 
   return <Render vm={vm} />

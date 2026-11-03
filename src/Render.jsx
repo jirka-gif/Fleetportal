@@ -362,6 +362,8 @@ export default function Render({ vm }) {
             {vm.isBonifikaceDetail && <BonifikaceDetail vm={vm} />}
             {vm.isAnalytics && <Reporting vm={vm} />}
             {vm.isAttention && <Attention vm={vm} />}
+            {vm.isDispatch && <Dispatch vm={vm} />}
+            {vm.isStazka && <Stazka vm={vm} />}
             {vm.isContacts && <Contacts vm={vm} />}
             {vm.isSettings && <Settings vm={vm} />}
 
@@ -1239,12 +1241,12 @@ function KpiCard({ k, featured }) {
   const arrow = (sz) => <span style={{ display: 'flex', transform: k.dir === 'down' ? 'rotate(90deg)' : 'rotate(-90deg)' }}>{ic('arrow', sz)}</span>
   return (
     <div style={S(`${CARD};padding:18px 20px;position:relative${featured ? ';background:linear-gradient(140deg,#F1ECFF 0%,#FBFAFF 62%);border:1px solid rgba(109,94,246,.24);box-shadow:0 16px 40px -16px rgba(109,94,246,.42)' : ''}`)}>
-      <div style={S('display:flex;align-items:flex-start;justify-content:space-between;gap:10px')}>
-        <div style={S('display:flex;align-items:center;gap:13px;min-width:0')}>
+      <div style={S('display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap')}>
+        <div style={S('display:flex;align-items:center;gap:13px;min-width:0;flex:1')}>
           {k.icon && <span style={S(`width:44px;height:44px;border-radius:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${featured ? 'linear-gradient(135deg,#6D5EF6,#8E79F8)' : 'var(--purple-soft)'};color:${featured ? '#fff' : 'var(--purple)'}${featured ? ';box-shadow:0 8px 18px -6px rgba(109,94,246,.6)' : ''}`)}>{ic(k.icon, 21)}</span>}
           <div style={{ minWidth: 0 }}>
-            <div style={S('display:flex;align-items:baseline;gap:5px')}>
-              <span style={S('font-size:30px;font-weight:800;letter-spacing:-1.4px;line-height:1;white-space:nowrap')}>{k.value}</span>
+            <div style={S('display:flex;align-items:baseline;gap:5px;flex-wrap:wrap')}>
+              <span style={S('font-size:28px;font-weight:800;letter-spacing:-1.2px;line-height:1.05;white-space:nowrap')}>{k.value}</span>
               {k.unit && <span style={S('font-size:13.5px;font-weight:600;color:var(--ink2);white-space:nowrap')}>{k.unit}</span>}
             </div>
             <div style={S('font-size:13px;color:var(--ink2);font-weight:500;margin-top:8px')}>{k.label}</div>
@@ -1632,6 +1634,130 @@ function Reporting({ vm }) {
           {r.recs.map((x, i) => <InsightNote key={i} title={x.title} sub={x.sub} icon={x.icon} color={x.color} />)}
         </div>
         <div style={S('font-size:11.5px;color:var(--ink3);margin-top:16px;line-height:1.5')}>Provozní náklady jsou modelový odhad z typu vozidla, stáří, paliva a odhadovaného nájezdu. Po napojení telematiky a účetnictví je nahradí reálná data. Pojistné a škodní průběh doplní napojení na pojišťovnu.</div>
+      </div>
+    </div>
+  )
+}
+
+/* ============================ DISPEČINK (oběhy + turnusy) ============================ */
+function Dispatch({ vm }) {
+  const mob = vm.vp.isMobile
+  const d = vm.dispatch
+  if (!d) return null
+  const legend = [['line', 'Linková služba', '#6D5EF6'], ['break', 'Přestávka', '#F59E0B'], ['depot', 'Výjezd / zátah', '#94A3B8']]
+  return (
+    <div>
+      <KpiRow items={d.kpis} mb="18px" featuredFirst />
+
+      {/* OBĚHY VOZIDEL — Gantt */}
+      <div style={S(`${CARD};padding:22px;margin-bottom:18px`)}>
+        <div style={S('display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap')}>
+          <CardHead icon="bus" color="var(--purple)" title="Oběhy vozidel" sub={`${d.day} · klikni na oběh pro elektronickou stazku`} />
+          <div style={S('display:flex;gap:12px;flex-wrap:wrap')}>{legend.map(([k, lbl, c]) => <span key={k} style={S('display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink2);font-weight:600')}><span style={S(`width:11px;height:11px;border-radius:3px;background:${c}`)}></span>{lbl}</span>)}</div>
+        </div>
+        <div style={S('overflow-x:auto')}>
+          <div style={S(`min-width:${mob ? '720px' : '0'}`)}>
+            {/* časová osa */}
+            <div style={S('display:flex;align-items:center;gap:12px;margin-bottom:6px')}>
+              <div style={S(`width:${mob ? '150px' : '220px'};flex-shrink:0`)}></div>
+              <div style={S('flex:1;position:relative;height:16px')}>
+                {d.ticks.map((t, i) => <span key={i} style={S(`position:absolute;left:${t.left}%;transform:translateX(-50%);font-size:10.5px;color:var(--ink3);font-weight:600`)}>{t.label}</span>)}
+              </div>
+            </div>
+            {d.rows.map((r) => (
+              <Hov key={r.id} onClick={r.onStazka} base="display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--border);cursor:pointer" hover="background:var(--canvas)">
+                <div style={S(`width:${mob ? '150px' : '220px'};flex-shrink:0;display:flex;align-items:center;gap:10px`)}>
+                  <span style={S('min-width:38px;height:26px;padding:0 8px;border-radius:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#18181B;color:#fff;font-size:12.5px;font-weight:800')}>{r.no}</span>
+                  <div style={S('min-width:0')}><div style={S('font-size:12.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{r.bus}</div><div style={S('font-size:11px;color:var(--ink3)')}>{r.plate} · {r.driveLabel}{r.anomalies ? '' : ''}</div></div>
+                </div>
+                <div style={S('flex:1;position:relative;height:30px')}>
+                  {r.blocks.map((b, i) => (
+                    <div key={i} title={b.title} style={S(`position:absolute;left:${b.left}%;width:${Math.max(b.width, 0.5)}%;top:4px;height:22px;border-radius:5px;background:${b.color};display:flex;align-items:center;justify-content:center;overflow:hidden;${b.kind === 'break' ? 'opacity:.9' : ''}`)}>
+                      {b.showLabel && <span style={S('font-size:10px;font-weight:700;color:#fff;white-space:nowrap;padding:0 4px')}>{b.kind === 'line' ? b.label : b.kind === 'break' ? 'přest.' : ''}</span>}
+                    </div>
+                  ))}
+                </div>
+                {!mob && <span style={S('width:18px;flex-shrink:0;color:var(--ink3);display:flex')}>{ic('chevron', 16)}</span>}
+              </Hov>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* TURNUSY ŘIDIČŮ */}
+      <div style={S(`${CARD};padding:22px`)}>
+        <CardHead icon="users" color="var(--blue)" title="Turnusy řidičů" sub="Směny, doba řízení a bezpečnostní přestávky · kontrola limitů" />
+        <div style={S('overflow-x:auto')}>
+          <div style={S('min-width:640px')}>
+            <div style={S('display:flex;align-items:center;gap:12px;padding:9px 10px;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border)')}>
+              <div style={S('width:60px;flex-shrink:0')}>Turnus</div><div style={S('flex:1')}>Řidič</div><div style={S('width:110px')}>Vůz · linka</div><div style={S('width:110px')}>Směna</div><div style={S('width:80px;text-align:right')}>Řízení</div><div style={S('width:150px')}>Stav</div>
+            </div>
+            {d.duties.map((u, i) => (
+              <Hov key={i} onClick={u.onClick} base="display:flex;align-items:center;gap:12px;padding:11px 10px;border-bottom:1px solid var(--border);cursor:pointer" hover="background:var(--canvas)">
+                <div style={S('width:60px;flex-shrink:0;font-size:12.5px;font-weight:800;color:var(--blue-ink)')}>{u.turnus}</div>
+                <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{u.driver}</div><div style={S('font-size:11px;color:var(--ink3)')}>{u.part} · přestávka {u.brkF}</div></div>
+                <div style={S('width:110px;font-size:12px;color:var(--ink2)')}>Linka {u.line}<div style={S('font-size:11px;color:var(--ink3)')}>{u.plate}</div></div>
+                <div style={S('width:110px;font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--ink2)')}>{u.startF}–{u.endF}</div>
+                <div style={S('width:80px;text-align:right;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums')}>{u.driveF}</div>
+                <div style={S('width:150px')}><span style={S(`font-size:11.5px;font-weight:700;color:${u.status.color};background:${u.status.bg};padding:4px 10px;border-radius:20px;white-space:nowrap`)}>{u.status.label}</span></div>
+              </Hov>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ============================ ELEKTRONICKÁ STAZKA ============================ */
+function Stazka({ vm }) {
+  const mob = vm.vp.isMobile
+  const s = vm.stazka
+  if (!s) return null
+  return (
+    <div>
+      <Hov onClick={s.goBack} base="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--ink2);cursor:pointer;margin-bottom:16px" hover="color:var(--blue)"><span style={S('display:flex;transform:rotate(180deg)')}>{ic('arrow', 15)}</span> Zpět na dispečink</Hov>
+      <div style={S(`${CARD};padding:20px 22px;margin-bottom:18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap`)}>
+        <span style={S('width:50px;height:50px;border-radius:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--purple-soft);color:var(--purple)')}>{ic('doc2', 24)}</span>
+        <div style={S('flex:1;min-width:0')}>
+          <div style={S('font-size:18px;font-weight:800;letter-spacing:-.4px')}>Elektronická stazka · linka {s.no}</div>
+          <div style={S('font-size:13px;color:var(--ink2);margin-top:3px')}>{s.name}</div>
+          <div style={S('font-size:12px;color:var(--ink3);margin-top:3px')}>{s.bus ? s.bus.name + ' · ' + s.bus.plate : ''} · řidič {s.driver} · {s.day}</div>
+        </div>
+        <span style={S('display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 13px;border-radius:20px;background:var(--green-soft);color:var(--green);font-size:12.5px;font-weight:700;flex-shrink:0')}>{ic('check', 15)} Odbaveno · dodržení {s.onTimePct} %</span>
+      </div>
+      <div style={S(`display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px`)}>
+        {s.stats.map((st, i) => (
+          <div key={i} style={S(`${CARD};padding:16px 18px`)}>
+            <div style={S('display:flex;align-items:center;gap:8px;color:var(--ink3)')}>{ic(st.icon, 15)}<span style={S('font-size:12px')}>{st.label}</span></div>
+            <div style={S('font-size:21px;font-weight:800;letter-spacing:-.5px;margin-top:6px')}>{st.value}</div>
+            <div style={S('font-size:11.5px;color:var(--ink3);margin-top:2px')}>{st.sub}</div>
+          </div>
+        ))}
+      </div>
+      <div style={S(`${CARD};padding:22px`)}>
+        <div style={S('display:flex;align-items:center;justify-content:space-between;margin-bottom:12px')}>
+          <CardHead icon="pin" color="var(--blue)" title="Deník spojů" sub="Plánovaný a skutečný odjezd po spojích" />
+          <span style={S('font-size:12px;color:var(--ink3)')}>{s.rows.length} spojů</span>
+        </div>
+        <div style={S('overflow-x:auto')}>
+          <div style={S('min-width:560px')}>
+            <div style={S('display:flex;align-items:center;gap:12px;padding:9px 10px;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border)')}>
+              <div style={S('width:70px;flex-shrink:0')}>Spoj</div><div style={S('width:60px')}>Směr</div><div style={S('width:90px;text-align:right')}>Plán</div><div style={S('width:90px;text-align:right')}>Skutečnost</div><div style={S('flex:1;text-align:right')}>Odchylka</div><div style={S('width:70px;text-align:right')}>km</div>
+            </div>
+            {s.rows.map((t, i) => (
+              <div key={i} style={S('display:flex;align-items:center;gap:12px;padding:10px;border-bottom:1px solid var(--border)')}>
+                <div style={S('width:70px;flex-shrink:0;font-size:12.5px;font-weight:700')}>{t.spoj}</div>
+                <div style={S('width:60px;font-size:12px;color:var(--ink3)')}>{t.dir}</div>
+                <div style={S('width:90px;text-align:right;font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--ink2)')}>{t.planned}</div>
+                <div style={S('width:90px;text-align:right;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums')}>{t.actual}</div>
+                <div style={S('flex:1;text-align:right')}><span style={S(`font-size:11.5px;font-weight:700;color:${t.c};background:${t.b};padding:3px 9px;border-radius:20px`)}>{t.delayLabel}</span></div>
+                <div style={S('width:70px;text-align:right;font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--ink2)')}>{t.km}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={S('font-size:11.5px;color:var(--ink3);margin-top:14px;line-height:1.5')}>Modelová stazka z jízdního řádu a telematiky. Po nasazení palubní jednotky se spoje, km a časy zapisují automaticky a řidič je potvrzuje v mobilní aplikaci.</div>
       </div>
     </div>
   )
