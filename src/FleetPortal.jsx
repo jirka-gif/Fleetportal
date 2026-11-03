@@ -1317,7 +1317,51 @@ export default function FleetPortal() {
       columns: [{ key: 'pojistovna', label: 'Pojišťovna' }, { key: 'smlouva', label: 'Číslo smlouvy' }, { key: 'park', label: 'Vozový park' }, { key: 'vozidla', label: 'Vozidla' }, { key: 'pojistne', label: 'Roční pojistné' }, { key: 'vyroci', label: 'Výročí' }, { key: 'skodni', label: 'Škodní průběh' }],
       rows: contracts.map((c) => ({ pojistovna: c.insurer, smlouva: c.policy, park: c.parkName, vozidla: c.vehicleCount, pojistne: c.premiumF, vyroci: c.anniversary, skodni: c.lossRatio + ' %' })),
     }
-    return { contracts, insStats, insExport }
+
+    // ---- Krytí a mezery napříč flotilou (z cov) + modelové pojistné ----
+    const total = vehiclesData.length
+    const covN = (k) => vehiclesData.filter((v) => v.cov && v.cov[k]).length
+    const havN = covN('hav'), sklaN = covN('skla'), asistN = covN('asist')
+    const noHav = vehiclesData.filter((v) => !(v.cov && v.cov.hav))
+    const busNoHav = noHav.filter((v) => vehicleTypeCat(v.druh) === 'Autobusy')
+    const coverItems = [
+      { label: 'Povinné ručení', icon: 'shield', color: '#4F6FFF', value: String(total), pct: 100 },
+      { label: 'Havarijní pojištění', icon: 'umbrella', color: '#22C55E', value: String(havN), pct: Math.round(havN / total * 100) },
+      { label: 'Pojištění skel', icon: 'glass', color: '#6D5EF6', value: String(sklaN), pct: Math.round(sklaN / total * 100) },
+      { label: 'Asistenční služby', icon: 'wrench', color: '#F59E0B', value: String(asistN), pct: Math.round(asistN / total * 100) },
+    ]
+    // modelový odhad ročního pojistného (NE reálná smlouva)
+    const premEst = (v) => { const c = vehicleTypeCat(v.druh); const cv = v.cov || {}
+      const pov = c === 'Autobusy' ? 32000 : c === 'Nákladní vozidla' ? 14000 : c === 'Osobní vozidla' ? 7000 : 5000
+      const hav = cv.hav ? (c === 'Autobusy' ? 52000 : c === 'Nákladní vozidla' ? 12000 : 9000) : 0
+      return pov + hav + (cv.skla ? (c === 'Autobusy' ? 3500 : 1500) : 0) + (cv.asist ? 1800 : 0) }
+    const premModel = vehiclesData.reduce((a, v) => a + premEst(v), 0)
+    const insKpis = [
+      { value: String(total), label: 'Pojištěných vozidel', icon: 'shield', note: 'povinné ručení 100 %' },
+      { value: String(havN), label: 'S havarijním krytím', icon: 'umbrella', note: `${Math.round(havN / total * 100)} % flotily` },
+      { value: String(noHav.length), label: 'Bez havarijního krytí', icon: 'alert', note: `z toho ${busNoHav.length} autobusů`, trendColor: 'var(--star)' },
+      { value: (premModel / 1e6).toFixed(1).replace('.', ','), unit: 'mil. Kč', label: 'Modelové roční pojistné', icon: 'banknote', note: 'odhad · po napojení reálné' },
+    ]
+    // mezery podle parku (% bez havarijního)
+    const gapByPark = allFleets.map((f) => { const vs = vehiclesData.filter((v) => v.fleet === f.id); const gap = vs.filter((v) => !(v.cov && v.cov.hav)).length
+      return { label: f.name, icon: 'fleets', color: gap / (vs.length || 1) > 0.5 ? '#EF4444' : '#F59E0B', value: `${gap} / ${vs.length}`, pct: Math.round(gap / (vs.length || 1) * 100), onClick: () => openFleet(f.id) } })
+      .sort((a, b) => b.pct - a.pct)
+    // konkrétní vozidla bez havarijního (priorita autobusy) + akce
+    const gapList = [...busNoHav, ...noHav.filter((v) => vehicleTypeCat(v.druh) !== 'Autobusy')].slice(0, 8).map((v) => ({
+      title: `${v.brand} ${v.model}`, sub: `${v.plate} · ${fleetName(v.fleet)} · r. ${v.year}`, icon: ic('car', 17),
+      onClick: () => openVehicle(v.id), actionLabel: 'Připravit nabídku', action: () => showToast(`Poptávka havarijního krytí připravena · ${v.brand} ${v.model} (${v.plate})`) }))
+    const insurance = {
+      kpis: insKpis, coverItems, gapByPark, gapList,
+      noHavCount: noHav.length, busNoHavCount: busNoHav.length,
+      coverages: [
+        { label: 'Povinné ručení', sub: 'limit 100/100 mil. Kč · všechna vozidla', icon: 'shield', color: '#4F6FFF', val: `${total} vozidel` },
+        { label: 'Havarijní all-risk', sub: 'spoluúčast 5 % / min. 5 000 Kč', icon: 'umbrella', color: '#22C55E', val: `${havN} vozidel` },
+        { label: 'Pojištění skel', sub: 'doplňkové krytí', icon: 'glass', color: '#6D5EF6', val: `${sklaN} vozidel` },
+        { label: 'Asistenční služby', sub: 'ČR + Evropa, odtah a oprava', icon: 'wrench', color: '#F59E0B', val: `${asistN} vozidel` },
+      ],
+      goGaps: () => navigate('insurance', {}),
+    }
+    return { contracts, insStats, insExport, insurance }
   }
 
   const insuranceDetailVM = () => {

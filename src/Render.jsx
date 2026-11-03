@@ -353,7 +353,7 @@ export default function Render({ vm }) {
             {vm.isEco && <Eco vm={vm} />}
             {vm.isClaimDetail && <ClaimDetail vm={vm} />}
             {vm.isFinancing && <Financing vm={vm} />}
-            {vm.isInsurance && <EmptyState icon="shield" title="Detail pojistného krytí se připravuje" sub="Pojistné smlouvy, pojišťovny a roční pojistné se zobrazí po napojení portálu na systém pojišťovny. Sjednané krytí jednotlivých vozidel (povinné ručení / havarijní / skla / asistence) najdete v detailu vozidla." />}
+            {vm.isInsurance && <InsuranceOverview vm={vm} />}
             {vm.isInsuranceDetail && <InsuranceDetail vm={vm} />}
             {vm.isClaims && <Claims vm={vm} />}
             {vm.isDocuments && <Documents vm={vm} />}
@@ -1632,6 +1632,72 @@ function Reporting({ vm }) {
           {r.recs.map((x, i) => <InsightNote key={i} title={x.title} sub={x.sub} icon={x.icon} color={x.color} />)}
         </div>
         <div style={S('font-size:11.5px;color:var(--ink3);margin-top:16px;line-height:1.5')}>Provozní náklady jsou modelový odhad z typu vozidla, stáří, paliva a odhadovaného nájezdu. Po napojení telematiky a účetnictví je nahradí reálná data. Pojistné a škodní průběh doplní napojení na pojišťovnu.</div>
+      </div>
+    </div>
+  )
+}
+
+/* ============================ POJIŠTĚNÍ (přehled) ============================ */
+function InsuranceOverview({ vm }) {
+  const mob = vm.vp.isMobile
+  const d = vm.insurance
+  if (!d) return null
+  return (
+    <div>
+      <KpiRow items={d.kpis} mb="18px" featuredFirst />
+
+      {/* mezera v krytí = makléřský hák */}
+      {d.noHavCount > 0 && (
+        <div style={S(`${CARD};padding:20px 22px;margin-bottom:18px;background:linear-gradient(135deg,#FFF1F0 0%,#FFF8F7 60%);border:1px solid rgba(239,68,68,.22)`)}>
+          <div style={S('display:flex;align-items:center;gap:14px;flex-wrap:wrap')}>
+            <span style={S('width:46px;height:46px;border-radius:13px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--star-soft);color:var(--star)')}>{ic('alert', 23)}</span>
+            <div style={S('flex:1;min-width:0')}>
+              <div style={S('font-size:16.5px;font-weight:800;letter-spacing:-.3px')}>{d.noHavCount} vozidel jen na povinném ručení</div>
+              <div style={S('font-size:13px;color:var(--ink2);margin-top:3px;line-height:1.5')}>Z toho {d.busNoHavCount} autobusů bez havarijního krytí. Při totální škodě nebo požáru nese riziko provozovatel. Makléř může připravit nabídku krytí.</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:18px;align-items:start;margin-bottom:18px`)}>
+        <div style={S(`${CARD};padding:22px`)}>
+          <CardHead icon="umbrella" color="var(--green)" title="Krytí napříč flotilou" sub="Kolik vozidel má které pojištění" />
+          <BarBreakdown items={d.coverItems} />
+        </div>
+        <div style={S(`${CARD};padding:22px`)}>
+          <CardHead icon="fleets" color="var(--star)" title="Mezery v krytí podle parku" sub="Podíl vozidel bez havarijního pojištění" />
+          <BarBreakdown items={d.gapByPark} />
+        </div>
+      </div>
+
+      {/* konkrétní vozidla bez havarijního + akce */}
+      <div style={S(`${CARD};padding:20px 22px;margin-bottom:18px`)}>
+        <CardHead icon="car" color="var(--star)" title="Vozidla bez havarijního krytí" sub="Priorita: autobusy · připravte nabídku krytí" />
+        {d.gapList.map((it, i) => (
+          <div key={i} style={S(`display:flex;align-items:center;gap:12px;padding:11px 10px;border-top:${i ? '1px solid var(--border)' : 'none'}`)}>
+            <Hov onClick={it.onClick} base="display:flex;align-items:center;gap:12px;flex:1;min-width:0;cursor:pointer;border-radius:10px;padding:2px 4px;margin:-2px -4px" hover="background:var(--canvas)">
+              <span style={S('width:32px;height:32px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#F1F1F3;color:var(--ink2)')}>{it.icon}</span>
+              <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{it.title}</div><div style={S('font-size:11.5px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{it.sub}</div></div>
+            </Hov>
+            <span style={S(`font-size:11.5px;font-weight:700;color:var(--star);background:var(--star-soft);padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;${mob ? 'display:none' : ''}`)}>bez havarijního</span>
+            <Hov onClick={it.action} base="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 13px;border-radius:9px;cursor:pointer;font-size:12.5px;font-weight:600;color:#fff;background:linear-gradient(135deg,#5B6BF5,#7A5CF8);white-space:nowrap;flex-shrink:0" hover="transform:translateY(-1px)">{it.actionLabel}</Hov>
+          </div>
+        ))}
+      </div>
+
+      {/* sjednané krytí (struktura) */}
+      <div style={S(`${CARD};padding:22px`)}>
+        <CardHead icon="shield" color="var(--blue)" title="Sjednané krytí flotily" sub="Standard napříč smlouvami · detaily jednotlivých vozidel v jejich kartě" />
+        <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:12px`)}>
+          {d.coverages.map((c, i) => (
+            <div key={i} style={S('display:flex;align-items:center;gap:12px;padding:13px 14px;background:var(--canvas);border-radius:13px')}>
+              <span style={S(`width:38px;height:38px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${c.color}1F;color:${c.color}`)}>{ic(c.icon, 19)}</span>
+              <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:700')}>{c.label}</div><div style={S('font-size:11.5px;color:var(--ink3);margin-top:1px')}>{c.sub}</div></div>
+              <span style={S('font-size:12.5px;font-weight:700;color:var(--ink2);white-space:nowrap;flex-shrink:0')}>{c.val}</span>
+            </div>
+          ))}
+        </div>
+        <div style={S('font-size:11.5px;color:var(--ink3);margin-top:16px;line-height:1.5')}>Roční pojistné je modelový odhad z typu vozidla a rozsahu krytí. Reálné pojistné, pojišťovny, čísla smluv, výročí a škodní průběh se zobrazí po napojení portálu na systém pojišťovny (spravuje makléř Petrisk).</div>
       </div>
     </div>
   )
