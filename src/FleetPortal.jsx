@@ -232,6 +232,120 @@ function buildDriverPerf(d) {
     anomalies, anoCount: anomalies.length, reports, reportStats, trend, verdict,
   }
 }
+
+// ---- Anomálie: detekce napříč flotilou (linky, trasy, vozidla, řidiči) ----
+// Modelové záznamy pro ukázku, deterministické. Po nasazení telematiky + GPS +
+// sledování paliva je nahradí reálné detekce (geofence, úbytek nádrže, styl jízdy).
+const ANO_SEV = {
+  high: { label: 'Vysoká', color: 'var(--star)', bg: 'var(--star-soft)', order: 0 },
+  mid: { label: 'Střední', color: '#B45309', bg: 'var(--amber-soft)', order: 1 },
+  low: { label: 'Nízká', color: 'var(--blue-ink)', bg: 'var(--blue-soft)', order: 2 },
+}
+const ANO_TYPES = {
+  offroute_stop: { label: 'Opakované zastavení mimo trasu', cat: 'Palivo a GPS', icon: 'pin' },
+  fuel_drop: { label: 'Neobvyklý úbytek paliva', cat: 'Palivo a GPS', icon: 'fuel' },
+  consumption: { label: 'Nadměrná spotřeba paliva', cat: 'Palivo a GPS', icon: 'fuel' },
+  delay: { label: 'Velké zpoždění', cat: 'Provoz a JŘ', icon: 'clock' },
+  missed_stop: { label: 'Vynechaná zastávka', cat: 'Provoz a JŘ', icon: 'pin' },
+  early_dep: { label: 'Odjezd ze zastávky před časem', cat: 'Provoz a JŘ', icon: 'clock' },
+  harsh: { label: 'Agresivní styl jízdy', cat: 'Styl jízdy', icon: 'alert' },
+  speeding: { label: 'Překročení rychlosti', cat: 'Styl jízdy', icon: 'gauge' },
+  idle: { label: 'Nadměrný volnoběh', cat: 'Styl jízdy', icon: 'clock' },
+  heater: { label: 'Dlouhé nezávislé topení', cat: 'Náklady', icon: 'wrench' },
+}
+const ANO_STATUS = {
+  new: { label: 'Nové', color: '#B45309', bg: 'var(--amber-soft)' },
+  prog: { label: 'V řešení', color: 'var(--blue-ink)', bg: 'var(--blue-soft)' },
+  done: { label: 'Vyřešeno', color: 'var(--green)', bg: 'var(--green-soft)' },
+}
+const _anoDateKey = (s) => { const p = String(s).split('. ').map(Number); return p[2] * 10000 + p[1] * 100 + p[0] }
+function buildAnomalies() {
+  const R = _rng(_hash('fleet-anomalies-v1'))
+  const rint = (lo, hi) => lo + Math.floor(R() * (hi - lo + 1))
+  const BASE = new Date(2026, 10, 3)
+  const fmtD = (daysAgo) => { const dt = new Date(BASE); dt.setDate(dt.getDate() - daysAgo); return `${dt.getDate()}. ${dt.getMonth() + 1}. ${dt.getFullYear()}` }
+  const buses = vehiclesData.filter((v) => vehicleTypeCat(v.druh) === 'Autobusy')
+  const busDrv = driversData.filter((d) => ['linka', 'mhd', 'dalkova'].includes(d.kind))
+  const pool = buses.length ? buses : vehiclesData
+  const pickBus = (k) => pool[_hash('b' + k) % pool.length]
+  const pickDrv = (k) => busDrv[_hash('d' + k) % busDrv.length] || driversData[0]
+  const pickLine = (k) => linesData[_hash('l' + k) % linesData.length]
+  const list = []
+  let auto = 0
+  const vName = (v) => v ? `${v.brand} ${v.model}`.trim() : '—'
+  const mk = (type, sev, o) => {
+    const t = ANO_TYPES[type]
+    list.push({
+      id: 'an' + (++auto), type, typeLabel: t.label, cat: t.cat, icon: t.icon, sev, sevMeta: ANO_SEV[sev],
+      date: o.date, time: o.time || _fmtMin(rint(5 * 60, 20 * 60)),
+      vehicleId: o.vehicle ? o.vehicle.id : null, plate: o.vehicle ? o.vehicle.plate : '—', vehicle: vName(o.vehicle),
+      driverId: o.driver ? o.driver.id : null, driverName: o.driver ? o.driver.name : '—',
+      lineNo: o.line ? o.line.no : null, lineName: o.line ? o.line.name : null,
+      place: o.place || null, detail: o.detail, metric: o.metric || null,
+      status: o.status || 'new', statusMeta: ANO_STATUS[o.status || 'new'],
+      loss: o.loss || 0, reco: o.reco || null, evidence: o.evidence || null,
+    })
+  }
+
+  // (1) HEADLINE: opakované zastavení více vozidel na stejném místě ve stoupání po skončení linky
+  const clIdx = [0, 1, 2, 3, 4]
+  const clBuses = clIdx.map((k) => pickBus('cluster' + k))
+  const clDrv = clIdx.map((k) => pickDrv('cluster' + k))
+  const occ = []
+  let cd = 2
+  for (let i = 0; i < 7; i++) { const b = i % clBuses.length; occ.push({ date: fmtD(cd), plate: clBuses[b].plate, vehicle: vName(clBuses[b]), driver: clDrv[b].name, durMin: rint(3, 4), time: _fmtMin(rint(19 * 60, 21 * 60)) }); cd += rint(3, 8) }
+  const hill = 'Besednice, stoupání U Boroví'
+  mk('offroute_stop', 'high', {
+    vehicle: clBuses[0], driver: clDrv[0], date: occ[0].date, time: occ[0].time, place: hill + ' (mimo trasu i zastávky)',
+    detail: `${occ.length}× zastavení na 3 minuty na stejném bodě ve stoupání po skončení spoje. Týká se ${new Set(occ.map((o) => o.plate)).size} vozidel z parku.`,
+    metric: `${occ.length}× / 6 týdnů`, status: 'prog', loss: 150000,
+    reco: 'Fyzická kontrola místa a namátková kontrola stavu nádrže a tankovacích dokladů. Porovnat GPS stání s výdejem paliva a doplněním nádrže.',
+    evidence: { kind: 'offroute', place: hill, gps: '48.8762 N, 14.5431 E', occurrences: occ, note: 'Opakované stání více vozidel na stejném místě mimo zastávku a mimo trasu, vždy po skončení spoje, ve večerních hodinách. Vzorec odpovídá neoprávněné manipulaci s palivem (např. odčerpávání do přistaveného vozu).' },
+  })
+
+  // (2) úbytek paliva / pokles dojezdu navzdory správnému stylu jízdy
+  const fb1 = pickBus('fuel1'); const fdr1 = pickDrv('fuel1')
+  mk('fuel_drop', 'high', {
+    vehicle: fb1, driver: fdr1, date: fmtD(4), place: 'Vozovna České Budějovice',
+    detail: 'Dojezd z plné nádrže klesl o 14 % za 5 týdnů. Doplněné palivo neodpovídá ujetým km ani vykázané spotřebě, přestože styl jízdy je hospodárný (eco 84/100, správná akcelerace i brzdění).',
+    metric: '−14 % dojezd', status: 'new', loss: 96000,
+    reco: 'Kontrola těsnosti nádrže a palivové soustavy, prověření tankovacích transakcí a GPS v době tankování. Vyloučit únik i krádež.',
+    evidence: { kind: 'fuel', refCons: 29, actCons: 34.2, series: [{ label: 't−5', v: 735 }, { label: 't−4', v: 728 }, { label: 't−3', v: 712 }, { label: 't−2', v: 690 }, { label: 't−1', v: 666 }, { label: 'teď', v: 632 }], note: 'Dojezd z plné nádrže (km) klesá rychleji, než odpovídá ujetým kilometrům a stylu jízdy. Eco skóre řidiče je přitom nadprůměrné, nejde tedy o styl jízdy.' },
+  })
+  const fb2 = pickBus('fuel2'); const fdr2 = pickDrv('fuel2')
+  mk('fuel_drop', 'mid', {
+    vehicle: fb2, driver: fdr2, date: fmtD(12), place: 'Vozovna Český Krumlov',
+    detail: 'Opakovaný rozdíl mezi vykázanou spotřebou z telematiky a množstvím doplněného paliva (−6 %). Styl jízdy bez výhrad.',
+    metric: '−6 % rozdíl', status: 'prog', loss: 38000,
+    reco: 'Porovnat čerpání s tankovací kartou a stavem tachografu. Zkontrolovat čidlo hladiny paliva.',
+    evidence: { kind: 'fuel', refCons: 28, actCons: 30.2, series: [{ label: 't−5', v: 690 }, { label: 't−4', v: 684 }, { label: 't−3', v: 678 }, { label: 't−2', v: 665 }, { label: 't−1', v: 655 }, { label: 'teď', v: 648 }], note: 'Menší, ale systematický rozdíl mezi telematikou a doplněným palivem.' },
+  })
+
+  // (3) rutinní anomálie napříč flotilou
+  const routine = ['delay', 'delay', 'harsh', 'speeding', 'missed_stop', 'early_dep', 'idle', 'heater', 'consumption']
+  const places = ['České Budějovice, Nádraží', 'Český Krumlov, autobusové nádraží', 'Kaplice, náměstí', 'Trhové Sviny, U Vodárny', 'Týn nad Vltavou, Hlinecká', 'Rudolfov, Rozcestí', 'Lišov, Krajinská', 'Borovany, Žižkova', 'Hluboká nad Vltavou, Masarykova', 'Velešín, Nádražní']
+  for (let i = 0; i < 30; i++) {
+    const type = routine[_hash('rt' + i) % routine.length]
+    const v = pickBus('r' + i), d = pickDrv('r' + i), l = pickLine('r' + i)
+    const place = places[_hash('rp' + i) % places.length]
+    const st = ['done', 'done', 'done', 'prog', 'new'][_hash('rs' + i) % 5]
+    let detail = '', metric = null, sev = 'mid', loss = 0
+    if (type === 'delay') { const m = rint(6, 16); detail = `Zpoždění +${m} min na lince ${l.no}`; metric = `+${m} min`; sev = m > 12 ? 'high' : 'mid' }
+    else if (type === 'missed_stop') { detail = `Vynechaná zastávka ${place} na lince ${l.no}`; metric = '1 zastávka'; sev = 'high' }
+    else if (type === 'early_dep') { const m = rint(1, 3); detail = `Odjezd −${m} min proti JŘ · ${place}`; metric = `−${m} min`; sev = 'mid' }
+    else if (type === 'harsh') { const e = rint(7, 16); detail = `${e} prudkých událostí za směnu (akcelerace a brzdění)`; metric = `${e}× / směna`; sev = e > 12 ? 'high' : 'mid' }
+    else if (type === 'speeding') { const s = rint(8, 24); detail = `Překročení rychlosti +${s} km/h mimo obec · ${place}`; metric = `+${s} km/h`; sev = s > 18 ? 'high' : 'mid' }
+    else if (type === 'idle') { const m = rint(35, 75); detail = `Nadměrný volnoběh ${m} min za směnu`; metric = `${m} min`; sev = 'low'; loss = Math.round(m * 60) }
+    else if (type === 'heater') { const m = rint(70, 150); detail = `Nezávislé topení ${m} min za směnu`; metric = `${m} min`; sev = 'low'; loss = Math.round(m * 55) }
+    else if (type === 'consumption') { const over = +(1 + R() * 3).toFixed(1); detail = `Spotřeba +${String(over).replace('.', ',')} l/100 km nad referencí vozu`; metric = `+${String(over).replace('.', ',')} l`; sev = over > 2.5 ? 'high' : 'mid'; loss = Math.round(over * 1800) }
+    mk(type, sev, { vehicle: v, driver: d, line: ['delay', 'missed_stop', 'early_dep'].includes(type) ? l : null, place: ['harsh'].includes(type) ? null : place, date: fmtD(rint(1, 80)), detail, metric, status: st, loss, reco: type === 'speeding' ? 'Pohovor s řidičem, sledování úseku.' : type === 'consumption' ? 'Porovnat se stylem jízdy a stavem vozu (tlak pneu, filtry).' : null })
+  }
+
+  list.sort((a, b) => (a.sevMeta.order - b.sevMeta.order) || (_anoDateKey(b.date) - _anoDateKey(a.date)))
+  return list
+}
+const FLEET_ANOMALIES = buildAnomalies()
+
 function buildDispatch() {
   return linesData.map((l, i) => {
     const bus = vehiclesData.find((v) => v.id === l.busId)
@@ -592,6 +706,7 @@ export default function FleetPortal() {
     dash: loadDash(), kpi: loadKpi(),
     role: 'majitel', roleMenu: false,
     route: 'dashboard', attnCat: null,
+    anoView: 'vse', anoType: null, anoDriver: null, anoVehicle: null, anomalyId: null,
     fleetId: 'f1', vehicleId: 'v1',
     fleetTab: 'overview', vehicleTab: 'overview', fleetsView: 'grid', finTab: 'prehled', rfq: null, rfqs: SEED_RFQS,
     vehEquip: SEED_EQUIP, equipModal: null,
@@ -644,6 +759,8 @@ export default function FleetPortal() {
   const openClaim = (id) => navigate('claim-detail', { claimId: id })
   const openLine = (id) => navigate('linky-detail', { lineId: id })
   const openStazka = (lineId) => navigate('stazka', { stazkaLine: lineId })
+  const openAnomaly = (id) => navigate('anomaly-detail', { anomalyId: id })
+  const openAnomalies = (patch = {}) => navigate('anomalies', { anoView: 'vse', anoType: null, anoDriver: null, anoVehicle: null, ...patch })
   const toggleNotif = () => setState((s) => ({ notif: !s.notif, companyMenu: false }))
   const toggleAI = () => setState((s) => ({ ai: !s.ai }))
   const openSearch = () => setState({ search: true })
@@ -833,16 +950,17 @@ export default function FleetPortal() {
       ['drivers', 'Řidiči', 'users', String(driversData.length)],
       ['linky', 'Linky & JŘ', 'pin', String(linesData.length)],
       ['dispatch', 'Dispečink', 'calendar', null],
+      ['anomalies', 'Anomálie', 'alert', String(FLEET_ANOMALIES.filter((a) => a.status !== 'done').length) || null],
       ['eco', 'Eco-driving', 'gauge', null],
       ['insurance', 'Pojištění', 'shield', null],
       ['financing', 'Financování', 'banknote', String(vehiclesData.filter((v) => v.financing && v.financing.active).length)],
-      ['claims', 'Škody', 'alert', String(claimsData.filter((c) => c.status !== 'closed').length) || null],
+      ['claims', 'Škody', 'umbrella', String(claimsData.filter((c) => c.status !== 'closed').length) || null],
       ['documents', 'Dokumenty', 'file', null],
       ['analytics', 'Reporting', 'trend', null],
       ['contacts', 'Kontakty', 'users', null],
       ['settings', 'Nastavení', 'settings', null],
     ]
-    const activeRoute = r === 'fleet-detail' ? 'fleets' : r === 'vehicle-detail' ? 'vehicles' : r === 'driver-detail' ? 'drivers' : r === 'bonifikace-detail' ? 'bonifikace' : r === 'documents-detail' ? 'documents' : r === 'claim-detail' ? 'claims' : r === 'linky-detail' ? 'linky' : r === 'stazka' ? 'dispatch' : r
+    const activeRoute = r === 'fleet-detail' ? 'fleets' : r === 'vehicle-detail' ? 'vehicles' : r === 'driver-detail' ? 'drivers' : r === 'bonifikace-detail' ? 'bonifikace' : r === 'documents-detail' ? 'documents' : r === 'claim-detail' ? 'claims' : r === 'linky-detail' ? 'linky' : r === 'stazka' ? 'dispatch' : r === 'anomaly-detail' ? 'anomalies' : r
     const nav = navItems.map(([id, label, icon, badge]) => {
       const on = activeRoute === id
       return {
@@ -870,6 +988,7 @@ export default function FleetPortal() {
       analytics: ['Reporting', 'Náklady, stáří a úspory celé flotily'],
       attention: ['Vyžaduje pozornost', 'Co je potřeba řešit napříč flotilou'],
       dispatch: ['Dispečink', 'Oběhy vozidel, turnusy řidičů a stazka'],
+      anomalies: ['Anomálie', 'Detekce napříč flotilou: linky, trasy, vozidla, řidiči a palivo'],
       settings: ['Nastavení', 'Profil a předvolby portálu'],
     }
     let title, sub
@@ -881,6 +1000,7 @@ export default function FleetPortal() {
     else if (r === 'driver-detail') { const d = driversData.find((x) => x.id === state.driverId) || driversData[0]; title = d.name; sub = d.position }
     else if (r === 'linky-detail') { const l = linesData.find((x) => x.id === state.lineId) || linesData[0]; title = `Linka ${l.no} · ${l.name}`; sub = `${l.agency} · ${l.stops.length} zastávek` }
     else if (r === 'stazka') { const l = linesData.find((x) => x.id === state.stazkaLine) || linesData[0]; const b = vehiclesData.find((x) => x.id === l.busId); title = `Stazka · linka ${l.no}`; sub = `${b ? b.brand + ' ' + b.model + ' · ' + b.plate : ''} · ${DISPATCH_DAY_LABEL}` }
+    else if (r === 'anomaly-detail') { const a = FLEET_ANOMALIES.find((x) => x.id === state.anomalyId) || FLEET_ANOMALIES[0]; title = a.typeLabel; sub = `${a.plate !== '—' ? a.plate + ' · ' : ''}${a.date}` }
     else { const t = titles[r] || ['', '']; title = t[0]; sub = t[1] }
 
     const aiMessages = state.aiMessages.map((m) => ({
@@ -916,7 +1036,7 @@ export default function FleetPortal() {
       isDashboard: r === 'dashboard', isFleets: r === 'fleets', isFleetDetail: r === 'fleet-detail',
       isVehicles: r === 'vehicles', isVehicleDetail: r === 'vehicle-detail',
       isInsurance: r === 'insurance', isInsuranceDetail: r === 'insurance-detail', isClaims: r === 'claims', isDocuments: r === 'documents', isAnalytics: r === 'analytics', isContacts: r === 'contacts', isSettings: r === 'settings', isDrivers: r === 'drivers', isDriverDetail: r === 'driver-detail', isFinancing: r === 'financing',
-      isLinky: r === 'linky', isLinkyDetail: r === 'linky-detail', isEco: r === 'eco', isAttention: r === 'attention', isDispatch: r === 'dispatch', isStazka: r === 'stazka',
+      isLinky: r === 'linky', isLinkyDetail: r === 'linky-detail', isEco: r === 'eco', isAttention: r === 'attention', isDispatch: r === 'dispatch', isStazka: r === 'stazka', isAnomalies: r === 'anomalies', isAnomalyDetail: r === 'anomaly-detail',
       isDocumentsDetail: r === 'documents-detail',
       openDocCat: (cat) => navigate('documents-detail', { docCat: cat, docOpen: {} }), goDocuments: () => navigate('documents'),
       docPreview: state.docPreview, closeDocPreview: () => setState({ docPreview: null }),
@@ -1975,6 +2095,77 @@ export default function FleetPortal() {
     return { attention: { sections, chips, totalOpen, cat, clearCat: () => setState({ attnCat: null }), goDash: () => navigate('dashboard') } }
   }
 
+  const czkY = (n) => n ? Math.round(n).toLocaleString('cs-CZ') + ' Kč' : '—'
+  const anoRow = (a) => ({
+    id: a.id, type: a.type, typeLabel: a.typeLabel, icon: a.icon, cat: a.cat, sevMeta: a.sevMeta, sev: a.sev,
+    date: a.date, time: a.time, plate: a.plate, vehicle: a.vehicle, driverName: a.driverName,
+    lineNo: a.lineNo, lineName: a.lineName, place: a.place, detail: a.detail, metric: a.metric,
+    statusMeta: a.statusMeta, lossF: a.loss ? czkY(a.loss) : null, onClick: () => openAnomaly(a.id),
+  })
+
+  const anomaliesVM = () => {
+    if (state.route !== 'anomalies') return {}
+    let all = FLEET_ANOMALIES
+    let filterChip = null
+    if (state.anoDriver) { const d = driversData.find((x) => x.id === state.anoDriver); all = all.filter((a) => a.driverId === state.anoDriver); filterChip = { label: `Řidič: ${d ? d.name : state.anoDriver}`, clear: () => openAnomalies({}) } }
+    else if (state.anoVehicle) { const v = vehiclesData.find((x) => x.id === state.anoVehicle); all = all.filter((a) => a.vehicleId === state.anoVehicle); filterChip = { label: `Vozidlo: ${v ? v.plate : state.anoVehicle}`, clear: () => openAnomalies({}) } }
+
+    const total = all.length
+    const unresolved = all.filter((a) => a.status !== 'done').length
+    const high = all.filter((a) => a.sev === 'high').length
+    const fuelItems = all.filter((a) => a.cat === 'Palivo a GPS')
+    const fuelLoss = fuelItems.reduce((s, a) => s + a.loss, 0)
+    const kpis = [
+      { value: String(unresolved), unit: `/ ${total}`, label: 'Nevyřešené anomálie', icon: 'alert', note: 'napříč celou flotilou' },
+      { value: String(high), label: 'Vysoká závažnost', icon: 'alert', note: 'vyžadují kontrolu' },
+      { value: (fuelLoss / 1000).toFixed(0).replace('.', ','), unit: 'tis. Kč', label: 'Odhad roční ztráty na palivu', icon: 'fuel', note: 'zastavení mimo trasu, úbytky, spotřeba' },
+      { value: String(fuelItems.length), label: 'Palivo a GPS', icon: 'pin', note: 'odčerpávání, úniky, spotřeba' },
+    ]
+
+    const views = [['vse', 'Vše'], ['typ', 'Podle typu'], ['linka', 'Podle linky'], ['vozidlo', 'Podle vozidla'], ['ridic', 'Podle řidiče'], ['misto', 'Podle místa']].map(([id, label]) => ({ id, label, active: (state.anoView || 'vse') === id, onClick: () => setState({ anoView: id }) }))
+    const view = state.anoView || 'vse'
+
+    const buildGroups = (keyFn, labelFn, subFn, icon) => {
+      const m = new Map()
+      all.forEach((a) => { const k = keyFn(a); if (k == null) return; if (!m.has(k)) m.set(k, { key: k, label: labelFn(a), sub: subFn ? subFn(a) : null, icon: icon || a.icon, count: 0, high: 0, loss: 0, rows: [] }); const g = m.get(k); g.count++; if (a.sev === 'high') g.high++; g.loss += a.loss; g.rows.push(anoRow(a)) })
+      return [...m.values()].map((g) => ({ ...g, lossF: g.loss ? czkY(g.loss) : null })).sort((x, y) => y.high - x.high || y.count - x.count || y.loss - x.loss)
+    }
+    let flat = null, groups = null
+    if (view === 'vse') flat = all.map(anoRow)
+    else if (view === 'typ') groups = buildGroups((a) => a.type, (a) => a.typeLabel, (a) => a.cat)
+    else if (view === 'linka') groups = buildGroups((a) => a.lineNo, (a) => `Linka ${a.lineNo}`, (a) => a.lineName, 'pin')
+    else if (view === 'vozidlo') groups = buildGroups((a) => a.vehicleId, (a) => a.vehicle, (a) => a.plate, 'car')
+    else if (view === 'ridic') groups = buildGroups((a) => a.driverId, (a) => a.driverName, () => null, 'user1')
+    else if (view === 'misto') groups = buildGroups((a) => a.place, (a) => a.place, () => null, 'pin')
+
+    const spotlight = FLEET_ANOMALIES.filter((a) => a.type === 'offroute_stop' || a.type === 'fuel_drop')
+      .sort((a, b) => a.sevMeta.order - b.sevMeta.order).map(anoRow)
+
+    return { anomalies: { kpis, spotlight, views, view, flat, groups, total, unresolved, filterChip, goDash: () => navigate('dashboard') } }
+  }
+
+  const anomalyDetailVM = () => {
+    if (state.route !== 'anomaly-detail') return {}
+    const a = FLEET_ANOMALIES.find((x) => x.id === state.anomalyId) || FLEET_ANOMALIES[0]
+    const facts = [
+      ['Datum a čas', `${a.date}${a.time ? ' · ' + a.time : ''}`],
+      a.vehicle !== '—' ? ['Vozidlo', `${a.vehicle} · ${a.plate}`] : null,
+      a.driverName !== '—' ? ['Řidič', a.driverName] : null,
+      a.lineNo ? ['Linka', `${a.lineNo}${a.lineName ? ' · ' + a.lineName : ''}`] : null,
+      a.place ? ['Místo', a.place] : null,
+      a.metric ? ['Ukazatel', a.metric] : null,
+      a.loss ? ['Odhad roční ztráty', czkY(a.loss)] : null,
+    ].filter(Boolean)
+    const related = FLEET_ANOMALIES.filter((x) => x.id !== a.id && ((a.vehicleId && x.vehicleId === a.vehicleId) || (a.driverId && x.driverId === a.driverId))).slice(0, 6).map(anoRow)
+    return { anomalyDet: {
+      ...a, facts, lossF: a.loss ? czkY(a.loss) : null, related,
+      openVehicle: a.vehicleId ? () => openVehicle(a.vehicleId) : null,
+      openDriver: a.driverId ? () => openDriver(a.driverId) : null,
+      goBack: () => navigate('anomalies'),
+      act: (msg) => showToast(msg),
+    } }
+  }
+
   // ---- Dispečink: oběhy vozidel (Gantt) + turnusy řidičů ----
   const dispatchVM = () => {
     if (state.route !== 'dispatch') return {}
@@ -2126,6 +2317,7 @@ export default function FleetPortal() {
 
     // ---- Výkon a chování řidiče (modelováno pro ukázku, deterministicky dle id) ----
     const perf = buildDriverPerf(d)
+    perf.goAnomalies = () => openAnomalies({ anoDriver: d.id })
 
     return { dd: { ...d, statusLabel: sm.label, statusC: sm.c, statusBg: sm.bg, vehicles, claims, personal, employment, idDocs, files, perf, goDrivers: () => navigate('drivers') } }
   }
@@ -2635,7 +2827,7 @@ export default function FleetPortal() {
     tireModal: state.tireModal ? { ...state.tireModal, close: () => setState({ tireModal: null }), stop: (e) => e.stopPropagation(), actions: TIRE_ACTIONS, field: (k) => (e) => setTireField(k, e.target.value), onInvoice: (e) => { const f = e.target.files && e.target.files[0]; if (f) setTireField('invoice', f.name) }, save: saveTire } : null,
     fineModal: state.fineModal ? { ...state.fineModal, close: () => setState({ fineModal: null }), stop: (e) => e.stopPropagation(), types: FINE_TYPES, field: (k) => (e) => setFineField(k, e.target.value), togglePaid: () => setState((s) => ({ fineModal: { ...s.fineModal, paid: !s.fineModal.paid } })), save: saveFine } : null,
     ...shellVM(), ...dashboardVM(), ...fleetsVM(), ...fleetDetailVM(), ...vehiclesVM(), ...vehicleDetailVM(),
-    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...ownerDashVM(), ...dispatchDashVM(), ...attentionVM(), ...dispatchVM(), ...stazkaVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(), ...linkyVM(), ...linkyDetailVM(), ...ecoVM(),
+    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...ownerDashVM(), ...dispatchDashVM(), ...attentionVM(), ...anomaliesVM(), ...anomalyDetailVM(), ...dispatchVM(), ...stazkaVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(), ...linkyVM(), ...linkyDetailVM(), ...ecoVM(),
   }
 
   return <Render vm={vm} />

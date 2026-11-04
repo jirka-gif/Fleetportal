@@ -361,6 +361,8 @@ export default function Render({ vm }) {
             {vm.isBonifikaceDetail && <BonifikaceDetail vm={vm} />}
             {vm.isAnalytics && <Reporting vm={vm} />}
             {vm.isAttention && <Attention vm={vm} />}
+            {vm.isAnomalies && <Anomalies vm={vm} />}
+            {vm.isAnomalyDetail && <AnomalyDetail vm={vm} />}
             {vm.isDispatch && <Dispatch vm={vm} />}
             {vm.isStazka && <Stazka vm={vm} />}
             {vm.isContacts && <Contacts vm={vm} />}
@@ -1888,6 +1890,219 @@ function Attention({ vm }) {
               </div>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ============================ ANOMÁLIE ============================ */
+function AnoListRow({ r, i }) {
+  return (
+    <Hov onClick={r.onClick} base={`display:flex;align-items:center;gap:12px;padding:12px 8px;border-radius:11px;cursor:pointer${i ? ';border-top:1px solid var(--border)' : ''}`} hover="background:var(--canvas)">
+      <span style={S(`width:36px;height:36px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${r.sevMeta.bg};color:${r.sevMeta.color}`)}>{ic(r.icon, 18)}</span>
+      <div style={S('flex:1;min-width:0')}>
+        <div style={S('display:flex;align-items:center;gap:8px;flex-wrap:wrap')}>
+          <span style={S('font-size:13.5px;font-weight:700')}>{r.typeLabel}</span>
+          {r.metric && <span style={S('font-size:11px;font-weight:700;color:var(--ink2);background:#EEF2F9;padding:2px 8px;border-radius:20px;font-variant-numeric:tabular-nums')}>{r.metric}</span>}
+        </div>
+        <div style={S('font-size:12px;color:var(--ink2);margin-top:2px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.detail}</div>
+        <div style={S('font-size:11px;color:var(--ink3);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>
+          {[r.plate !== '—' ? r.plate : null, r.driverName !== '—' ? r.driverName : null, r.lineNo ? 'linka ' + r.lineNo : null, r.place].filter(Boolean).join(' · ')}
+        </div>
+      </div>
+      <div style={S('display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0')}>
+        <span style={S(`font-size:10.5px;font-weight:700;color:${r.sevMeta.color};background:${r.sevMeta.bg};padding:3px 9px;border-radius:20px;white-space:nowrap`)}>{r.sevMeta.label}</span>
+        <span style={S(`font-size:10.5px;font-weight:700;color:${r.statusMeta.color};background:${r.statusMeta.bg};padding:3px 9px;border-radius:20px;white-space:nowrap`)}>{r.statusMeta.label}</span>
+      </div>
+      <span style={S('color:var(--ink3);display:flex;flex-shrink:0')}>{ic('arrow', 16)}</span>
+    </Hov>
+  )
+}
+
+function Anomalies({ vm }) {
+  const mob = vm.vp.isMobile
+  const a = vm.anomalies
+  if (!a) return null
+  return (
+    <div>
+      <KpiRow items={a.kpis} mb="18px" featuredFirst />
+
+      {a.filterChip && (
+        <div style={S('display:flex;align-items:center;gap:10px;margin-bottom:16px')}>
+          <span style={S('display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 13px;border-radius:20px;background:var(--blue-soft);color:var(--blue-ink);font-size:12.5px;font-weight:650')}>{ic('search', 14)}{a.filterChip.label}</span>
+          <Hov onClick={a.filterChip.clear} base="font-size:12.5px;font-weight:600;color:var(--ink3);cursor:pointer" hover="color:var(--ink)">Zrušit filtr</Hov>
+        </div>
+      )}
+
+      {/* spotlight: reálné případy k prověření */}
+      {a.spotlight.length > 0 && !a.filterChip && (
+        <>
+          <div style={S('font-size:15px;font-weight:700;margin-bottom:12px')}>Vyžaduje prověření</div>
+          <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:16px;margin-bottom:22px`)}>
+            {a.spotlight.map((s) => (
+              <Hov key={s.id} onClick={s.onClick} base={`${CARD};padding:20px;cursor:pointer;border-left:4px solid ${s.sevMeta.color}`} hover="box-shadow:0 10px 26px -14px rgba(0,0,0,.28);transform:translateY(-1px)">
+                <div style={S('display:flex;align-items:center;gap:12px;margin-bottom:12px')}>
+                  <span style={S(`width:42px;height:42px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${s.sevMeta.bg};color:${s.sevMeta.color}`)}>{ic(s.icon, 21)}</span>
+                  <div style={S('flex:1;min-width:0')}><div style={S('font-size:14.5px;font-weight:750')}>{s.typeLabel}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{s.cat}</div></div>
+                  <span style={S(`font-size:10.5px;font-weight:700;color:${s.statusMeta.color};background:${s.statusMeta.bg};padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0`)}>{s.statusMeta.label}</span>
+                </div>
+                <div style={S('font-size:13px;color:var(--ink2);line-height:1.5')}>{s.detail}</div>
+                <div style={S('display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:13px')}>
+                  {s.metric && <span style={S('font-size:12px;font-weight:700;color:var(--ink);background:#EEF2F9;padding:4px 10px;border-radius:20px')}>{s.metric}</span>}
+                  {s.lossF && <span style={S('font-size:12px;font-weight:700;color:var(--star);background:var(--star-soft);padding:4px 10px;border-radius:20px')}>ztráta ~{s.lossF}/rok</span>}
+                  <span style={S('margin-left:auto;font-size:12.5px;font-weight:650;color:var(--blue-ink);display:inline-flex;align-items:center;gap:5px')}>Zobrazit detail {ic('arrow', 14)}</span>
+                </div>
+              </Hov>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* segmentace */}
+      <div style={S('display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px')}>
+        {a.views.map((v) => (
+          <Hov key={v.id} onClick={v.onClick} base={`display:inline-flex;align-items:center;height:34px;padding:0 14px;border-radius:20px;cursor:pointer;font-size:12.5px;font-weight:650;border:1px solid ${v.active ? 'var(--ink)' : 'var(--border)'};background:${v.active ? 'var(--ink)' : '#fff'};color:${v.active ? '#fff' : 'var(--ink2)'}`} hover={v.active ? '' : 'border:1px solid var(--ink3)'}>{v.label}</Hov>
+        ))}
+      </div>
+
+      {a.flat && (
+        <div style={S(`${CARD};padding:12px 14px`)}>
+          {a.flat.map((r, i) => <AnoListRow key={r.id} r={r} i={i} />)}
+        </div>
+      )}
+
+      {a.groups && (
+        <div style={S('display:flex;flex-direction:column;gap:16px')}>
+          {a.groups.map((g) => (
+            <div key={g.key} style={S(`${CARD};padding:18px 20px`)}>
+              <div style={S('display:flex;align-items:center;gap:12px;margin-bottom:8px')}>
+                <span style={S(`width:38px;height:38px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--purple-soft);color:var(--purple)`)}>{ic(g.icon, 19)}</span>
+                <div style={S('flex:1;min-width:0')}><div style={S('font-size:14.5px;font-weight:750;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{g.label}</div>{g.sub && <div style={S('font-size:11.5px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{g.sub}</div>}</div>
+                <div style={S('display:flex;align-items:center;gap:7px;flex-shrink:0')}>
+                  {g.high > 0 && <span style={S('font-size:11px;font-weight:700;color:var(--star);background:var(--star-soft);padding:3px 9px;border-radius:20px')}>{g.high} vysoká</span>}
+                  {g.lossF && <span style={S('font-size:11px;font-weight:700;color:var(--ink2);background:#EEF2F9;padding:3px 9px;border-radius:20px')}>~{g.lossF}/rok</span>}
+                  <span style={S('font-size:12px;font-weight:800;color:var(--ink);background:#EEF2F9;padding:3px 10px;border-radius:20px;font-variant-numeric:tabular-nums')}>{g.count}</span>
+                </div>
+              </div>
+              <div>{g.rows.map((r, i) => <AnoListRow key={r.id} r={r} i={i} />)}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AnomalyDetail({ vm }) {
+  const mob = vm.vp.isMobile
+  const a = vm.anomalyDet
+  if (!a) return null
+  const ev = a.evidence
+  const fuelMax = ev && ev.series ? Math.max(...ev.series.map((s) => s.v)) : 1
+  return (
+    <div>
+      <Hov onClick={a.goBack} base="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink3);cursor:pointer;margin-bottom:14px" hover="color:var(--ink)"><span style={S('transform:rotate(180deg);display:flex')}>{ic('arrow', 16)}</span> Anomálie</Hov>
+
+      {/* hlavička */}
+      <div style={S(`${CARD};padding:22px;margin-bottom:16px;border-left:4px solid ${a.sevMeta.color}`)}>
+        <div style={S('display:flex;align-items:flex-start;gap:15px;flex-wrap:wrap')}>
+          <span style={S(`width:52px;height:52px;border-radius:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${a.sevMeta.bg};color:${a.sevMeta.color}`)}>{ic(a.icon, 25)}</span>
+          <div style={S('flex:1;min-width:200px')}>
+            <div style={S('display:flex;align-items:center;gap:9px;flex-wrap:wrap')}>
+              <span style={S('font-size:20px;font-weight:800;letter-spacing:-.4px')}>{a.typeLabel}</span>
+              <span style={S(`font-size:11px;font-weight:700;color:${a.sevMeta.color};background:${a.sevMeta.bg};padding:3px 10px;border-radius:20px`)}>{a.sevMeta.label} závažnost</span>
+              <span style={S(`font-size:11px;font-weight:700;color:${a.statusMeta.color};background:${a.statusMeta.bg};padding:3px 10px;border-radius:20px`)}>{a.statusMeta.label}</span>
+            </div>
+            <div style={S('font-size:12px;color:var(--ink3);margin-top:4px')}>{a.cat}</div>
+            <div style={S('font-size:13.5px;color:var(--ink2);margin-top:11px;line-height:1.55')}>{a.detail}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* fakta */}
+      <div style={S(`${CARD};padding:20px 22px;margin-bottom:16px`)}>
+        <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:12px 26px`)}>
+          {a.facts.map((f, i) => (
+            <div key={i} style={S('display:flex;justify-content:space-between;gap:14px;padding:7px 0;border-bottom:1px solid var(--border)')}>
+              <span style={S('font-size:12.5px;color:var(--ink3)')}>{f[0]}</span>
+              <span style={S('font-size:13px;font-weight:650;text-align:right')}>{f[1]}</span>
+            </div>
+          ))}
+        </div>
+        {(a.openVehicle || a.openDriver) && (
+          <div style={S('display:flex;gap:10px;flex-wrap:wrap;margin-top:14px')}>
+            {a.openVehicle && <Hov onClick={a.openVehicle} base="display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;border:1px solid var(--border2);border-radius:10px;cursor:pointer;font-size:12.5px;font-weight:600" hover="border-color:var(--blue);background:#FAFBFF">{ic('car', 15)} Otevřít vozidlo</Hov>}
+            {a.openDriver && <Hov onClick={a.openDriver} base="display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;border:1px solid var(--border2);border-radius:10px;cursor:pointer;font-size:12.5px;font-weight:600" hover="border-color:var(--blue);background:#FAFBFF">{ic('user1', 15)} Otevřít řidiče</Hov>}
+          </div>
+        )}
+      </div>
+
+      {/* důkazy */}
+      {ev && ev.kind === 'offroute' && (
+        <div style={S(`${CARD};padding:22px;margin-bottom:16px`)}>
+          <CardHead icon="pin" color="var(--star)" title="Geofence: opakované stání mimo trasu" sub={`${ev.place} · ${ev.gps}`} />
+          <div style={S('display:flex;align-items:flex-start;gap:9px;padding:12px 14px;background:var(--star-soft);border-radius:12px;margin:4px 0 16px')}>
+            <span style={S('color:var(--star);display:flex;flex-shrink:0;margin-top:1px')}>{ic('alert', 15)}</span>
+            <span style={S('font-size:12.5px;color:var(--ink2);line-height:1.5')}>{ev.note}</span>
+          </div>
+          <div style={S('font-size:12.5px;font-weight:700;color:var(--ink3);margin-bottom:8px')}>Zaznamenaná stání</div>
+          <div>
+            {ev.occurrences.map((o, i) => (
+              <div key={i} style={S(`display:flex;align-items:center;gap:12px;padding:10px 4px${i ? ';border-top:1px solid var(--border)' : ''}`)}>
+                <span style={S('width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--star-soft);color:var(--star);font-size:12px;font-weight:800')}>{i + 1}</span>
+                <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:650')}>{o.vehicle} · {o.plate}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{o.driver}</div></div>
+                <span style={S('font-size:12px;color:var(--ink3);font-variant-numeric:tabular-nums')}>{o.date} · {o.time}</span>
+                <span style={S('font-size:12px;font-weight:800;color:var(--star);font-variant-numeric:tabular-nums;white-space:nowrap')}>{o.durMin} min</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {ev && ev.kind === 'fuel' && (
+        <div style={S(`${CARD};padding:22px;margin-bottom:16px`)}>
+          <CardHead icon="fuel" color="var(--star)" title="Kontrola paliva: dojezd z plné nádrže" sub="Vyšší je lepší · poslední týdny (km)" />
+          <div style={S(`display:flex;align-items:flex-end;gap:${mob ? '8px' : '14px'};height:150px;padding:12px 0 6px`)}>
+            {ev.series.map((s, i) => (
+              <div key={i} style={S('flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;height:100%')}>
+                <span style={S('font-size:10.5px;font-weight:700;color:var(--ink2);font-variant-numeric:tabular-nums')}>{s.v}</span>
+                <div style={S('flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center')}>
+                  <div style={S(`width:62%;height:${Math.round(s.v / fuelMax * 100)}%;border-radius:6px 6px 3px 3px;background:${i === ev.series.length - 1 ? 'var(--star)' : 'linear-gradient(180deg,#B7A6FC,#6D5EF6)'};min-height:6px`)}></div>
+                </div>
+                <span style={S('font-size:10.5px;color:var(--ink3);font-weight:600')}>{s.label}</span>
+              </div>
+            ))}
+          </div>
+          <div style={S(`display:grid;grid-template-columns:${mob ? '1fr 1fr' : '1fr 1fr'};gap:12px;margin:14px 0`)}>
+            <div style={S('background:var(--canvas);border-radius:12px;padding:13px 15px')}><div style={S('font-size:11.5px;color:var(--ink3)')}>Spotřeba dle telematiky</div><div style={S('font-size:20px;font-weight:800;margin-top:3px')}>{String(ev.refCons).replace('.', ',')} <span style={S('font-size:12px;font-weight:600;color:var(--ink3)')}>l/100 km</span></div></div>
+            <div style={S('background:var(--star-soft);border-radius:12px;padding:13px 15px')}><div style={S('font-size:11.5px;color:var(--ink3)')}>Dle doplněného paliva</div><div style={S('font-size:20px;font-weight:800;margin-top:3px;color:var(--star)')}>{String(ev.actCons).replace('.', ',')} <span style={S('font-size:12px;font-weight:600;color:var(--ink3)')}>l/100 km</span></div></div>
+          </div>
+          <div style={S('display:flex;align-items:flex-start;gap:9px;padding:12px 14px;background:var(--star-soft);border-radius:12px')}>
+            <span style={S('color:var(--star);display:flex;flex-shrink:0;margin-top:1px')}>{ic('alert', 15)}</span>
+            <span style={S('font-size:12.5px;color:var(--ink2);line-height:1.5')}>{ev.note}</span>
+          </div>
+        </div>
+      )}
+
+      {/* doporučení */}
+      {a.reco && (
+        <div style={S(`${CARD};padding:20px 22px;margin-bottom:16px`)}>
+          <CardHead icon="sparkle" color="var(--blue)" title="Doporučený postup" sub="Co s anomálií dál" />
+          <div style={S('font-size:13.5px;color:var(--ink2);line-height:1.6;margin-bottom:14px')}>{a.reco}</div>
+          <div style={S('display:flex;gap:10px;flex-wrap:wrap')}>
+            <Hov onClick={() => a.act('Kontrola založena a přiřazena správci parku.')} base="display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 15px;background:linear-gradient(135deg,#5B6BF5,#7A5CF8);color:#fff;border-radius:11px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 8px 18px -8px rgba(108,94,246,.7)" hover="transform:translateY(-1px)">{ic('check2', 15)} Založit kontrolu</Hov>
+            <Hov onClick={() => a.act('Anomálie označena jako vyřešená.')} base="display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 15px;border:1px solid var(--border2);border-radius:11px;font-size:13px;font-weight:600;cursor:pointer" hover="border-color:var(--green);color:var(--green)">{ic('check', 15)} Označit vyřešeno</Hov>
+          </div>
+        </div>
+      )}
+
+      {/* související */}
+      {a.related.length > 0 && (
+        <div style={S(`${CARD};padding:18px 20px`)}>
+          <div style={S('font-size:14.5px;font-weight:700;margin-bottom:6px')}>Související anomálie</div>
+          <div style={S('font-size:12px;color:var(--ink3);margin-bottom:6px')}>Stejné vozidlo nebo řidič</div>
+          <div>{a.related.map((r, i) => <AnoListRow key={r.id} r={r} i={i} />)}</div>
         </div>
       )}
     </div>
@@ -4169,7 +4384,10 @@ function DriverPerformance({ p, mob }) {
 
       {/* historie anomálií */}
       <div style={S(`${CARD};padding:22px;margin-bottom:16px`)}>
-        <CardHead icon="alert" color="var(--star)" title="Historie anomálií" sub={`Posledních 90 dní · ${p.anoCount} ${p.anoCount === 1 ? 'záznam' : p.anoCount >= 2 && p.anoCount <= 4 ? 'záznamy' : 'záznamů'}`} />
+        <div style={S('display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:4px')}>
+          <CardHead icon="alert" color="var(--star)" title="Historie anomálií" sub={`Posledních 90 dní · ${p.anoCount} ${p.anoCount === 1 ? 'záznam' : p.anoCount >= 2 && p.anoCount <= 4 ? 'záznamy' : 'záznamů'}`} />
+          {p.goAnomalies && <Hov onClick={p.goAnomalies} base="font-size:13px;font-weight:600;color:var(--blue-ink);cursor:pointer;display:flex;align-items:center;gap:5px" hover="color:var(--blue)">V modulu Anomálie {ic('arrow', 14)}</Hov>}
+        </div>
         {p.anomalies.length === 0
           ? <div style={S('font-size:13px;color:var(--ink3);padding:8px 2px')}>Bez evidovaných anomálií. Řidič jezdí v normě.</div>
           : <div style={S('margin-top:4px')}>
