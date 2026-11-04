@@ -1464,7 +1464,7 @@ function OwnerDashboard({ vm }) {
   return (
     <div>
       <KpiRow items={d.kpis} mb="18px" featuredFirst />
-      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:18px;align-items:start`)}>
+      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:18px;align-items:stretch`)}>
         <div style={S(`${CARD};padding:22px`)}>
           <CardHead icon="banknote" title="Provozní náklady podle kategorie" sub="Modelový odhad za 12 měsíců · bez pojistného" />
           <BarBreakdown items={d.catItems} />
@@ -1592,7 +1592,7 @@ function Reporting({ vm }) {
       </div>
 
       {/* breakdowns */}
-      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:18px;align-items:start;margin-bottom:18px`)}>
+      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:18px;align-items:stretch;margin-bottom:18px`)}>
         <div style={S(`${CARD};padding:22px`)}>
           <CardHead icon="banknote" title="Náklady podle kategorie" sub="Z čeho se skládají provozní náklady" />
           <BarBreakdown items={r.catItems} />
