@@ -4,7 +4,7 @@ import Render from './Render.jsx'
 import {
   insurersData, brandsData, fleetsData, vehiclesData, claimsData, greenCards, driversData,
   statusMeta, claimStatusMeta, fleetName, statusChip, vehicleTypeCat, vehicleTypeOrder, vehicleStk, vehicleVignette, leasingPartners,
-  linesData, busDrivers, ecoScore, ecoBand, ecoSavings, heaterCost, NAFTA_CZK,
+  linesData, busDrivers, ecoScore, ecoBand, ecoSavings, heaterCost, NAFTA_CZK, STOP_COORDS,
   vehicleAnnualCost, vehicleAgeBand, vehicleAgeBandOrder,
 } from './data.js'
 
@@ -2273,8 +2273,17 @@ export default function FleetPortal() {
     const buses = vehiclesData.filter((v) => vehicleTypeCat(v.druh) === 'Autobusy')
     const anHigh = FLEET_ANOMALIES.filter((a) => a.sev === 'high').length
     const onTrack = Math.round(buses.length * 0.14) + 32
+    const LINE_COLORS = ['#6D5EF6', '#4F6FFF', '#0EA5E9', '#14B8A6', '#F59E0B', '#EC4899']
+    const mapLines = linesData.map((l, i) => {
+      const stops = l.stops.map((s) => { const c = STOP_COORDS[s.n]; return c ? { name: s.n, lat: c[0], lon: c[1] } : null }).filter(Boolean)
+      const bus = vehiclesData.find((v) => v.id === l.busId)
+      return { no: l.no, name: l.name, color: LINE_COLORS[i % LINE_COLORS.length], stops, bus: bus ? `${bus.brand} ${bus.model}`.trim() : '', dur: 24000 + i * 3000, offset: i * 4 }
+    }).filter((l) => l.stops.length >= 2)
+    const legend = mapLines.map((l) => ({ color: l.color, label: `Linka ${l.no}` }))
+    const hotspot = { lat: 48.8762, lon: 14.5431, label: 'Besednice, stoupání U Boroví — opakované zastavení mimo trasu (podezření na odčerpávání nafty)' }
     return { fleetMap: {
       busTotal: buses.length, onTrack, delayed: 4, anomalies: anHigh, day: DISPATCH_DAY_LABEL,
+      lines: mapLines, legend, hotspot, lineCount: mapLines.length, stopCount: mapLines.reduce((a, l) => a + l.stops.length, 0),
       goAnomalies: () => navigate('anomalies'), goLinky: () => navigate('linky'),
     } }
   }

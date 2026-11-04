@@ -20,9 +20,9 @@ export default function ClaimsMap({ height = 200 }) {
   const mapRef = useRef(null)
   useEffect(() => {
     if (mapRef.current || !elRef.current) return
-    const map = L.map(elRef.current, { scrollWheelZoom: false, attributionControl: false }).setView([49.85, 15.5], 6)
+    const map = L.map(elRef.current, { scrollWheelZoom: false, attributionControl: true }).setView([49.85, 15.5], 6)
     mapRef.current = map
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, subdomains: 'abcd' }).addTo(map)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, subdomains: 'abc', attribution: '© OpenStreetMap' }).addTo(map)
     CLAIM_POINTS.forEach((p) => {
       L.circleMarker([p.lat, p.lng], { radius: Math.min(7 + p.n * 0.9, 20), color: '#fff', weight: 2, fillColor: p.color, fillOpacity: 0.85 })
         .addTo(map)
