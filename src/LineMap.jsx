@@ -106,7 +106,7 @@ export default function LineMap({ lines = [], anomalyMarkers = [], onOpenVehicle
         const a = pts[i - 1], b = pts[i]
         const dx = (b[1] - a[1]) * Math.cos(a[0] * EARTH), dy = (b[0] - a[0])
         const dist = Math.hypot(dx, dy); totalDist += dist
-        segs.push({ a, b, dist, deg: Math.atan2(-dy, dx) * 180 / Math.PI })
+        segs.push({ a, b, dist, deg: Math.atan2(-dy, dx) * 180 / Math.PI, name: ln.stops[i] ? ln.stops[i].name : '' })
       }
       const avg = totalDist / segs.length || 1
       let cycle = 0
@@ -152,11 +152,11 @@ export default function LineMap({ lines = [], anomalyMarkers = [], onOpenVehicle
       buses.forEach((bus) => {
         if (!bus.rotEl && bus.marker._icon) bus.rotEl = bus.marker._icon.querySelector('.rot')
         let tt = (t0 + bus.offset) % bus.cycle
-        let pos = bus.segs[bus.segs.length - 1].b, deg = 0, dwell = false, p = 0
+        let pos = bus.segs[bus.segs.length - 1].b, deg = 0, dwell = false, p = 0, name = ''
         for (const s of bus.segs) {
-          if (tt < s.travel) { p = tt / s.travel; pos = lerp(s.a, s.b, smooth(p)); deg = s.deg; dwell = false; break }
+          if (tt < s.travel) { p = tt / s.travel; pos = lerp(s.a, s.b, smooth(p)); deg = s.deg; dwell = false; name = s.name; break }
           tt -= s.travel
-          if (tt < s.dwell) { pos = s.b; deg = s.deg; dwell = true; break }
+          if (tt < s.dwell) { pos = s.b; deg = s.deg; dwell = true; name = s.name; break }
           tt -= s.dwell
         }
         bus.marker.setLatLng(pos)
@@ -165,8 +165,8 @@ export default function LineMap({ lines = [], anomalyMarkers = [], onOpenVehicle
           const el = bus.marker.getPopup() && bus.marker.getPopup().getElement()
           if (el) {
             const spd = el.querySelector('.fp-spd'), st = el.querySelector('.fp-stav')
-            if (dwell) { if (spd) spd.textContent = '0 km/h'; if (st) { st.textContent = 'Zastávka — nástup'; st.style.color = '#B45309' } }
-            else { const kmh = Math.round(bus.maxSpeed * 6 * p * (1 - p)); if (spd) spd.textContent = kmh + ' km/h'; if (st) { st.textContent = 'Na trase'; st.style.color = '#1f9d57' } }
+            if (dwell) { if (spd) spd.textContent = '0 km/h'; if (st) { st.textContent = name ? 'Zastávka: ' + name : 'Zastávka — nástup'; st.style.color = '#B45309' } }
+            else { const kmh = Math.round(bus.maxSpeed * 6 * p * (1 - p)); if (spd) spd.textContent = kmh + ' km/h'; if (st) { st.textContent = name ? 'Na trase → ' + name : 'Na trase'; st.style.color = '#1f9d57' } }
           }
         }
       })
