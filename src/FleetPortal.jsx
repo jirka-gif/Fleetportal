@@ -1684,7 +1684,11 @@ export default function FleetPortal() {
     return vehicleAgeBandOrder.map((b) => ({ label: b, icon: 'calendar', color: colors[b], value: String(r.ageTot[b] || 0), pct: Math.round((r.ageTot[b] || 0) / mx * 100) })) }
   const ownerRecs = (r) => {
     const recs = []
-    if (r.oldCount > 0) recs.push({ title: `${r.oldCount} vozidel starších 20 let`, sub: `Odepsané vozy, ale rostoucí servis a spotřeba. Obměna může snížit provozní náklady i emise. Makléř připraví financování i pojištění nových vozů.`, icon: 'refresh', color: 'var(--star)' })
+    if (r.oldCount > 0) {
+      const n = r.oldCount
+      const oldTitle = n === 1 ? `1 vozidlo starší 20 let` : n >= 2 && n <= 4 ? `${n} vozidla starší 20 let` : `${n} vozidel starších 20 let`
+      recs.push({ title: oldTitle, sub: `Odepsané vozy s rostoucími náklady na servis i spotřebu. Obměna za nové může snížit provozní náklady a emise. Makléř zajistí financování i pojištění nových vozidel.`, icon: 'refresh', color: 'var(--star)' })
+    }
     recs.push({ title: `Potenciál úspory paliva ${mil(r.ecoPotentialYear)} ročně`, sub: `Modelový odhad po nasazení telematických jednotek do všech ${r.busCount} autobusů (plynulejší jízda, méně volnoběhu a nezávislého topení).`, icon: 'gauge', color: 'var(--green)' })
     recs.push({ title: 'Pojistné zatím není v nákladech', sub: 'Po napojení na pojišťovnu se do TCO promítne i roční pojistné a škodní průběh, včetně bonifikace podle historie.', icon: 'shield', color: 'var(--blue)' })
     return recs
