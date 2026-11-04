@@ -267,7 +267,7 @@ export default function Render({ vm }) {
           )}
           {!mob && (
             <div style={S('display:flex;align-items:center;gap:10px;min-width:0;flex-shrink:0')}>
-              <Hov onClick={() => vm.navigate && vm.navigate('dashboard')} base="display:flex;align-items:center;gap:7px;height:30px;padding:0 11px;background:var(--blue-soft);border-radius:9px;white-space:nowrap;cursor:pointer" hover="background:var(--blue-soft);box-shadow:0 0 0 2px rgba(79,111,255,.18)"><span style={S('display:flex;color:var(--blue)')}>{ic('pin', 14)}</span><span style={S('font-size:13px;font-weight:600;color:var(--blue-ink)')}>ČSAD AUTOBUSY České Budějovice · {vm.companyVehicles} vozidel</span></Hov>
+              <Hov onClick={() => vm.navigate && vm.navigate('dashboard')} base="display:flex;align-items:center;gap:8px;height:42px;padding:0 14px;background:var(--blue-soft);border-radius:13px;white-space:nowrap;cursor:pointer" hover="background:var(--blue-soft);box-shadow:0 0 0 2px rgba(79,111,255,.18)"><span style={S('display:flex;color:var(--blue)')}>{ic('pin', 15)}</span><span style={S('font-size:13px;font-weight:600;color:var(--blue-ink)')}>ČSAD AUTOBUSY České Budějovice · {vm.companyVehicles} vozidel</span></Hov>
             </div>
           )}
           <div style={{ flex: 1 }}></div>
