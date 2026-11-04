@@ -4848,7 +4848,14 @@ function AIPanel({ vm }) {
         <span onClick={vm.toggleAI} style={S('position:relative;color:rgba(255,255,255,.85);cursor:pointer;display:flex')}>{ic('close', 17)}</span>
       </div>
       <div style={S('flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:#F2F6FC')}>
-        {vm.aiMessages.map((m, i) => <div key={i} style={S(m.wrap)}><div style={S(m.bubble)}>{m.text}</div></div>)}
+        {vm.aiMessages.map((m, i) => (
+          <div key={i} style={S(m.wrap)}>
+            <div style={S(m.bubble)}>{m.text}</div>
+            {m.onAction && m.actionLabel && (
+              <Hov onClick={m.onAction} base="display:inline-flex;align-items:center;gap:6px;margin-top:7px;height:34px;padding:0 13px;background:linear-gradient(135deg,#5F6FFF,#785CFB);color:#fff;border-radius:10px;font-size:12.5px;font-weight:600;cursor:pointer;box-shadow:0 6px 16px -6px rgba(108,94,246,.7)" hover="transform:translateY(-1px)">{m.actionLabel} {ic('arrow', 14)}</Hov>
+            )}
+          </div>
+        ))}
       </div>
       <div style={S('padding:12px 14px;border-top:1px solid var(--border)')}>
         <div style={S('display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px')}>

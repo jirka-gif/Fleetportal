@@ -739,7 +739,7 @@ export default function FleetPortal() {
     searchQuery: '',
     aiInput: '',
     aiMessages: [
-      { role: 'ai', text: 'Dobrý den, Martine. Jsem váš fleet asistent. Můžu vyhledávat vozidla, hlídat obnovy nebo nahlásit škodu — stačí napsat.' },
+      { role: 'ai', text: 'Dobrý den. Jsem Fleet AI nad reálnými daty vaší flotily. Zeptejte se třeba „Kde ztrácíme nejvíc peněz?", „Je někde podezřelý úbytek nafty?" nebo „Kteří řidiči jezdí rizikově?".' },
     ],
   }))
   const ttRef = useRef(null)
@@ -748,7 +748,7 @@ export default function FleetPortal() {
   const allFleets = [...fleetsData, ...state.newFleets]
 
   // ---------- ACTIONS ----------
-  const navigate = (route, patch) => setState({ route, ...(patch || {}), search: false, notif: false, companyMenu: false, sidebar: false, roleMenu: false })
+  const navigate = (route, patch) => setState({ route, ...(patch || {}), search: false, notif: false, companyMenu: false, sidebar: false, roleMenu: false, ai: false })
   const setRole = (id) => setState({ role: id, roleMenu: false, route: 'dashboard', search: false, notif: false })
   const toggleRoleMenu = () => setState((s) => ({ roleMenu: !s.roleMenu, notif: false, companyMenu: false }))
   const openFleet = (id) => navigate('fleet-detail', { fleetId: id, fleetTab: 'overview' })
@@ -886,21 +886,80 @@ export default function FleetPortal() {
   })
   const toggleSel = (id) => setState((s) => { const n = { ...s.selected }; if (n[id]) delete n[id]; else n[id] = true; return { selected: n } })
 
+  // Fleet AI = demo nad reálnými (mock) daty flotily. Pravidlový NLU, bez externích klíčů.
   const aiReply = (q) => {
-    const l = q.toLowerCase()
-    if (l.includes('obnov') || l.includes('renew')) return '34 vozidel má obnovu do 30 dnů. Nejbližší: Škoda Scala (2SC 7790) — 20. 6. Chcete je zobrazit ve filtru?'
-    if (l.includes('nejvíc') || l.includes('nejdráž') || l.includes('cost')) return 'Nejnákladnější park je Praha – Centrála s ročním pojistným 4,28 mil. Kč (84 vozidel). Druhý je Dlouhodobý pronájem (3,05 mil. Kč).'
-    if (l.includes('gap')) return 'Našel jsem 41 vozidel bez plného krytí. 12 z nich nemá GAP — převážně v parku Brno. Mám připravit hromadnou nabídku?'
-    if (l.includes('škod') || l.includes('damage') || l.includes('nehod')) return 'Spustil jsem průvodce nahlášením škody. Vyberte vozidlo a popište událost — zbytek doplním z dat parku.'
-    if (l.includes('claim') || l.includes('událost')) return 'Aktuálně je 9 otevřených událostí. Nejvyšší odhad: Audi A6 — odcizení kol, 58 000 Kč (Generali, v likvidaci).'
-    if (l.includes('úspor') || l.includes('saving')) return 'Oproti loňsku šetříte 1,84 mil. Kč (−11 %). Konsolidací havarijního u Kooperativy lze ušetřit dalších ~320 000 Kč ročně.'
-    return `Rozumím. Pracuji s daty ${vehiclesData.length} vozidel (${typeCats.length} typů) ve ${allFleets.length === 1 ? 'vozovém parku ' + allFleets[0].name : allFleets.length + ' vozových parcích'}. Zkuste např. „Najdi vozidla bez GAP" nebo „Kolik máme tahačů?".`
+    const l = q.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    const has = (...w) => w.some((x) => l.includes(x))
+    const czf = (n) => Math.round(n).toLocaleString('cs-CZ') + ' Kč'
+    const milF = (n) => (n / 1e6).toFixed(1).replace('.', ',') + ' mil. Kč'
+    const buses = vehiclesData.filter((v) => vehicleTypeCat(v.druh) === 'Autobusy')
+
+    // palivo / nafta / odčerpávání / úbytek / tankování
+    if (has('naft', 'paliv', 'odcerp', 'ubyt', 'krade', 'tankov', 'spotreb')) {
+      const fuel = FLEET_ANOMALIES.filter((a) => a.cat === 'Palivo a GPS')
+      const loss = fuel.reduce((s, a) => s + a.loss, 0)
+      const off = FLEET_ANOMALIES.find((a) => a.type === 'offroute_stop')
+      return { text: `Ano, mám podezřelé případy. V kategorii Palivo a GPS je ${fuel.length} anomálií, odhadovaná roční ztráta ~${czf(loss)}. Nejzávažnější: ${off.vehicle} (${off.plate}) a další vozy opakovaně stojí 3 min na stejném místě ve stoupání po skončení linky — vzorec odpovídá odčerpávání nafty. Druhý případ je pokles dojezdu z plné nádrže navzdory hospodárné jízdě.`, actionLabel: 'Otevřít anomálie paliva', action: () => navigate('anomalies') }
+    }
+    // rizikoví řidiči / styl jízdy
+    if (has('rizik', 'ridic', 'styl jizd', 'spatne jezd', 'nejhor') && !has('kolik stoji flot')) {
+      const scored = driversData.filter((d) => ['linka', 'mhd', 'dalkova'].includes(d.kind)).map((d) => ({ d, p: buildDriverPerf(d) })).sort((a, b) => a.p.score - b.p.score)
+      const w = scored[0]
+      return { text: `Nejrizikovější styl jízdy má ${w.d.name} — eco skóre ${w.p.score}/100 (${w.p.band.label}). Stojí navíc ~${w.p.styleCostYearF}/rok oproti hospodárné jízdě a má ${w.p.delays30}× zpoždění za 30 dní. Doporučuji školení a sledování.`, actionLabel: 'Otevřít kartu řidiče', action: () => openDriver(w.d.id) }
+    }
+    // nejdražší / nejnákladnější vozidlo
+    if (has('nejdraz', 'nejnakladnej', 'nejdrahs') || (has('nejvic') && has('vozidl', 'vuz', 'auto', 'autobus'))) {
+      const r = fleetCostRollup()
+      const top = r.costs.slice().sort((a, b) => b.c.total - a.c.total)[0]
+      return { text: `Nejnákladnější vozidlo je ${top.v.brand} ${top.v.model} (${top.v.plate}) — provozní náklady ~${czf(top.c.total)}/rok (palivo, servis, pneu, mýto). Je to kandidát na obměnu.`, actionLabel: 'Otevřít vozidlo', action: () => openVehicle(top.v.id) }
+    }
+    // kde ztrácíme / plýtváme / úniky
+    if (has('ztrac', 'ztrat', 'plytv', 'unik', 'ucik', 'kde ') && has('peniz', 'korun', 'naklad', 'ztrac', 'ztrat', 'plytv', 'unik')) {
+      const r = fleetCostRollup()
+      const fuelLoss = FLEET_ANOMALIES.filter((a) => a.cat === 'Palivo a GPS').reduce((s, a) => s + a.loss, 0)
+      const anoLoss = FLEET_ANOMALIES.reduce((s, a) => s + a.loss, 0)
+      return { text: `Největší úniky peněz teď: palivo a GPS ~${czf(fuelLoss)}/rok (odčerpávání, úbytky, spotřeba), z anomálií celkem ~${czf(anoLoss)}/rok. Další prostor je v obměně ${r.oldCount} nejstarších vozů a v eco-jízdě (potenciál ~${czf(r.ecoPotentialYear)}/rok po nasazení telematiky do autobusů).`, actionLabel: 'Zobrazit anomálie', action: () => navigate('anomalies') }
+    }
+    // náklady flotily / kolik stojí / TCO
+    if (has('kolik stoji', 'naklad', 'tco', 'provoz', 'rozpoc', 'flotil')) {
+      const r = fleetCostRollup()
+      const prem = vehiclesData.reduce((a, v) => a + (v.premium || 0), 0)
+      return { text: `Provozní náklady flotily jsou ~${milF(r.total)}/rok (${r.count} vozidel, ${(r.kmTotal / 1e6).toFixed(1).replace('.', ',')} mil. km). K tomu roční pojistné ~${milF(prem)}. Největší položkou je palivo. Detailní rozpad je v Reportingu.`, actionLabel: 'Otevřít reporting', action: () => navigate('analytics') }
+    }
+    // pojištění / havarijní / krytí / gap
+    if (has('pojist', 'havarij', 'kryt', 'gap', 'pov')) {
+      const prem = vehiclesData.reduce((a, v) => a + (v.premium || 0), 0)
+      const povOnly = vehiclesData.filter((v) => v.cov && v.cov.pov && !v.cov.hav).length
+      const busPov = buses.filter((v) => v.cov && !v.cov.hav).length
+      return { text: `Z ${vehiclesData.length} vozidel má ${povOnly} jen povinné ručení, z toho ${busPov} autobusů bez havarijního krytí. Roční pojistné je ~${milF(prem)}. Tady je největší prostor pro makléře dořešit krytí.`, actionLabel: 'Otevřít pojištění', action: () => navigate('insurance') }
+    }
+    // zpoždění / jízdní řády / dodržení
+    if (has('zpozd', 'jizdni rad', 'dodrzen', 'on-time', 'ontime', 'linka', 'vynech')) {
+      const d = FLEET_ANOMALIES.filter((a) => ['delay', 'missed_stop', 'early_dep'].includes(a.type))
+      return { text: `V provozu je ${d.length} anomálií jízdních řádů (zpoždění, vynechané zastávky, předčasné odjezdy). Nejčastější jsou zpoždění na nejvytíženějších linkách. Vše se dá rozkliknout po lince, voze i řidiči.`, actionLabel: 'Anomálie provozu', action: () => navigate('anomalies') }
+    }
+    // stáří / obměna
+    if (has('star', 'obmen', 'vek flot', 'kolik let')) {
+      const r = fleetCostRollup()
+      return { text: `Průměrné stáří flotily je ${r.avgAge} let. ${r.oldCount} vozidel je starších 20 let — kandidáti na obměnu. Obměna sníží servis, spotřebu i emise, financování i pojištění zajistí makléř.`, actionLabel: 'Otevřít reporting', action: () => navigate('analytics') }
+    }
+    // anomálie obecně
+    if (has('anomal', 'podezr', 'co resit', 'problem')) {
+      const un = FLEET_ANOMALIES.filter((a) => a.status !== 'done').length
+      const high = FLEET_ANOMALIES.filter((a) => a.sev === 'high').length
+      return { text: `Evidujeme ${FLEET_ANOMALIES.length} anomálií, ${un} nevyřešených, z toho ${high} s vysokou závažností. Nejpalčivější jsou palivové (odčerpávání a úbytky nafty) a překročení rychlosti.`, actionLabel: 'Otevřít anomálie', action: () => navigate('anomalies') }
+    }
+    // škoda
+    if (has('skod', 'nehod', 'pojistn udal')) {
+      return { text: 'Spustím průvodce nahlášením škody — vyberte vozidlo a popište událost, zbytek doplním z dat flotily.', actionLabel: 'Otevřít škody', action: () => navigate('claims') }
+    }
+    return { text: `Pracuji nad reálnými daty ČSAD AUTOBUSY České Budějovice (${vehiclesData.length} vozidel, z toho ${buses.length} autobusů). Zkuste třeba „Kde ztrácíme nejvíc peněz?", „Je někde podezřelý úbytek nafty?", „Nejdražší vozidla" nebo „Kteří řidiči jezdí rizikově?".` }
   }
   const sendAi = (t) => {
     const q = (typeof t === 'string' ? t : state.aiInput).trim()
     if (!q) return
-    const reply = aiReply(q)
-    setState((s) => ({ aiInput: '', aiMessages: [...s.aiMessages, { role: 'user', text: q }, { role: 'ai', text: reply }] }))
+    const r = aiReply(q)
+    setState((s) => ({ aiInput: '', aiMessages: [...s.aiMessages, { role: 'user', text: q }, { role: 'ai', text: r.text, actionLabel: r.actionLabel, action: r.action }] }))
   }
 
   // ---------- VIEW MODELS ----------
@@ -1005,16 +1064,20 @@ export default function FleetPortal() {
 
     const aiMessages = state.aiMessages.map((m) => ({
       text: m.text,
-      wrap: `display:flex;justify-content:${m.role === 'user' ? 'flex-end' : 'flex-start'}`,
+      role: m.role,
+      actionLabel: m.actionLabel || null,
+      onAction: m.action || null,
+      wrap: `display:flex;flex-direction:column;align-items:${m.role === 'user' ? 'flex-end' : 'flex-start'}`,
       bubble: m.role === 'user'
         ? 'max-width:80%;background:var(--blue);color:#fff;padding:9px 13px;border-radius:14px 14px 4px 14px;font-size:13px;line-height:1.5'
         : 'max-width:84%;background:#fff;border:1px solid var(--border);padding:9px 13px;border-radius:14px 14px 14px 4px;font-size:13px;line-height:1.5;color:#27272A',
     }))
     const aiChips = [
-      { text: 'Obnovy tento měsíc', onClick: () => sendAi('Ukaž vozidla s obnovou tento měsíc') },
-      { text: 'Který park stojí nejvíc?', onClick: () => sendAi('Který park stojí nejvíc?') },
-      { text: 'Vozidla bez GAP', onClick: () => sendAi('Najdi vozidla bez GAP') },
-      { text: 'Nahlásit škodu', onClick: () => sendAi('Chci nahlásit škodu') },
+      { text: 'Kde ztrácíme nejvíc?', onClick: () => sendAi('Kde ztrácíme nejvíc peněz?') },
+      { text: 'Podezřelý úbytek nafty?', onClick: () => sendAi('Je někde podezřelý úbytek nafty?') },
+      { text: 'Nejdražší vozidla', onClick: () => sendAi('Která vozidla jsou nejdražší?') },
+      { text: 'Rizikoví řidiči', onClick: () => sendAi('Kteří řidiči jezdí rizikově?') },
+      { text: 'Kolik stojí flotila?', onClick: () => sendAi('Kolik stojí provoz flotily?') },
     ]
     const notifs = [
       { icon: ic('refresh', 16), bg: 'var(--amber-soft)', color: 'var(--amber)', title: '34 vozidel čeká na obnovu', sub: 'Nejbližší Škoda Scala (2SC 7790) · 20. 6.', time: 'před 1 h', unread: true },
