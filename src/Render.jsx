@@ -387,6 +387,7 @@ export default function Render({ vm }) {
       )}
 
       {vm.ai && <AIPanel vm={vm} />}
+      {vm.execReportHtml && <ExecReportModal vm={vm} />}
       {vm.notif && <Notifications vm={vm} />}
       {vm.search && <SearchModal vm={vm} />}
       {vm.claimWizard && <ClaimWizard vm={vm} />}
@@ -1492,7 +1493,10 @@ function OwnerDashboard({ vm }) {
       <div style={S(`${CARD};padding:22px;margin-top:18px`)}>
         <div style={S('display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap')}>
           <CardHead icon="sparkle" color="var(--green)" title="Příležitosti a doporučení" sub="Kde ušetřit a na co se zaměřit" />
-          <Hov onClick={d.goReport} base="display:flex;align-items:center;gap:7px;height:38px;padding:0 15px;background:linear-gradient(135deg,#5B6BF5,#7A5CF8);color:#fff;border-radius:11px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 8px 18px -8px rgba(108,94,246,.7)" hover="transform:translateY(-1px)">Otevřít reporting {ic('arrow', 14)}</Hov>
+          <div style={S('display:flex;gap:9px;flex-wrap:wrap')}>
+            {d.exportPdf && <Hov onClick={d.exportPdf} base="display:flex;align-items:center;gap:7px;height:38px;padding:0 15px;border:1px solid var(--border2);border-radius:11px;font-size:13px;font-weight:600;cursor:pointer" hover="border-color:var(--blue);color:var(--blue)">{ic('doc2', 15)} Report pro vedení</Hov>}
+            <Hov onClick={d.goReport} base="display:flex;align-items:center;gap:7px;height:38px;padding:0 15px;background:linear-gradient(135deg,#5B6BF5,#7A5CF8);color:#fff;border-radius:11px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 8px 18px -8px rgba(108,94,246,.7)" hover="transform:translateY(-1px)">Otevřít reporting {ic('arrow', 14)}</Hov>
+          </div>
         </div>
         <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr 1fr'};gap:12px`)}>
           {d.recs.map((r, i) => <InsightNote key={i} title={r.title} sub={r.sub} icon={r.icon} color={r.color} />)}
@@ -1566,6 +1570,11 @@ function Reporting({ vm }) {
   const trendMax = r.trend
   return (
     <div>
+      {r.exportPdf && (
+        <div style={S('display:flex;justify-content:flex-end;margin-bottom:14px')}>
+          <Hov onClick={r.exportPdf} base="display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;background:linear-gradient(135deg,#5B6BF5,#7A5CF8);color:#fff;border-radius:11px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 8px 18px -8px rgba(108,94,246,.7)" hover="transform:translateY(-1px)">{ic('doc2', 16)} Report pro vedení (PDF)</Hov>
+        </div>
+      )}
       <KpiRow items={r.anKpis} mb="20px" featuredFirst />
 
       {/* plán vs. skutečnost */}
@@ -4939,6 +4948,25 @@ function Settings({ vm }) {
         <img src={STAR_LOGO} alt="Petrisk a.s." style={S('height:30px;width:auto;flex-shrink:0')} />
         <div style={{ flex: 1 }}><div style={S('font-size:13.5px;font-weight:700')}>Broker Hub · Petrisk a.s.</div><div style={S('font-size:12px;color:var(--ink3)')}>Portál spravuje makléřská kancelář Petrisk a.s. · podpora po–pá 8–18</div></div>
         <span style={S('font-size:13px;font-weight:600;color:var(--blue);cursor:pointer')}>Kontaktovat</span>
+      </div>
+    </div>
+  )
+}
+
+/* ============================ REPORT PRO VEDENÍ ============================ */
+function ExecReportModal({ vm }) {
+  const ref = useRef(null)
+  const doPrint = () => { try { const w = ref.current && ref.current.contentWindow; if (w) { w.focus(); w.print() } } catch (e) { /* noop */ } }
+  return (
+    <div onClick={vm.closeExec} style={S('position:fixed;inset:0;z-index:70;background:rgba(17,20,34,.55);backdrop-filter:blur(3px);display:flex;flex-direction:column;align-items:center;padding:24px 16px;overflow:auto')}>
+      <div onClick={(e) => e.stopPropagation()} style={S('width:min(840px,100%);background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 30px 80px -20px rgba(0,0,0,.5);display:flex;flex-direction:column;max-height:calc(100vh - 48px)')}>
+        <div style={S('display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0')}>
+          <span style={S('width:36px;height:36px;border-radius:11px;background:var(--purple-soft);color:var(--purple);display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic('doc2', 19)}</span>
+          <div style={S('flex:1;min-width:0')}><div style={S('font-size:14.5px;font-weight:750')}>Report pro vedení</div><div style={S('font-size:12px;color:var(--ink3)')}>Náhled · vytiskněte nebo uložte jako PDF</div></div>
+          <Hov onClick={doPrint} base="display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 15px;background:linear-gradient(135deg,#5B6BF5,#7A5CF8);color:#fff;border-radius:11px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 8px 18px -8px rgba(108,94,246,.7)" hover="transform:translateY(-1px)">{ic('upload', 15)} Tisk / Uložit PDF</Hov>
+          <Hov onClick={vm.closeExec} base="width:38px;height:38px;border-radius:11px;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink2)" hover="background:var(--canvas)">{ic('close', 17)}</Hov>
+        </div>
+        <iframe ref={ref} title="Report pro vedení" srcDoc={vm.execReportHtml} style={{ width: '100%', flex: 1, minHeight: 460, border: 'none', background: '#fff' }} />
       </div>
     </div>
   )

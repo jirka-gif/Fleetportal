@@ -225,6 +225,59 @@ function printRows(title, columns, rows) {
   if (w) { w.document.write(html); w.document.close() }
 }
 
+// Manažerský report pro vedení — vrací stylované A4 HTML (zobrazí se v náhledu / iframe, odtud tisk do PDF).
+export function buildExecReportHtml(d) {
+  const bar = (items, max) => items.map((it) => `<tr><td style="padding:5px 0;width:46%">${escHtml(it.label)}</td><td style="padding:5px 0;width:34%"><div style="background:#ECE9F6;border-radius:5px;height:9px;overflow:hidden"><div style="height:100%;width:${Math.max(2, Math.round(it.v / max * 100))}%;background:${it.color || '#6D5EF6'}"></div></div></td><td style="padding:5px 0;text-align:right;font-weight:700;white-space:nowrap">${escHtml(it.valueF)}</td></tr>`).join('')
+  const catMax = Math.max(...d.catItems.map((x) => x.v), 1)
+  const parkMax = Math.max(...d.parkItems.map((x) => x.v), 1)
+  const kpiCards = d.kpis.map((k) => `<div class="kpi"><div class="kv">${escHtml(k.value)}</div><div class="kl">${escHtml(k.label)}</div></div>`).join('')
+  const topRows = d.topVehicles.map((v, i) => `<tr><td style="padding:6px 0;color:#9AA3B2">${i + 1}.</td><td style="padding:6px 0;font-weight:600">${escHtml(v.name)}</td><td style="padding:6px 0;color:#6b7280">${escHtml(v.plate)} · ${escHtml(String(v.year))}</td><td style="padding:6px 0;text-align:right;font-weight:700">${escHtml(v.costF)}</td></tr>`).join('')
+  const recos = d.recommendations.map((r) => `<li style="margin-bottom:7px"><b>${escHtml(r.title)}</b> — ${escHtml(r.sub)}</li>`).join('')
+  const html = `<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>${escHtml(d.title)}</title>
+  <style>
+    *{box-sizing:border-box} body{font-family:-apple-system,system-ui,'Segoe UI',sans-serif;color:#1b1f2a;margin:0;padding:40px 46px;font-size:12.5px;line-height:1.5}
+    h1{font-size:23px;margin:0;letter-spacing:-.4px} h2{font-size:14px;margin:26px 0 10px;letter-spacing:-.2px;border-bottom:2px solid #efeafc;padding-bottom:6px;color:#4B3FC4}
+    .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #6D5EF6;padding-bottom:16px}
+    .brand{font-weight:800;color:#6D5EF6;font-size:13px;letter-spacing:.3px}
+    .muted{color:#6b7280} .sub{color:#6b7280;margin-top:3px;font-size:12px}
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0 4px}
+    .kpi{border:1px solid #e7e9f2;border-radius:12px;padding:13px 15px;background:#faf9ff}
+    .kv{font-size:22px;font-weight:800;letter-spacing:-.6px;color:#1b1f2a} .kl{font-size:10.5px;color:#6b7280;margin-top:3px}
+    table{width:100%;border-collapse:collapse} .cols{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+    .flag{border:1px solid #f3c9c9;background:#fdf1f1;border-left:4px solid #EF4444;border-radius:10px;padding:12px 14px;margin-bottom:10px}
+    .flag b{color:#c0392b} .ok{color:#1f9d57;font-weight:700}
+    .foot{margin-top:30px;border-top:1px solid #e7e9f2;padding-top:12px;color:#9AA3B2;font-size:10.5px;display:flex;justify-content:space-between}
+    @media print{@page{size:A4;margin:14mm} body{padding:0}}
+  </style></head><body>
+    <div class="top">
+      <div><div class="brand">FLEETPORTAL</div><h1>${escHtml(d.title)}</h1><div class="sub">${escHtml(d.company)} · IČO ${escHtml(d.ico)}</div></div>
+      <div style="text-align:right" class="muted"><div><b>Datum:</b> ${escHtml(d.date)}</div><div><b>Makléř:</b> ${escHtml(d.broker)}</div><div>${escHtml(d.vehicles)} vozidel</div></div>
+    </div>
+    <div class="kpis">${kpiCards}</div>
+
+    <h2>Provozní náklady flotily</h2>
+    <div class="cols">
+      <div><div class="muted" style="margin-bottom:6px">Podle kategorie (odhad / rok)</div><table>${bar(d.catItems, catMax)}</table></div>
+      <div><div class="muted" style="margin-bottom:6px">Podle provozu / parku (odhad / rok)</div><table>${bar(d.parkItems, parkMax)}</table></div>
+    </div>
+
+    <h2>Vyžaduje pozornost</h2>
+    ${d.flags.map((f) => `<div class="flag"><b>${escHtml(f.title)}</b> — ${escHtml(f.sub)}</div>`).join('')}
+
+    <h2>Nejnákladnější vozidla (kandidáti na obměnu)</h2>
+    <table>${topRows}</table>
+
+    <h2>Pojištění</h2>
+    <p style="margin:4px 0">Roční pojistné flotily: <b>${escHtml(d.insurance.premiumF)}</b>. Jen povinné ručení má <b>${escHtml(String(d.insurance.povOnly))}</b> vozidel, z toho <b>${escHtml(String(d.insurance.busNoHav))}</b> autobusů bez havarijního krytí — prostor pro dořešení s makléřem.</p>
+
+    <h2>Doporučení</h2>
+    <ul style="margin:4px 0;padding-left:18px">${recos}</ul>
+
+    <div class="foot"><span>${escHtml(d.company)} — Fleet Portal</span><span>Vygenerováno ${escHtml(d.date)} · data pro interní potřebu vedení</span></div>
+  </body></html>`
+  return html
+}
+
 export function exportData(format, { filename, title, columns, rows }) {
   if (!rows || !rows.length) return
   if (format === 'csv') downloadFile(filename + '.csv', '﻿' + toDelimited(columns, rows, ';'), 'text/csv;charset=utf-8')

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { Icon, czk, linePath, useViewport } from './helpers.jsx'
+import { Icon, czk, linePath, useViewport, buildExecReportHtml } from './helpers.jsx'
 import Render from './Render.jsx'
 import {
   insurersData, brandsData, fleetsData, vehiclesData, claimsData, greenCards, driversData,
@@ -713,7 +713,7 @@ export default function FleetPortal() {
     vehService: SEED_SERVICE, vehTires: SEED_TIRES, vehFines: SEED_FINES, vehCostsExtra: SEED_COSTS,
     serviceModal: null, tireModal: null, fineModal: null,
     audit: SEED_AUDIT,
-    search: false, notif: false, ai: false, companyMenu: false, sidebar: false,
+    search: false, notif: false, ai: false, companyMenu: false, sidebar: false, execReport: null,
     claimWizard: false, claimStep: 1, claimData: {},
     rowMenu: null, toast: null,
     unsub: null, unsubDone: false, unsubReason: 'Prodej vozidla', unsubDate: '1. 7. 2026',
@@ -1176,6 +1176,7 @@ export default function FleetPortal() {
       onAiInput: (e) => setState({ aiInput: e.target.value }),
       onAiKey: (e) => { if (e.key === 'Enter') sendAi() },
       sendAi: () => sendAi(), stop, goVehicles: () => navigate('vehicles'),
+      execReportHtml: state.execReport, closeExec: () => setState({ execReport: null }),
     }
   }
 
@@ -2049,6 +2050,42 @@ export default function FleetPortal() {
     return recs
   }
 
+  // Manažerský report pro vedení (PDF přes tisk) — z reálných dat flotily.
+  const exportExecReport = () => {
+    const r = fleetCostRollup()
+    const milKc = (n) => (n / 1e6).toFixed(1).replace('.', ',') + ' mil. Kč'
+    const czf = (n) => Math.round(n).toLocaleString('cs-CZ') + ' Kč'
+    const prem = vehiclesData.reduce((a, v) => a + (v.premium || 0), 0)
+    const povOnly = vehiclesData.filter((v) => v.cov && v.cov.pov && !v.cov.hav).length
+    const busNoHav = vehiclesData.filter((v) => vehicleTypeCat(v.druh) === 'Autobusy' && v.cov && !v.cov.hav).length
+    const off = FLEET_ANOMALIES.find((a) => a.type === 'offroute_stop')
+    const fuelDrop = FLEET_ANOMALIES.find((a) => a.type === 'fuel_drop')
+    const unresolved = FLEET_ANOMALIES.filter((a) => a.status !== 'done').length
+    const catLabels = { phm: 'Pohonné hmoty', servis: 'Servis a opravy', pneu: 'Pneumatiky', dalnice: 'Mýto a dálnice', pokuty: 'Pokuty' }
+    const catItems = Object.keys(r.cat).filter((k) => r.cat[k] > 0).sort((a, b) => r.cat[b] - r.cat[a]).map((k) => ({ label: catLabels[k] || k, v: r.cat[k], valueF: milKc(r.cat[k]), color: '#6D5EF6' }))
+    const parkItems = Object.keys(r.parkTot).sort((a, b) => r.parkTot[b] - r.parkTot[a]).map((fid) => ({ label: fleetName(fid), v: r.parkTot[fid], valueF: milKc(r.parkTot[fid]), color: '#4F6FFF' }))
+    const topVehicles = [...r.costs].sort((a, b) => b.c.total - a.c.total).slice(0, 6).map((x) => ({ name: `${x.v.brand} ${x.v.model}`.trim(), plate: x.v.plate, year: x.v.year, costF: czf(x.c.total) }))
+    const flags = [
+      { title: `${off.typeLabel} — ${off.place.replace(' (mimo trasu i zastávky)', '')}`, sub: `${off.metric}, vzorec odpovídá odčerpávání nafty. Odhad ztráty ~${czf(off.loss)}/rok.` },
+      { title: `${fuelDrop.typeLabel} — ${fuelDrop.plate}`, sub: `${fuelDrop.metric} navzdory hospodárné jízdě. Odhad ztráty ~${czf(fuelDrop.loss)}/rok.` },
+      { title: `${busNoHav} autobusů bez havarijního krytí`, sub: 'Riziko vysoké škody bez pojistného plnění — doporučeno dořešit s makléřem.' },
+    ]
+    const html = buildExecReportHtml({
+      title: 'Manažerský přehled flotily', company: 'ČSAD AUTOBUSY České Budějovice a.s.', ico: '26060451',
+      date: '4. 11. 2026', broker: 'Petrisk', vehicles: String(vehiclesData.length),
+      kpis: [
+        { value: milKc(r.total), label: 'Provozní náklady / rok' },
+        { value: milKc(prem), label: 'Roční pojistné' },
+        { value: `${r.avgAge} let`, label: 'Ø stáří flotily' },
+        { value: String(unresolved), label: 'Nevyřešené anomálie' },
+      ],
+      catItems, parkItems, topVehicles, flags,
+      insurance: { premiumF: milKc(prem), povOnly, busNoHav },
+      recommendations: ownerRecs(r).map((x) => ({ title: x.title, sub: x.sub })),
+    })
+    setState({ execReport: html })
+  }
+
   const analyticsVM = () => {
     if (state.route !== 'analytics') return {}
     const r = fleetCostRollup()
@@ -2072,7 +2109,7 @@ export default function FleetPortal() {
     const trend = season.map((s, i) => ({ label: MONTHS[i], value: mil(Math.round(base * s)), h: Math.round(s / mx * 100) + '%' }))
     const recs = ownerRecs(r)
     const topVeh = [...r.costs].sort((a, b) => b.c.total - a.c.total).slice(0, 6).map((x) => ({ id: x.v.id, name: `${x.v.brand} ${x.v.model}`, plate: x.v.plate, year: x.v.year, cat: vehicleTypeCat(x.v.druh), totalF: czk(x.c.total), kmF: (x.c.km / 1000).toFixed(0) + ' tis. km', onClick: () => openVehicle(x.v.id) }))
-    return { reporting: { anKpis, catItems, parkItems, typeItems, ages, planVsReal, trend, recs, topVeh, kmTotalF: (r.kmTotal / 1e6).toFixed(1).replace('.', ',') + ' mil. km' } }
+    return { reporting: { anKpis, catItems, parkItems, typeItems, ages, planVsReal, trend, recs, topVeh, kmTotalF: (r.kmTotal / 1e6).toFixed(1).replace('.', ',') + ' mil. km', exportPdf: exportExecReport } }
   }
 
   const ownerDashVM = () => {
@@ -2085,7 +2122,7 @@ export default function FleetPortal() {
       { value: (r.ecoPotentialYear / 1e6).toFixed(1).replace('.', ','), unit: 'mil. Kč', label: 'Potenciál úspor / rok', icon: 'gauge', note: 'telematika + eco-driving' },
     ]
     const topVeh = [...r.costs].sort((a, b) => b.c.total - a.c.total).slice(0, 5).map((x) => ({ id: x.v.id, name: `${x.v.brand} ${x.v.model}`, plate: x.v.plate, year: x.v.year, totalF: czk(x.c.total), onClick: () => openVehicle(x.v.id) }))
-    return { ownerDash: { kpis, catItems: costCatItems(r), parkItems: parkCostItems(r), ages: ageItems(r), recs: ownerRecs(r), topVeh, goReport: () => navigate('analytics') } }
+    return { ownerDash: { kpis, catItems: costCatItems(r), parkItems: parkCostItems(r), ages: ageItems(r), recs: ownerRecs(r), topVeh, goReport: () => navigate('analytics'), exportPdf: exportExecReport } }
   }
 
   const dispatchDashVM = () => {
