@@ -1008,6 +1008,7 @@ export default function FleetPortal() {
       ['vehicles', 'Vozidla', 'car', String(vehiclesData.length)],
       ['drivers', 'Řidiči', 'users', String(driversData.length)],
       ['linky', 'Linky & JŘ', 'pin', String(linesData.length)],
+      ['map', 'Živá mapa', 'mapPin', null],
       ['dispatch', 'Dispečink', 'calendar', null],
       ['anomalies', 'Anomálie', 'alert', String(FLEET_ANOMALIES.filter((a) => a.status !== 'done').length) || null],
       ['eco', 'Eco-driving', 'gauge', null],
@@ -1048,6 +1049,7 @@ export default function FleetPortal() {
       attention: ['Vyžaduje pozornost', 'Co je potřeba řešit napříč flotilou'],
       dispatch: ['Dispečink', 'Oběhy vozidel, turnusy řidičů a stazka'],
       anomalies: ['Anomálie', 'Detekce napříč flotilou: linky, trasy, vozidla, řidiči a palivo'],
+      map: ['Živá mapa', 'Poloha a stav flotily v reálném čase'],
       settings: ['Nastavení', 'Profil a předvolby portálu'],
     }
     let title, sub
@@ -1099,7 +1101,7 @@ export default function FleetPortal() {
       isDashboard: r === 'dashboard', isFleets: r === 'fleets', isFleetDetail: r === 'fleet-detail',
       isVehicles: r === 'vehicles', isVehicleDetail: r === 'vehicle-detail',
       isInsurance: r === 'insurance', isInsuranceDetail: r === 'insurance-detail', isClaims: r === 'claims', isDocuments: r === 'documents', isAnalytics: r === 'analytics', isContacts: r === 'contacts', isSettings: r === 'settings', isDrivers: r === 'drivers', isDriverDetail: r === 'driver-detail', isFinancing: r === 'financing',
-      isLinky: r === 'linky', isLinkyDetail: r === 'linky-detail', isEco: r === 'eco', isAttention: r === 'attention', isDispatch: r === 'dispatch', isStazka: r === 'stazka', isAnomalies: r === 'anomalies', isAnomalyDetail: r === 'anomaly-detail',
+      isLinky: r === 'linky', isLinkyDetail: r === 'linky-detail', isEco: r === 'eco', isAttention: r === 'attention', isDispatch: r === 'dispatch', isStazka: r === 'stazka', isAnomalies: r === 'anomalies', isAnomalyDetail: r === 'anomaly-detail', isMap: r === 'map',
       isDocumentsDetail: r === 'documents-detail',
       openDocCat: (cat) => navigate('documents-detail', { docCat: cat, docOpen: {} }), goDocuments: () => navigate('documents'),
       docPreview: state.docPreview, closeDocPreview: () => setState({ docPreview: null }),
@@ -2229,6 +2231,17 @@ export default function FleetPortal() {
     } }
   }
 
+  const mapVM = () => {
+    if (state.route !== 'map') return {}
+    const buses = vehiclesData.filter((v) => vehicleTypeCat(v.druh) === 'Autobusy')
+    const anHigh = FLEET_ANOMALIES.filter((a) => a.sev === 'high').length
+    const onTrack = Math.round(buses.length * 0.14) + 32
+    return { fleetMap: {
+      busTotal: buses.length, onTrack, delayed: 4, anomalies: anHigh, day: DISPATCH_DAY_LABEL,
+      goAnomalies: () => navigate('anomalies'), goLinky: () => navigate('linky'),
+    } }
+  }
+
   // ---- Dispečink: oběhy vozidel (Gantt) + turnusy řidičů ----
   const dispatchVM = () => {
     if (state.route !== 'dispatch') return {}
@@ -2890,7 +2903,7 @@ export default function FleetPortal() {
     tireModal: state.tireModal ? { ...state.tireModal, close: () => setState({ tireModal: null }), stop: (e) => e.stopPropagation(), actions: TIRE_ACTIONS, field: (k) => (e) => setTireField(k, e.target.value), onInvoice: (e) => { const f = e.target.files && e.target.files[0]; if (f) setTireField('invoice', f.name) }, save: saveTire } : null,
     fineModal: state.fineModal ? { ...state.fineModal, close: () => setState({ fineModal: null }), stop: (e) => e.stopPropagation(), types: FINE_TYPES, field: (k) => (e) => setFineField(k, e.target.value), togglePaid: () => setState((s) => ({ fineModal: { ...s.fineModal, paid: !s.fineModal.paid } })), save: saveFine } : null,
     ...shellVM(), ...dashboardVM(), ...fleetsVM(), ...fleetDetailVM(), ...vehiclesVM(), ...vehicleDetailVM(),
-    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...ownerDashVM(), ...dispatchDashVM(), ...attentionVM(), ...anomaliesVM(), ...anomalyDetailVM(), ...dispatchVM(), ...stazkaVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(), ...linkyVM(), ...linkyDetailVM(), ...ecoVM(),
+    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...ownerDashVM(), ...dispatchDashVM(), ...attentionVM(), ...anomaliesVM(), ...anomalyDetailVM(), ...mapVM(), ...dispatchVM(), ...stazkaVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(), ...linkyVM(), ...linkyDetailVM(), ...ecoVM(),
   }
 
   return <Render vm={vm} />

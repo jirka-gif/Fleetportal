@@ -363,6 +363,7 @@ export default function Render({ vm }) {
             {vm.isAttention && <Attention vm={vm} />}
             {vm.isAnomalies && <Anomalies vm={vm} />}
             {vm.isAnomalyDetail && <AnomalyDetail vm={vm} />}
+            {vm.isMap && <FleetMap vm={vm} />}
             {vm.isDispatch && <Dispatch vm={vm} />}
             {vm.isStazka && <Stazka vm={vm} />}
             {vm.isContacts && <Contacts vm={vm} />}
@@ -2105,6 +2106,115 @@ function AnomalyDetail({ vm }) {
           <div>{a.related.map((r, i) => <AnoListRow key={r.id} r={r} i={i} />)}</div>
         </div>
       )}
+    </div>
+  )
+}
+
+/* ============================ ŽIVÁ MAPA FLOTILY ============================ */
+const MAP_NODES = [
+  { name: 'České Budějovice', x: 468, y: 286, hub: true },
+  { name: 'Hluboká n. Vlt.', x: 420, y: 118 },
+  { name: 'Týn n. Vlt.', x: 300, y: 120 },
+  { name: 'Rudolfov', x: 606, y: 212 },
+  { name: 'Lišov', x: 742, y: 236 },
+  { name: 'Borovany', x: 712, y: 372 },
+  { name: 'Trhové Sviny', x: 652, y: 452 },
+  { name: 'Besednice', x: 560, y: 494, hot: true },
+  { name: 'Kaplice', x: 452, y: 500 },
+  { name: 'Český Krumlov', x: 300, y: 452 },
+  { name: 'Boršov', x: 388, y: 360 },
+]
+const MAP_ROUTES = [
+  'M468,286 Q440,200 420,118',
+  'M468,286 Q360,190 300,120',
+  'M468,286 Q580,222 742,236',
+  'M468,286 Q620,318 712,372',
+  'M468,286 Q600,392 652,452',
+  'M468,286 Q560,400 560,494',
+  'M468,286 Q458,400 452,500',
+  'M468,286 Q360,382 300,452',
+  'M468,286 Q410,330 388,360',
+]
+const MAP_BUSES = [
+  { r: 0, c: '#22C55E', d: 17, o: 0 }, { r: 0, c: '#22C55E', d: 19, o: 9, rev: true },
+  { r: 1, c: '#22C55E', d: 20, o: 4 },
+  { r: 2, c: '#22C55E', d: 16, o: 2 }, { r: 2, c: '#F59E0B', d: 22, o: 11, rev: true },
+  { r: 3, c: '#22C55E', d: 18, o: 7 },
+  { r: 4, c: '#F59E0B', d: 21, o: 3 }, { r: 4, c: '#22C55E', d: 17, o: 13, rev: true },
+  { r: 5, c: '#EF4444', d: 23, o: 5 },
+  { r: 6, c: '#22C55E', d: 19, o: 8 },
+  { r: 7, c: '#22C55E', d: 18, o: 1 }, { r: 7, c: '#22C55E', d: 20, o: 12, rev: true },
+  { r: 8, c: '#22C55E', d: 15, o: 6 },
+]
+function FleetMap({ vm }) {
+  const mob = vm.vp.isMobile
+  const m = vm.fleetMap
+  if (!m) return null
+  const legend = [['#22C55E', 'Na trase dle JŘ'], ['#F59E0B', 'Zpoždění'], ['#EF4444', 'Anomálie / prověřit']]
+  return (
+    <div>
+      <div style={S('display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px')}>
+        <div style={S('display:flex;align-items:center;gap:10px;flex-wrap:wrap')}>
+          <span style={S('display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 12px;border-radius:20px;background:var(--star-soft);color:var(--star);font-size:12px;font-weight:700')}><span style={S('width:7px;height:7px;border-radius:50%;background:var(--star);display:inline-block')}></span>ŽIVĚ</span>
+          <span style={S('font-size:12.5px;color:var(--ink3)')}>Jihočeský kraj · {m.day}</span>
+        </div>
+        <div style={S('display:flex;gap:16px;flex-wrap:wrap')}>
+          {legend.map((g, i) => <span key={i} style={S('display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2)')}><span style={S(`width:10px;height:10px;border-radius:50%;background:${g[0]}`)}></span>{g[1]}</span>)}
+        </div>
+      </div>
+
+      {/* KPI chipy */}
+      <div style={S(`display:grid;grid-template-columns:repeat(${mob ? 2 : 4},1fr);gap:12px;margin-bottom:16px`)}>
+        {[['Autobusů ve flotile', m.busTotal, 'var(--ink)', null], ['Na trase teď', m.onTrack, 'var(--green)', null], ['Se zpožděním', m.delayed, '#B45309', null], ['Anomálie k prověření', m.anomalies, 'var(--star)', m.goAnomalies]].map((s, i) => (
+        <Hov key={i} onClick={s[3] || undefined} base={`${CARD};padding:14px 16px${s[3] ? ';cursor:pointer' : ''}`} hover={s[3] ? 'border:1px solid var(--star)' : ''}>
+          <div style={S(`font-size:24px;font-weight:800;letter-spacing:-.5px;color:${s[2]}`)}>{s[1]}</div>
+          <div style={S('font-size:11.5px;color:var(--ink3);margin-top:2px')}>{s[0]}</div>
+        </Hov>
+        ))}
+      </div>
+
+      {/* MAPA */}
+      <div style={S(`${CARD};padding:0;overflow:hidden`)}>
+        <svg viewBox="0 0 960 560" width="100%" style={{ display: 'block', background: 'linear-gradient(160deg,#F4F7FC 0%,#EEF0FA 100%)' }} role="img" aria-label="Živá mapa flotily">
+          {/* jemná mřížka */}
+          <defs>
+            <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M48 0H0V48" fill="none" stroke="#DCE3EF" strokeWidth="1" /></pattern>
+          </defs>
+          <rect x="0" y="0" width="960" height="560" fill="url(#grid)" />
+          {/* Vltava */}
+          <path d="M300,80 Q440,240 430,320 Q424,400 470,540" fill="none" stroke="#BBD4F0" strokeWidth="10" strokeLinecap="round" opacity="0.6" />
+
+          {/* silnice / linky */}
+          {MAP_ROUTES.map((p, i) => <path key={i} d={p} fill="none" stroke="#C9CFE6" strokeWidth="5" strokeLinecap="round" />)}
+          {MAP_ROUTES.map((p, i) => <path key={'d' + i} d={p} fill="none" stroke="#fff" strokeWidth="1.5" strokeDasharray="2 10" strokeLinecap="round" opacity="0.9" />)}
+
+          {/* uzly / města */}
+          {MAP_NODES.map((n, i) => (
+            <g key={i}>
+              {n.hub
+                ? <><circle cx={n.x} cy={n.y} r="26" fill="#6D5EF6" opacity="0.12" /><circle cx={n.x} cy={n.y} r="11" fill="#6D5EF6" stroke="#fff" strokeWidth="3" /></>
+                : n.hot
+                  ? <><circle cx={n.x} cy={n.y} r="10" fill="#EF4444" opacity="0.25"><animate attributeName="r" values="10;26;10" dur="2.2s" repeatCount="indefinite" /><animate attributeName="opacity" values="0.35;0;0.35" dur="2.2s" repeatCount="indefinite" /></circle><circle cx={n.x} cy={n.y} r="8" fill="#EF4444" stroke="#fff" strokeWidth="2.5" /></>
+                  : <circle cx={n.x} cy={n.y} r="6" fill="#9AA6C4" stroke="#fff" strokeWidth="2.5" />}
+              <text x={n.x} y={n.y - (n.hub ? 20 : 14)} textAnchor="middle" fontSize="13" fontWeight={n.hub ? 800 : 600} fill={n.hot ? '#EF4444' : n.hub ? '#4B3FC4' : '#5B6478'} style={{ fontFamily: 'inherit' }}>{n.name}</text>
+            </g>
+          ))}
+
+          {/* autobusy v pohybu */}
+          {MAP_BUSES.map((b, i) => (
+            <g key={'b' + i}>
+              <circle r="4" fill={b.c} opacity="0.35" />
+              <circle r="7.5" fill={b.c} stroke="#fff" strokeWidth="2.5" />
+              <animateMotion dur={b.d + 's'} begin={`-${b.o}s`} repeatCount="indefinite" path={MAP_ROUTES[b.r]} keyPoints={b.rev ? '1;0' : '0;1'} keyTimes="0;1" calcMode="linear" />
+            </g>
+          ))}
+        </svg>
+      </div>
+
+      <div style={S('display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--ink3);margin-top:12px')}>
+        <span style={S('display:flex;flex-shrink:0;margin-top:1px')}>{ic('info', 13)}</span>
+        <span>Trasy a zastávky vycházejí z reálných linek (CIS JŘ). Poloha vozidel je pro ukázku modelovaná — po nasazení telematických jednotek se zobrazí skutečná GPS poloha v reálném čase. Červený bod u Besednice je místo opakovaného zastavení mimo trasu (<span onClick={m.goAnomalies} style={S('color:var(--blue-ink);font-weight:600;cursor:pointer')}>prověřit v Anomáliích</span>).</span>
+      </div>
     </div>
   )
 }
