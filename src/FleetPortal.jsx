@@ -4,7 +4,7 @@ import Render from './Render.jsx'
 import {
   insurersData, brandsData, fleetsData, vehiclesData, claimsData, greenCards, driversData,
   statusMeta, claimStatusMeta, fleetName, statusChip, vehicleTypeCat, vehicleTypeOrder, vehicleStk, vehicleVignette, leasingPartners,
-  linesData, busDrivers, ecoScore, ecoBand, ecoSavings, heaterCost, NAFTA_CZK, STOP_COORDS,
+  linesData, busDrivers, ecoScore, ecoBand, ecoSavings, heaterCost, NAFTA_CZK, STOP_COORDS, PLACE_COORDS,
   vehicleAnnualCost, vehicleAgeBand, vehicleAgeBandOrder,
 } from './data.js'
 
@@ -273,15 +273,23 @@ function buildAnomalies() {
   const list = []
   let auto = 0
   const vName = (v) => v ? `${v.brand} ${v.model}`.trim() : '—'
+  const coordOf = (o) => {
+    if (o.lat && o.lon) return [o.lat, o.lon]
+    const key = o.place ? o.place.replace(' (mimo trasu i zastávky)', '') : null
+    if (key && STOP_COORDS[key]) return STOP_COORDS[key]
+    if (key && PLACE_COORDS[key]) return PLACE_COORDS[key]
+    return [null, null]
+  }
   const mk = (type, sev, o) => {
     const t = ANO_TYPES[type]
+    const [lat, lon] = coordOf(o)
     list.push({
       id: 'an' + (++auto), type, typeLabel: t.label, cat: t.cat, icon: t.icon, sev, sevMeta: ANO_SEV[sev],
       date: o.date, time: o.time || _fmtMin(rint(5 * 60, 20 * 60)),
       vehicleId: o.vehicle ? o.vehicle.id : null, plate: o.vehicle ? o.vehicle.plate : '—', vehicle: vName(o.vehicle),
       driverId: o.driver ? o.driver.id : null, driverName: o.driver ? o.driver.name : '—',
       lineNo: o.line ? o.line.no : null, lineName: o.line ? o.line.name : null,
-      place: o.place || null, detail: o.detail, metric: o.metric || null,
+      place: o.place || null, lat, lon, detail: o.detail, metric: o.metric || null,
       status: o.status || 'new', statusMeta: ANO_STATUS[o.status || 'new'],
       loss: o.loss || 0, reco: o.reco || null, evidence: o.evidence || null,
     })
@@ -296,11 +304,11 @@ function buildAnomalies() {
   for (let i = 0; i < 7; i++) { const b = i % clBuses.length; occ.push({ date: fmtD(cd), plate: clBuses[b].plate, vehicle: vName(clBuses[b]), driver: clDrv[b].name, durMin: rint(3, 4), time: _fmtMin(rint(19 * 60, 21 * 60)) }); cd += rint(3, 8) }
   const hill = 'Besednice, stoupání U Boroví'
   mk('offroute_stop', 'high', {
-    vehicle: clBuses[0], driver: clDrv[0], date: occ[0].date, time: occ[0].time, place: hill + ' (mimo trasu i zastávky)',
+    vehicle: clBuses[0], driver: clDrv[0], date: occ[0].date, time: occ[0].time, place: hill + ' (mimo trasu i zastávky)', lat: 48.7896, lon: 14.5560,
     detail: `${occ.length}× zastavení na 3 minuty na stejném bodě ve stoupání po skončení spoje. Týká se ${new Set(occ.map((o) => o.plate)).size} vozidel z parku.`,
     metric: `${occ.length}× / 6 týdnů`, status: 'prog', loss: 150000,
     reco: 'Fyzická kontrola místa a namátková kontrola stavu nádrže a tankovacích dokladů. Porovnat GPS stání s výdejem paliva a doplněním nádrže.',
-    evidence: { kind: 'offroute', place: hill, gps: '48.8762 N, 14.5431 E', occurrences: occ, note: 'Opakované stání více vozidel na stejném místě mimo zastávku a mimo trasu, vždy po skončení spoje, ve večerních hodinách. Vzorec odpovídá neoprávněné manipulaci s palivem (např. odčerpávání do přistaveného vozu).' },
+    evidence: { kind: 'offroute', place: hill, gps: '48.7896 N, 14.5560 E', occurrences: occ, note: 'Opakované stání více vozidel na stejném místě mimo zastávku a mimo trasu, vždy po skončení spoje, ve večerních hodinách. Vzorec odpovídá neoprávněné manipulaci s palivem (např. odčerpávání do přistaveného vozu).' },
   })
 
   // (2) úbytek paliva / pokles dojezdu navzdory správnému stylu jízdy
@@ -2277,13 +2285,29 @@ export default function FleetPortal() {
     const mapLines = linesData.map((l, i) => {
       const stops = l.stops.map((s) => { const c = STOP_COORDS[s.n]; return c ? { name: s.n, lat: c[0], lon: c[1] } : null }).filter(Boolean)
       const bus = vehiclesData.find((v) => v.id === l.busId)
-      return { no: l.no, name: l.name, color: LINE_COLORS[i % LINE_COLORS.length], stops, bus: bus ? `${bus.brand} ${bus.model}`.trim() : '', dur: 24000 + i * 3000, offset: i * 4 }
+      const drv = busDrivers.find((d) => d.id === l.driverId)
+      const sim = simulateLineRun(l)
+      const eco = drv ? ecoScore(drv.tele) : null
+      const band = eco != null ? ecoBand(eco) : null
+      return {
+        no: l.no, name: l.name, color: LINE_COLORS[i % LINE_COLORS.length], stops, dur: 24000 + i * 3000, offset: i * 4,
+        lineId: l.id, vehicleId: bus ? bus.id : null,
+        plate: bus ? bus.plate : '—', busName: bus ? `${bus.brand} ${bus.model}`.trim() : '—',
+        year: bus ? bus.year : '', fuelType: bus ? bus.fuel : (drv ? drv.tele.fuel : ''),
+        driver: drv ? drv.name : '—', eco, ecoLabel: band ? band.label : '',
+        onTime: sim.onTimePct, anom: sim.skips + (sim.maxDelay > 6 ? 1 : 0),
+        fuelPct: 45 + (_hash(l.id + 'fuel') % 50), speedKmh: 0,
+        nStops: stops.length, from: stops.length ? stops[0].name : '', to: stops.length ? stops[stops.length - 1].name : '',
+      }
     }).filter((l) => l.stops.length >= 2)
     const legend = mapLines.map((l) => ({ color: l.color, label: `Linka ${l.no}` }))
-    const hotspot = { lat: 48.8762, lon: 14.5431, label: 'Besednice, stoupání U Boroví — opakované zastavení mimo trasu (podezření na odčerpávání nafty)' }
+    const anomalyMarkers = FLEET_ANOMALIES.filter((a) => a.lat && a.lon && (a.sev === 'high' || a.type === 'fuel_drop')).map((a) => ({
+      id: a.id, lat: a.lat, lon: a.lon, type: a.type, typeLabel: a.typeLabel, color: a.sevMeta.color, hot: a.type === 'offroute_stop', place: a.place || a.vehicle, metric: a.metric || '',
+    }))
     return { fleetMap: {
       busTotal: buses.length, onTrack, delayed: 4, anomalies: anHigh, day: DISPATCH_DAY_LABEL,
-      lines: mapLines, legend, hotspot, lineCount: mapLines.length, stopCount: mapLines.reduce((a, l) => a + l.stops.length, 0),
+      lines: mapLines, legend, anomalyMarkers, lineCount: mapLines.length, stopCount: mapLines.reduce((a, l) => a + l.stops.length, 0),
+      openVehicle: (id) => openVehicle(id), openLine: (id) => openLine(id), openAnomaly: (id) => openAnomaly(id),
       goAnomalies: () => navigate('anomalies'), goLinky: () => navigate('linky'),
     } }
   }

@@ -2049,6 +2049,28 @@ function AnomalyDetail({ vm }) {
         )}
       </div>
 
+      {/* místo anomálie: mapa + street view */}
+      {a.lat && a.lon && (
+        <div style={S(`${CARD};padding:22px;margin-bottom:16px`)}>
+          <div style={S('display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px')}>
+            <CardHead icon="mapPin" color="var(--star)" title="Místo anomálie" sub={`${a.place || 'Poloha z GPS'} · ${a.lat}, ${a.lon}`} />
+            <div style={S('display:flex;gap:8px;flex-wrap:wrap')}>
+              <a href={`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${a.lat},${a.lon}`} target="_blank" rel="noreferrer" style={S('display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;background:linear-gradient(135deg,#5B6BF5,#7A5CF8);color:#fff;border-radius:10px;font-size:12.5px;font-weight:600;text-decoration:none')}>{ic('camera', 15)} Otevřít Street View</a>
+              <a href={`https://www.google.com/maps/search/?api=1&query=${a.lat},${a.lon}`} target="_blank" rel="noreferrer" style={S('display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;border:1px solid var(--border2);border-radius:10px;font-size:12.5px;font-weight:600;color:var(--ink);text-decoration:none')}>{ic('mapPin', 15)} V Mapách</a>
+            </div>
+          </div>
+          <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:12px`)}>
+            <div style={S('border-radius:12px;overflow:hidden;border:1px solid var(--border)')}>
+              <iframe title="Street View" loading="lazy" style={{ width: '100%', height: mob ? 220 : 260, border: 'none', display: 'block' }} src={`https://www.google.com/maps/embed?origin=mfe&pb=!6m6!1m5!2m2!1d${a.lat}!2d${a.lon}!4f-0!5f1`} />
+            </div>
+            <div style={S('border-radius:12px;overflow:hidden;border:1px solid var(--border)')}>
+              <iframe title="Mapa" loading="lazy" style={{ width: '100%', height: mob ? 220 : 260, border: 'none', display: 'block' }} src={`https://maps.google.com/maps?q=${a.lat},${a.lon}&z=16&output=embed`} />
+            </div>
+          </div>
+          <div style={S('font-size:11.5px;color:var(--ink3);margin-top:9px')}>Vlevo Street View místa, vpravo poloha na mapě. Umožňuje okamžitě posoudit, jak to na místě anomálie vypadá.</div>
+        </div>
+      )}
+
       {/* důkazy */}
       {ev && ev.kind === 'offroute' && (
         <div style={S(`${CARD};padding:22px;margin-bottom:16px`)}>
@@ -2153,13 +2175,13 @@ function FleetMap({ vm }) {
       {/* REÁLNÁ MAPA */}
       <div style={S(`${CARD};padding:0;overflow:hidden`)}>
         <Suspense fallback={<div style={S('height:560px;display:flex;align-items:center;justify-content:center;color:var(--ink3);font-size:13px')}>Načítám mapu…</div>}>
-          <LineMap lines={m.lines} hotspot={m.hotspot} height={mob ? 440 : 560} />
+          <LineMap lines={m.lines} anomalyMarkers={m.anomalyMarkers} onOpenVehicle={m.openVehicle} onOpenLine={m.openLine} onOpenAnomaly={m.openAnomaly} height={mob ? 440 : 560} />
         </Suspense>
       </div>
 
       <div style={S('display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--ink3);margin-top:12px')}>
         <span style={S('display:flex;flex-shrink:0;margin-top:1px')}>{ic('info', 13)}</span>
-        <span>Linky i zastávky jsou reálná veřejná data (CIS JŘ) zakreslená přes skutečné GPS souřadnice zastávek. Poloha vozidel je pro ukázku modelovaná — po nasazení telematických jednotek ji nahradí skutečná GPS v reálném čase. Červený bod u Besednice je místo opakovaného zastavení mimo trasu (<span onClick={m.goAnomalies} style={S('color:var(--blue-ink);font-weight:600;cursor:pointer')}>prověřit v Anomáliích</span>).</span>
+        <span>Linky i zastávky jsou reálná veřejná data (CIS JŘ) přes skutečné GPS zastávek. Klikněte na autobus pro detail stroje (vůz, SPZ, řidič, stav jednotky, jízda dne), na červené body pro detail anomálie. Poloha vozidel je pro ukázku modelovaná — po nasazení telematiky ji nahradí skutečná GPS v reálném čase (<span onClick={m.goAnomalies} style={S('color:var(--blue-ink);font-weight:600;cursor:pointer')}>přehled anomálií</span>).</span>
       </div>
     </div>
   )
