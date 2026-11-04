@@ -267,19 +267,17 @@ export default function Render({ vm }) {
           )}
           {!mob && (
             <div style={S('display:flex;align-items:center;gap:10px;min-width:0;flex-shrink:0')}>
-              <span onClick={() => vm.navigate && vm.navigate('dashboard')} style={S('font-size:14px;font-weight:600;color:var(--ink3);cursor:pointer;white-space:nowrap')}>Fleet Portal</span>
-              <span style={S('color:var(--ink3);opacity:.5;display:flex;transform:rotate(-90deg)')}>{ic('chevron', 15)}</span>
-              <span style={S('display:flex;align-items:center;gap:7px;height:30px;padding:0 11px;background:var(--blue-soft);border-radius:9px;white-space:nowrap')}><span style={S('display:flex;color:var(--blue)')}>{ic('pin', 14)}</span><span style={S('font-size:13px;font-weight:600;color:var(--blue-ink)')}>ČSAD AUTOBUSY České Budějovice a.s. · {vm.companyVehicles} vozidel</span></span>
+              <Hov onClick={() => vm.navigate && vm.navigate('dashboard')} base="display:flex;align-items:center;gap:7px;height:30px;padding:0 11px;background:var(--blue-soft);border-radius:9px;white-space:nowrap;cursor:pointer" hover="background:var(--blue-soft);box-shadow:0 0 0 2px rgba(79,111,255,.18)"><span style={S('display:flex;color:var(--blue)')}>{ic('pin', 14)}</span><span style={S('font-size:13px;font-weight:600;color:var(--blue-ink)')}>ČSAD AUTOBUSY České Budějovice · {vm.companyVehicles} vozidel</span></Hov>
             </div>
           )}
           <div style={{ flex: 1 }}></div>
           {mob ? (
             <Hov onClick={vm.openSearch} base="width:40px;height:40px;flex-shrink:0;border-radius:12px;border:1px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink2)" hover="background:var(--canvas)">{ic('search', 18)}</Hov>
           ) : (
-            <Hov onClick={vm.openSearch} base="display:flex;align-items:center;gap:10px;height:42px;width:380px;padding:0 14px;background:#fff;border:1px solid var(--border2);border-radius:13px;cursor:text;color:var(--ink3);transition:box-shadow .15s ease,border-color .15s ease" hover="box-shadow:0 0 0 4px rgba(79,111,255,.1);border:1px solid var(--blue)">
-              <span style={{ display: 'flex' }}>{ic('search', 17)}</span>
-              <span style={S('flex:1;font-size:13.5px')}>Hledat vozidlo, SPZ, řidiče, smlouvu…</span>
-              <span style={S('font-size:11px;font-weight:600;background:var(--canvas);border:1px solid var(--border2);border-radius:7px;padding:2px 7px;color:var(--ink2)')}>⌘K</span>
+            <Hov onClick={vm.openSearch} base="display:flex;align-items:center;gap:10px;height:42px;flex:16 1 320px;min-width:250px;max-width:460px;padding:0 15px;background:#fff;border:1px solid var(--border2);border-radius:13px;cursor:text;color:var(--ink3);transition:box-shadow .15s ease,border-color .15s ease" hover="box-shadow:0 0 0 4px rgba(79,111,255,.1);border:1px solid var(--blue)">
+              <span style={S('display:flex;flex-shrink:0')}>{ic('search', 17)}</span>
+              <span style={S('flex:1;min-width:0;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>Hledat vozidlo, SPZ, řidiče…</span>
+              <span style={S('font-size:11px;font-weight:600;background:var(--canvas);border:1px solid var(--border2);border-radius:7px;padding:2px 7px;color:var(--ink2);flex-shrink:0')}>⌘K</span>
             </Hov>
           )}
           {!mob && (
