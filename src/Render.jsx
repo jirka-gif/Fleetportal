@@ -1984,7 +1984,7 @@ const TYPE_META = { 'Osobní vozidla': ['car', '#4F6FFF'], 'Motocykly': ['gauge'
 const COVER_META = { 'Povinné ručení': ['shield', '#4F6FFF'], 'Havarijní pojištění': ['umbrella', '#22C55E'], 'Pojištění skel': ['glass', '#6D5EF6'], 'Asistence': ['wrench', '#F59E0B'] }
 const COST_META = { 'Pohonné hmoty': ['fuel', '#F59E0B'], 'Servis a opravy': ['wrench', '#6D5EF6'], 'Leasing / splátky': ['banknote', '#22C55E'], 'Pneumatiky': ['tire', '#0E9AA6'], 'Mýto, mytí, ostatní': ['sparkle', '#64748B'] }
 
-function BarBreakdown({ items, gap = 15 }) {
+function BarBreakdown({ items, gap = 15, showPct = true }) {
   return (
     <div>
       {items.map((r, i) => (
@@ -1992,7 +1992,7 @@ function BarBreakdown({ items, gap = 15 }) {
           <div style={S('display:flex;align-items:center;gap:11px;margin-bottom:8px')}>
             <span style={S(`width:32px;height:32px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${r.color}1F;color:${r.color}`)}>{ic(r.icon, 17)}</span>
             <span style={S('flex:1;min-width:0;font-size:13.5px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.label}</span>
-            <span style={S('font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap')}>{r.value}<span style={S('color:var(--ink3);font-weight:600')}> · {r.pct} %</span></span>
+            <span style={S('font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap')}>{r.value}{showPct && <span style={S('color:var(--ink3);font-weight:600')}> · {r.pct} %</span>}</span>
           </div>
           <div style={S('height:8px;border-radius:6px;background:#ECE9F6;overflow:hidden')}><div style={S(`height:100%;width:${Math.max(r.pct, 1.5)}%;border-radius:6px;background:linear-gradient(90deg,${r.color}B3,${r.color})`)}></div></div>
         </div>
@@ -4037,13 +4037,17 @@ function DriverDetail({ vm }) {
             </div>
           </div>
           <div style={S('display:flex;gap:8px;flex-wrap:wrap')}>
-            <span style={S('font-size:12px;font-weight:600;color:var(--blue-ink);background:var(--blue-soft);padding:6px 12px;border-radius:9px')}>ŘP {d.rp.groups}</span>
+            {d.perf && <span style={S(`font-size:12px;font-weight:700;color:${d.perf.band.color};background:${d.perf.band.bg};padding:6px 12px;border-radius:9px;display:inline-flex;align-items:center;gap:6px`)}>{ic('gauge', 14)}Eco {d.perf.score}/100</span>}
+            {d.perf && <span style={S('font-size:12px;font-weight:700;color:var(--blue-ink);background:var(--blue-soft);padding:6px 12px;border-radius:9px;display:inline-flex;align-items:center;gap:6px')}>{ic('clock', 14)}JŘ {d.perf.onTime} %</span>}
+            <span style={S('font-size:12px;font-weight:600;color:var(--ink2);background:#EEF2F9;padding:6px 12px;border-radius:9px')}>ŘP {d.rp.groups}</span>
             {d.adr ? <span style={S('font-size:12px;font-weight:600;color:var(--amber);background:var(--amber-soft);padding:6px 12px;border-radius:9px')}>ADR</span> : null}
-            <span style={S('font-size:12px;font-weight:600;color:var(--ink2);background:#EEF2F9;padding:6px 12px;border-radius:9px')}>{d.vehicles.length} vozidel</span>
           </div>
         </div>
       </div>
 
+      {d.perf && <DriverPerformance p={d.perf} mob={mob} />}
+
+      <div style={S('font-size:15px;font-weight:700;margin-bottom:12px')}>Osobní a pracovní údaje</div>
       <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:16px;margin-bottom:16px`)}>
         <InfoCard title="Osobní údaje" rows={d.personal} />
         <InfoCard title="Pracovní poměr" rows={d.employment} />
@@ -4086,6 +4090,140 @@ function DriverDetail({ vm }) {
             <span style={S('color:var(--ink3);display:flex')}>{ic('upload', 16)}</span>
           </Hov>
         ))}
+      </div>
+    </div>
+  )
+}
+
+/* ---- Řidič: rozpad výkonu a chování (výkon, styl jízdy, anomálie, QR hlášení) ---- */
+function DriverPerformance({ p, mob }) {
+  const trendColor = (v) => v >= 80 ? '#22C55E' : v >= 65 ? '#4F6FFF' : v >= 50 ? '#F59E0B' : '#EF4444'
+  const otRows = [
+    { label: 'Dodržení jízdních řádů', value: `${p.onTime} %`, color: p.onTime >= p.fleetAvg.onTime ? 'var(--green)' : 'var(--star)', big: true },
+    { label: 'Zpoždění (30 dní)', value: `${p.delays30}×` },
+    { label: 'Předčasné odjezdy', value: `${p.earlyDep30}×` },
+    { label: 'Vynechané zastávky', value: `${p.missedStops30}×` },
+    { label: 'Průměrné zpoždění', value: `${String(p.avgDelay).replace('.', ',')} min` },
+  ]
+  return (
+    <div style={S('margin-bottom:22px')}>
+      {/* verdikt */}
+      <div style={S(`${CARD};padding:16px 18px;margin-bottom:16px;display:flex;align-items:flex-start;gap:13px;border-left:4px solid ${p.verdict.color}`)}>
+        <span style={S(`width:40px;height:40px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${p.verdict.color}1F;color:${p.verdict.color}`)}>{ic(p.verdict.icon, 20)}</span>
+        <div style={S('flex:1;min-width:0')}>
+          <div style={S('font-size:14.5px;font-weight:750')}>{p.verdict.title}</div>
+          <div style={S('font-size:12.5px;color:var(--ink2);margin-top:3px;line-height:1.5')}>{p.verdict.sub}</div>
+        </div>
+      </div>
+
+      <KpiRow items={p.kpis} mb="16px" featuredFirst />
+
+      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:16px;align-items:stretch;margin-bottom:16px`)}>
+        {/* styl jízdy */}
+        <div style={S(`${CARD};padding:22px`)}>
+          <CardHead icon="gauge" color="#6D5EF6" title="Styl jízdy a eco" sub="Telematika za posledních 30 dní · na 100 km" />
+          <BarBreakdown items={p.styleItems} showPct={false} gap={13} />
+          <div style={S('display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)')}>
+            <span style={S('font-size:12.5px;color:var(--ink3)')}>Průměrná spotřeba vs. reference</span>
+            <span style={S('font-size:13.5px;font-weight:800;font-variant-numeric:tabular-nums')}>{p.consF} <span style={S('color:var(--ink3);font-weight:600')}>/ {p.refF} l</span> <span style={S(`font-weight:700;color:${p.consDelta > 0 ? 'var(--star)' : 'var(--green)'}`)}>{p.consDelta > 0 ? '+' : ''}{String(p.consDelta).replace('.', ',')}</span></span>
+          </div>
+        </div>
+        {/* dodržení JŘ */}
+        <div style={S(`${CARD};padding:22px`)}>
+          <CardHead icon="clock" color="var(--blue)" title="Dodržení jízdních řádů" sub={`Za posledních 30 dní · průměr flotily ${p.fleetAvg.onTime} %`} />
+          <div>
+            {otRows.map((r, i) => (
+              <div key={i} style={S(`display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:${r.big ? '4px 0 12px' : '11px 0'}${i && !r.big ? ';border-top:1px solid var(--border)' : ''}${r.big ? ';border-bottom:1px solid var(--border)' : ''}`)}>
+                <span style={S(`${r.big ? 'font-size:13.5px;font-weight:650' : 'font-size:13px;color:var(--ink2)'}`)}>{r.label}</span>
+                <span style={S(`font-variant-numeric:tabular-nums;font-weight:800;${r.big ? `font-size:26px;letter-spacing:-.5px;color:${r.color}` : 'font-size:14px'}`)}>{r.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* roční dopad na náklady */}
+      <div style={S(`${CARD};padding:22px;margin-bottom:16px`)}>
+        <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '260px 1fr'};gap:22px;align-items:center`)}>
+          <div>
+            <CardHead icon="banknote" color="var(--star)" title="Dopad stylu jízdy na náklady" sub="Odhad za 12 měsíců" />
+            <div style={S('font-size:34px;font-weight:800;letter-spacing:-1.2px;margin-top:4px')}>{p.styleCostYearF}</div>
+            <div style={S('font-size:12.5px;color:var(--ink3);margin-top:4px;line-height:1.5')}>navíc oproti hospodárné jízdě (palivo, nezávislé topení, pokuty)</div>
+          </div>
+          <BarBreakdown items={p.costItems} gap={14} />
+        </div>
+      </div>
+
+      {/* trend eco skóre */}
+      <div style={S(`${CARD};padding:22px;margin-bottom:16px`)}>
+        <CardHead icon="trend" color="#6D5EF6" title="Vývoj eco skóre" sub="Posledních 12 měsíců · vyšší je lepší" />
+        <div style={S(`display:flex;align-items:flex-end;gap:${mob ? '5px' : '10px'};height:140px;padding-top:10px`)}>
+          {p.trend.map((m, i) => (
+            <div key={i} style={S('flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;height:100%')}>
+              <div style={S('flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center')}>
+                <div title={String(m.value)} style={S(`width:${mob ? '72%' : '60%'};height:${m.h};border-radius:6px 6px 3px 3px;background:${trendColor(m.value)};min-height:6px;opacity:${i === p.trend.length - 1 ? 1 : 0.55}`)}></div>
+              </div>
+              <span style={S('font-size:10.5px;color:var(--ink3);font-weight:600')}>{m.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* historie anomálií */}
+      <div style={S(`${CARD};padding:22px;margin-bottom:16px`)}>
+        <CardHead icon="alert" color="var(--star)" title="Historie anomálií" sub={`Posledních 90 dní · ${p.anoCount} ${p.anoCount === 1 ? 'záznam' : p.anoCount >= 2 && p.anoCount <= 4 ? 'záznamy' : 'záznamů'}`} />
+        {p.anomalies.length === 0
+          ? <div style={S('font-size:13px;color:var(--ink3);padding:8px 2px')}>Bez evidovaných anomálií. Řidič jezdí v normě.</div>
+          : <div style={S('margin-top:4px')}>
+            {p.anomalies.map((a, i) => (
+              <div key={i} style={S(`display:flex;align-items:center;gap:13px;padding:11px 2px${i ? ';border-top:1px solid var(--border)' : ''}`)}>
+                <span style={S(`width:34px;height:34px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${a.sevMeta.bg};color:${a.sevMeta.color}`)}>{ic('alert', 17)}</span>
+                <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:650')}>{a.title}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{a.detail}</div></div>
+                <span style={S('font-size:11.5px;color:var(--ink3);white-space:nowrap;font-variant-numeric:tabular-nums')}>{a.date}</span>
+                <span style={S(`font-size:10.5px;font-weight:700;color:${a.sevMeta.color};background:${a.sevMeta.bg};padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0`)}>{a.sevMeta.label}</span>
+              </div>
+            ))}
+          </div>}
+      </div>
+
+      {/* QR hlášení chování */}
+      <div style={S(`${CARD};padding:22px`)}>
+        <div style={S('display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px')}>
+          <CardHead icon="grid" color="var(--green)" title="Hlášení chování z vozidel" sub="QR kódy ve voze · cestující a kolegové" />
+          <span style={S('font-size:11.5px;font-weight:700;color:var(--green);background:var(--green-soft);padding:4px 11px;border-radius:20px')}>{p.reportStats.resolvedPct} % vyřešeno</span>
+        </div>
+        <div style={S('display:flex;align-items:flex-start;gap:9px;padding:12px 14px;background:var(--canvas);border-radius:12px;margin-bottom:14px')}>
+          <span style={S('color:var(--ink3);display:flex;flex-shrink:0;margin-top:1px')}>{ic('info', 15)}</span>
+          <span style={S('font-size:12px;color:var(--ink2);line-height:1.5')}>V každém voze je QR kód s číslem vozu a linky. Cestující i kolegové jím nahlásí chování řidiče (pochvalu i stížnost). Hlášení se automaticky přiřadí ke konkrétní jízdě a řidiči a objeví se zde.</span>
+        </div>
+        <div style={S(`display:grid;grid-template-columns:repeat(${mob ? 2 : 4},1fr);gap:10px;margin-bottom:16px`)}>
+          {[['Hlášení celkem', p.reportStats.total, 'var(--ink)'], ['Pochvaly', p.reportStats.pochvala, 'var(--green)'], ['Stížnosti', p.reportStats.stiznost, 'var(--star)'], ['Přes QR kód', p.reportStats.qr, 'var(--blue-ink)']].map((s, i) => (
+            <div key={i} style={S('background:var(--canvas);border-radius:12px;padding:12px 14px')}>
+              <div style={S(`font-size:24px;font-weight:800;letter-spacing:-.5px;color:${s[2]}`)}>{s[1]}</div>
+              <div style={S('font-size:11.5px;color:var(--ink3);margin-top:2px')}>{s[0]}</div>
+            </div>
+          ))}
+        </div>
+        {p.reports.length === 0
+          ? <div style={S('font-size:13px;color:var(--ink3);padding:4px 2px')}>Zatím žádná hlášení.</div>
+          : <div>
+            {p.reports.map((r, i) => (
+              <div key={i} style={S(`display:flex;align-items:flex-start;gap:12px;padding:13px 2px${i ? ';border-top:1px solid var(--border)' : ''}`)}>
+                <span style={S(`width:34px;height:34px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${r.kindBg};color:${r.kindColor}`)}>{ic(r.kindIcon, 17)}</span>
+                <div style={S('flex:1;min-width:0')}>
+                  <div style={S('display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px')}>
+                    <span style={S(`font-size:11px;font-weight:700;color:${r.kindColor};background:${r.kindBg};padding:2px 8px;border-radius:20px`)}>{r.kindLabel}</span>
+                    <span style={S('font-size:11px;color:var(--ink3);display:inline-flex;align-items:center;gap:4px')}>{ic(r.channelIcon, 12)}{r.channel}</span>
+                  </div>
+                  <div style={S('font-size:13px;color:var(--ink2);line-height:1.45')}>{r.text}</div>
+                </div>
+                <div style={S('display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0')}>
+                  <span style={S(`font-size:10.5px;font-weight:700;color:${r.statusMeta.color};background:${r.statusMeta.bg};padding:3px 9px;border-radius:20px;white-space:nowrap`)}>{r.statusMeta.label}</span>
+                  <span style={S('font-size:11px;color:var(--ink3);white-space:nowrap;font-variant-numeric:tabular-nums')}>{r.date}</span>
+                </div>
+              </div>
+            ))}
+          </div>}
       </div>
     </div>
   )

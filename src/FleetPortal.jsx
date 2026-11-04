@@ -62,6 +62,176 @@ const dutyStatusOf = (drive, brk) => drive > 9 * 60 ? { label: 'Překročena dob
   : brk < 45 ? { label: 'Krátká přestávka', sev: 1, color: '#B45309', bg: 'var(--amber-soft)' }
   : drive > 8.5 * 60 ? { label: 'Blíží se limitu', sev: 1, color: '#B45309', bg: 'var(--amber-soft)' }
   : { label: 'V normě', sev: 0, color: 'var(--green)', bg: 'var(--green-soft)' }
+
+// ---- Výkon a chování řidiče: deterministický model nad reálnými řidiči ----
+// Telematika, eco, anomálie a QR hlášení jsou pro ukázku modelované (seed = id řidiče),
+// po nasazení jednotek a QR kódů ve vozech je nahradí reálná měření a hlášení.
+const DRIVER_FLEET_AVG = { eco: 68, onTime: 94 } // benchmark flotily pro srovnání
+function buildDriverPerf(d) {
+  const seed = _hash('perf-' + d.id)
+  const R = _rng(seed)
+  const rint = (lo, hi) => lo + Math.floor(R() * (hi - lo + 1))
+  const q = d.status === 'inactive' ? 0.55 : 0.32 + R() * 0.62   // kvalita jízdy 0..1 (vyšší = lepší)
+  const bad = 1 - q
+  const km = { mhd: 4600, linka: 6400, dalkova: 10800, osobni: 2400 }[d.kind] || 5200
+  const ref = { mhd: 38.5, linka: 29, dalkova: 26.5, osobni: 7.2 }[d.kind] || 30
+  const tripsPerShift = { mhd: 19, linka: 8, dalkova: 3, osobni: 0 }[d.kind] ?? 6
+  const kindLabel = { mhd: 'MHD', linka: 'Linková doprava', dalkova: 'Dálková a zájezdová', osobni: 'Referentská vozidla' }[d.kind] || 'Doprava'
+
+  const shifts30 = d.kind === 'osobni' ? rint(13, 18) : rint(18, 22)
+  const km30 = Math.round(km * (0.9 + R() * 0.2))
+  const trips30 = tripsPerShift ? Math.max(0, shifts30 * tripsPerShift + rint(-8, 8)) : 0
+  const hours30 = Math.round(shifts30 * (d.kind === 'dalkova' ? 8.6 : 7.4))
+
+  // telematika / styl jízdy
+  const tele = {
+    fuel: 'Diesel', km: km30, ref,
+    cons: +Math.max(ref - 0.8, ref + bad * 3.4 - 0.5).toFixed(1),
+    accel: Math.round(2 + bad * 8), brake: Math.round(2 + bad * 7), start: Math.round(1 + bad * 5),
+    overrev: Math.round(bad * 3), speeding: Math.round(bad * 4),
+    idle: Math.round(16 + bad * 36), heater: Math.round(22 + bad * 72),
+    heaterL: Math.round((22 + bad * 72) * 0.42),
+  }
+  const score = ecoScore(tele)
+  const band = ecoBand(score)
+  const sav = ecoSavings(tele)                  // nadspotřeba za 30 dní
+  const heaterYear = heaterCost(tele) * 12
+  const fuelYear = sav.czk * 12
+  const finesCount = Math.round(bad * 6)
+  const finesYear = finesCount * 1200
+  const styleCostYear = fuelYear + heaterYear + finesYear
+
+  // dodržení jízdních řádů
+  const onTime = Math.min(99, Math.round(87 + q * 12))
+  const delays30 = Math.round(bad * 38)
+  const earlyDep30 = Math.round(bad * 7)
+  const missedStops30 = Math.round(bad * 3)
+  const avgDelay = +(bad * 2.8).toFixed(1)
+
+  const czkF = (n) => Math.round(n).toLocaleString('cs-CZ') + ' Kč'
+  const sev = (v, warn, danger) => v >= danger ? { color: 'var(--star)' } : v >= warn ? { color: '#F59E0B' } : { color: 'var(--green)' }
+  const styleItems = [
+    { label: 'Prudká akcelerace', icon: 'trend', value: `${tele.accel}× / 100 km`, pct: Math.min(100, tele.accel / 10 * 100), color: sev(tele.accel, 5, 8).color },
+    { label: 'Prudké brzdění', icon: 'alert', value: `${tele.brake}× / 100 km`, pct: Math.min(100, tele.brake / 9 * 100), color: sev(tele.brake, 4, 7).color },
+    { label: 'Trhavé rozjezdy', icon: 'swap', value: `${tele.start}× / 100 km`, pct: Math.min(100, tele.start / 6 * 100), color: sev(tele.start, 3, 5).color },
+    { label: 'Překročení rychlosti', icon: 'gauge', value: `${tele.speeding}× / 100 km`, pct: Math.min(100, tele.speeding / 5 * 100), color: sev(tele.speeding, 2, 4).color },
+    { label: 'Volnoběh (prostoje)', icon: 'clock', value: `${tele.idle} min / směna`, pct: Math.min(100, tele.idle / 60 * 100), color: sev(tele.idle, 30, 45).color },
+    { label: 'Nezávislé topení', icon: 'fuel', value: `${tele.heaterL} l / měsíc`, pct: Math.min(100, tele.heaterL / 45 * 100), color: sev(tele.heaterL, 20, 34).color },
+  ]
+  const consDelta = +(tele.cons - ref).toFixed(1)
+
+  const costItems = [
+    { label: 'Nadspotřeba paliva', icon: 'fuel', color: '#6D5EF6', value: czkF(fuelYear), pct: styleCostYear ? Math.round(fuelYear / styleCostYear * 100) : 0 },
+    { label: 'Nezávislé topení', icon: 'wrench', color: 'var(--blue)', value: czkF(heaterYear), pct: styleCostYear ? Math.round(heaterYear / styleCostYear * 100) : 0 },
+    { label: 'Pokuty a přestupky', icon: 'alert', color: 'var(--star)', value: czkF(finesYear), pct: styleCostYear ? Math.round(finesYear / styleCostYear * 100) : 0 },
+  ]
+
+  const kpis = [
+    { value: String(score), unit: '/ 100', label: 'Eco skóre jízdy', icon: 'gauge', note: `${band.label} · ${score >= DRIVER_FLEET_AVG.eco ? '+' : ''}${score - DRIVER_FLEET_AVG.eco} vs. průměr flotily` },
+    { value: `${onTime}`, unit: '%', label: 'Dodržení jízdních řádů', icon: 'clock', note: `${delays30}× zpoždění / 30 dní` },
+    { value: (km30 / 1000).toFixed(1).replace('.', ','), unit: 'tis. km', label: 'Najeto za 30 dní', icon: 'bus', note: `${(km30 * 12 / 1000).toFixed(0)} tis. km / rok` },
+    { value: String(shifts30), unit: 'směn', label: 'Odpracováno / 30 dní', icon: 'calendar', note: trips30 ? `${trips30} spojů · ${hours30} h za volantem` : `${hours30} h za volantem` },
+  ]
+
+  // ---- Historie anomálií (posledních ~90 dní) ----
+  const BASE = new Date(2026, 10, 3)
+  const fmtD = (daysAgo) => { const dt = new Date(BASE); dt.setDate(dt.getDate() - daysAgo); return `${dt.getDate()}. ${dt.getMonth() + 1}. ${dt.getFullYear()}` }
+  const lineNo = { mhd: ['7', '3', '5'], linka: ['300', '440', '360'], dalkova: ['700', 'DÁL 1', 'zájezd'], osobni: ['—'] }[d.kind] || ['—']
+  const anoPool = [
+    { t: 'Velké zpoždění na lince', det: (ln) => `+${rint(6, 14)} min · linka ${ln}`, sev: 'high', w: tele.speeding + delays30 / 6 },
+    { t: 'Prudká akcelerace a brzdění', det: () => `${rint(6, 14)} událostí za směnu`, sev: 'mid', w: tele.accel + tele.brake },
+    { t: 'Překročení povolené rychlosti', det: () => `+${rint(8, 22)} km/h mimo obec`, sev: 'high', w: tele.speeding * 2 },
+    { t: 'Nadměrný volnoběh', det: () => `${rint(35, 70)} min na stojícím voze`, sev: 'low', w: Math.max(0, tele.idle - 28) },
+    { t: 'Odjezd ze zastávky před časem', det: (ln) => `−${rint(1, 3)} min · linka ${ln}`, sev: 'mid', w: earlyDep30 * 3 },
+    { t: 'Vynechaná zastávka', det: (ln) => `linka ${ln}`, sev: 'high', w: missedStops30 * 5 },
+    { t: 'Nadměrná spotřeba paliva', det: () => `+${(bad * 3).toFixed(1)} l / 100 km nad referencí`, sev: 'mid', w: Math.max(0, consDelta) * 5 },
+    { t: 'Dlouhé nezávislé topení', det: () => `${rint(60, 140)} min / směna`, sev: 'low', w: Math.max(0, tele.heaterL - 20) },
+    { t: 'Blíží se limit doby řízení', det: () => `${rint(8, 9)} h řízení bez delší přestávky`, sev: 'mid', w: 4 },
+  ]
+  const sevMeta = { high: { label: 'Vysoká', color: 'var(--star)', bg: 'var(--star-soft)' }, mid: { label: 'Střední', color: '#B45309', bg: 'var(--amber-soft)' }, low: { label: 'Nízká', color: 'var(--blue-ink)', bg: 'var(--blue-soft)' } }
+  const anoN = Math.min(12, Math.round(bad * 11) + (q > 0.82 ? 0 : 1))
+  const anoWeighted = anoPool.filter((a) => a.w > 0.5).sort((a, b) => b.w - a.w)
+  const anomalies = []
+  let dayCursor = rint(1, 4)
+  for (let i = 0; i < anoN; i++) {
+    const a = anoWeighted.length ? anoWeighted[(seed + i) % anoWeighted.length] : anoPool[i % anoPool.length]
+    const ln = lineNo[(seed + i) % lineNo.length]
+    anomalies.push({ date: fmtD(dayCursor), title: a.t, detail: a.det(ln), sev: a.sev, sevMeta: sevMeta[a.sev] })
+    dayCursor += rint(4, 11)
+  }
+
+  // ---- QR hlášení chování z vozidel (cestující/kolegové) ----
+  const chan = {
+    qr: { label: 'QR kód ve voze', icon: 'grid' },
+    app: { label: 'Web / aplikace', icon: 'file' },
+    phone: { label: 'Telefon dispečink', icon: 'phone' },
+  }
+  const kindMeta = {
+    pochvala: { label: 'Pochvala', color: 'var(--green)', bg: 'var(--green-soft)', icon: 'star' },
+    stiznost: { label: 'Stížnost', color: 'var(--star)', bg: 'var(--star-soft)', icon: 'alert' },
+    podnet: { label: 'Podnět', color: 'var(--blue-ink)', bg: 'var(--blue-soft)', icon: 'info' },
+  }
+  const stMeta = {
+    new: { label: 'Nové', color: '#B45309', bg: 'var(--amber-soft)' },
+    prog: { label: 'V řešení', color: 'var(--blue-ink)', bg: 'var(--blue-soft)' },
+    done: { label: 'Vyřešeno', color: 'var(--green)', bg: 'var(--green-soft)' },
+  }
+  const txtPochvala = ['Ohleduplná a plynulá jízda, poděkování od cestujícího.', 'Řidič počkal na přibíhajícího cestujícího.', 'Příjemné a ochotné jednání, čistý a vyvětraný vůz.', 'Pomohl cestující s kočárkem při nástupu.', 'Trpělivě poradil s přestupem a tarifem.']
+  const txtStiznost = ['Prudké brzdění, cestující upozorňuje na nebezpečnou jízdu.', 'Odjezd ze zastávky o chvíli dříve než dle JŘ.', 'Nezastavil na znamení na zastávce na znamení.', 'Hlučné a trhané řazení během jízdy.', 'Přetopený vůz, dlouhé topení i na stojícím autobuse.', 'Telefonování během jízdy.']
+  const txtPodnet = ['Námět na úpravu času odjezdu ranního spoje.', 'Dotaz na bezbariérový nájezd u tohoto vozu.', 'Návrh na doplnění informací o zpoždění ve voze.']
+  const pick = (arr, k) => arr[(seed + k) % arr.length]
+  const nPochvala = Math.max(q > 0.7 ? 1 : 0, Math.round(q * 4))
+  const nStiznost = Math.round(bad * 4)
+  const nPodnet = rint(0, 2)
+  const reports = []
+  let rc = rint(2, 6)
+  const pushRep = (kind, txtArr, idx, chKey) => {
+    const statuses = ['done', 'done', 'prog', 'new']
+    reports.push({
+      date: fmtD(rc), channel: chan[chKey].label, channelIcon: chan[chKey].icon,
+      kind, kindLabel: kindMeta[kind].label, kindColor: kindMeta[kind].color, kindBg: kindMeta[kind].bg, kindIcon: kindMeta[kind].icon,
+      text: pick(txtArr, idx), status: statuses[(seed + idx) % statuses.length], statusMeta: stMeta[statuses[(seed + idx) % statuses.length]],
+    })
+    rc += rint(3, 12)
+  }
+  for (let i = 0; i < nStiznost; i++) pushRep('stiznost', txtStiznost, i, i % 2 === 0 ? 'qr' : (i % 3 === 0 ? 'phone' : 'app'))
+  for (let i = 0; i < nPochvala; i++) pushRep('pochvala', txtPochvala, i, i % 2 === 0 ? 'qr' : 'app')
+  for (let i = 0; i < nPodnet; i++) pushRep('podnet', txtPodnet, i, 'qr')
+  reports.sort((a, b) => {
+    const pa = a.date.split('. ').map(Number), pb = b.date.split('. ').map(Number)
+    return (pb[2] - pa[2]) || (pb[1] - pa[1]) || (pb[0] - pa[0])
+  })
+  const reportStats = {
+    total: reports.length,
+    pochvala: reports.filter((r) => r.kind === 'pochvala').length,
+    stiznost: reports.filter((r) => r.kind === 'stiznost').length,
+    qr: reports.filter((r) => r.channelIcon === 'grid').length,
+    resolvedPct: reports.length ? Math.round(reports.filter((r) => r.status === 'done').length / reports.length * 100) : 100,
+  }
+
+  // ---- Vývoj eco skóre za 12 měsíců ----
+  const months = ['pro', 'led', 'úno', 'bře', 'dub', 'kvě', 'čvn', 'čvc', 'srp', 'zář', 'říj', 'lis']
+  let ms = Math.max(30, score - rint(4, 10))
+  const trend = months.map((m, i) => {
+    ms = Math.max(25, Math.min(100, Math.round(ms + (score - ms) * 0.35 + (R() - 0.5) * 9)))
+    const v = i === months.length - 1 ? score : ms
+    return { label: m, value: v, h: Math.max(8, v) + '%' }
+  })
+
+  // ---- Verdikt pro majitele / správce ----
+  const verdict = score >= 80
+    ? { title: 'Hospodárný a spolehlivý řidič', sub: `Styl jízdy šetří provozní náklady. Dodržení JŘ ${onTime} %. Vhodný jako vzor pro ostatní.`, icon: 'star', color: 'var(--green)' }
+    : score >= 65
+      ? { title: 'Standardní výkon s prostorem ke zlepšení', sub: `Styl jízdy stojí navíc ~${czkF(styleCostYear)} ročně oproti hospodárné jízdě. Doporučen kondiční trénink.`, icon: 'gauge', color: 'var(--blue)' }
+      : { title: 'Rizikový styl jízdy', sub: `Navíc ~${czkF(styleCostYear)} ročně (palivo, topení, pokuty) a ${delays30}× zpoždění za 30 dní. Doporučujeme školení a sledování.`, icon: 'alert', color: 'var(--star)' }
+
+  return {
+    kindLabel, score, band, onTime, delays30, earlyDep30, missedStops30, avgDelay,
+    shifts30, km30, trips30, hours30, kpis, styleItems, consF: tele.cons.toFixed(1).replace('.', ','), refF: ref.toFixed(1).replace('.', ','), consDelta, fuelYear, costItems,
+    styleCostYearF: czkF(styleCostYear), styleCostYear, fleetAvg: DRIVER_FLEET_AVG,
+    anomalies, anoCount: anomalies.length, reports, reportStats, trend, verdict,
+  }
+}
 function buildDispatch() {
   return linesData.map((l, i) => {
     const bus = vehiclesData.find((v) => v.id === l.busId)
@@ -1953,7 +2123,11 @@ export default function FleetPortal() {
       { name: `Kopie ŘP ${d.rp.number}.pdf`, type: 'Řidičský průkaz', color: 'var(--green)' },
       { name: `Mzdový list.pdf`, type: 'Mzdy', color: 'var(--purple)' },
     ]
-    return { dd: { ...d, statusLabel: sm.label, statusC: sm.c, statusBg: sm.bg, vehicles, claims, personal, employment, idDocs, files, goDrivers: () => navigate('drivers') } }
+
+    // ---- Výkon a chování řidiče (modelováno pro ukázku, deterministicky dle id) ----
+    const perf = buildDriverPerf(d)
+
+    return { dd: { ...d, statusLabel: sm.label, statusC: sm.c, statusBg: sm.bg, vehicles, claims, personal, employment, idDocs, files, perf, goDrivers: () => navigate('drivers') } }
   }
 
   const financingVM = () => {
