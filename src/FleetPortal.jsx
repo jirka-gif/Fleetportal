@@ -1688,9 +1688,13 @@ export default function FleetPortal() {
       costs: ['Náklady & TCO', 'Celkové náklady vlastnictví: pojistné, servis, palivo a amortizace v čase.', ic('chart', 24)],
     }
     const o = otherMap[tab] || ['', '', null]
+    const vehAnomAll = FLEET_ANOMALIES.filter((a) => a.vehicleId === v.id)
+    const vehAnomalies = vehAnomAll.slice(0, 6).map((a) => ({ id: a.id, typeLabel: a.typeLabel, icon: a.icon, sevMeta: a.sevMeta, date: a.date, detail: a.detail, metric: a.metric, statusMeta: a.statusMeta, onClick: () => openAnomaly(a.id) }))
     return {
       vehicleTabs,
       vd: {
+        anomalies: vehAnomalies, anoCount: vehAnomAll.length, anoHigh: vehAnomAll.filter((a) => a.sev === 'high').length,
+        goAnomalies: () => openAnomalies({ anoVehicle: v.id }),
         brand: v.brand, model: v.model, plate: v.plate, driver: v.driver, fleetName: fleetName(v.fleet),
         financing: v.financing || { active: false, type: 'own', typeLabel: 'Vlastní zdroje (hotovost)' }, onRfq: () => openRfq(v),
         statusLabel: m.label, chipStyle: statusChip(v.status), facts, actions, specs, assign, compliance, products, productsExport, productsTotalF: czk(productsTotal), claims, timeline, vehicleDocs, notes, openNoteModal: () => openNoteModal(v),

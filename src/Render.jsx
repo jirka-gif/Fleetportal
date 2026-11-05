@@ -3247,6 +3247,31 @@ function VehicleDetail({ vm }) {
             </div>
           </div>
         </div>
+        <div style={S(`${CARD};padding:20px;margin-top:14px`)}>
+          <div style={S('display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px')}>
+            <div style={S('display:flex;align-items:center;gap:11px')}>
+              <span style={S(`width:36px;height:36px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${vd.anoCount ? 'var(--star-soft)' : 'var(--green-soft)'};color:${vd.anoCount ? 'var(--star)' : 'var(--green)'}`)}>{ic(vd.anoCount ? 'alert' : 'check', 19)}</span>
+              <div><div style={S('font-size:15px;font-weight:700')}>Anomálie vozidla</div><div style={S('font-size:12px;color:var(--ink3)')}>{vd.anoCount ? `${vd.anoCount} ${vd.anoCount === 1 ? 'záznam' : vd.anoCount >= 2 && vd.anoCount <= 4 ? 'záznamy' : 'záznamů'}${vd.anoHigh ? ' · ' + vd.anoHigh + ' s vysokou závažností' : ''}` : 'Žádné evidované anomálie u tohoto vozu'}</div></div>
+            </div>
+            {vd.anoCount > 0 && <Hov onClick={vd.goAnomalies} base="font-size:13px;font-weight:600;color:var(--blue-ink);cursor:pointer;display:flex;align-items:center;gap:5px" hover="color:var(--blue)">Všechny anomálie {ic('arrow', 14)}</Hov>}
+          </div>
+          {vd.anomalies.length > 0 && (
+            <div>
+              {vd.anomalies.map((a, i) => (
+                <Hov key={a.id} onClick={a.onClick} base={`display:flex;align-items:center;gap:12px;padding:11px 8px;border-radius:11px;cursor:pointer${i ? ';border-top:1px solid var(--border)' : ''}`} hover="background:var(--canvas)">
+                  <span style={S(`width:34px;height:34px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${a.sevMeta.bg};color:${a.sevMeta.color}`)}>{ic(a.icon, 17)}</span>
+                  <div style={S('flex:1;min-width:0')}>
+                    <div style={S('display:flex;align-items:center;gap:8px;flex-wrap:wrap')}><span style={S('font-size:13.5px;font-weight:700')}>{a.typeLabel}</span>{a.metric && <span style={S('font-size:11px;font-weight:700;color:var(--ink2);background:#EEF2F9;padding:2px 8px;border-radius:20px')}>{a.metric}</span>}</div>
+                    <div style={S('font-size:12px;color:var(--ink2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{a.detail}</div>
+                  </div>
+                  <span style={S('font-size:11px;color:var(--ink3);white-space:nowrap;font-variant-numeric:tabular-nums')}>{a.date}</span>
+                  <span style={S(`font-size:10.5px;font-weight:700;color:${a.statusMeta.color};background:${a.statusMeta.bg};padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0`)}>{a.statusMeta.label}</span>
+                  <span style={S('color:var(--ink3);display:flex;flex-shrink:0')}>{ic('arrow', 15)}</span>
+                </Hov>
+              ))}
+            </div>
+          )}
+        </div>
         <div style={S('margin-top:14px')}><FinancingCard f={vd.financing} onRfq={vd.onRfq} /></div>
         </>
       )}
