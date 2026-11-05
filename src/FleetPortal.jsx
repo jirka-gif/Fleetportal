@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react'
 import { Icon, czk, linePath, useViewport, buildExecReportHtml, buildPayslipHtml } from './helpers.jsx'
+import * as ACC from './accounting.js'
 import Render from './Render.jsx'
 import {
   insurersData, brandsData, fleetsData, vehiclesData, claimsData, greenCards, driversData,
@@ -826,6 +827,38 @@ const SEED_STAFF = [
   { id: 'st8', name: 'Ivana Horká', initials: 'IH', position: 'Personalistka', dept: 'Personalistika', employment: 'Zkrácený úvazek (0,6)', since: '1. 9. 2020', phone: '+420 609 118 902', email: 'i.horka@csadbus.cz' },
   { id: 'st9', name: 'Radek Zeman', initials: 'RZ', position: 'Skladník náhradních dílů', dept: 'Sklad', employment: 'Hlavní pracovní poměr', since: '3. 5. 2021', phone: '+420 610 445 118', email: 'r.zeman@csadbus.cz' },
 ]
+// Účetnictví (převzato z Frenkee CRM): seed nad reálnými linkami; mzdové náklady celé firmy modelové
+ACC.seedAccounting({ lines: linesData })
+const PEOPLE_ALL = () => [...driversData, ...SEED_STAFF]
+
+// Řidičský portál: zprávy, podněty, doklady (seed)
+const SEED_DRV_MSGS = [
+  { id: 'm1', driverId: 'dr1', with: 'dispecink', from: 'other', who: 'Marie Dvořáková', text: 'Dobrý den Honzo, zítra máte místo linky 11 záskok na 300 (ranní turnus). Vůz 5Z64073.', at: '4. 11. 2026 15:40' },
+  { id: 'm2', driverId: 'dr1', with: 'dispecink', from: 'ridic', who: 'Jan Procházka', text: 'Rozumím, díky. Odjezd z vozovny v 4:20?', at: '4. 11. 2026 15:52' },
+  { id: 'm3', driverId: 'dr1', with: 'dispecink', from: 'other', who: 'Marie Dvořáková', text: 'Ano, 4:20. Klíče u vrátnice, stazka je v tabletu.', at: '4. 11. 2026 16:01' },
+  { id: 'm4', driverId: 'dr1', with: 'vedeni', from: 'other', who: 'Ing. Pavel Šimek', text: 'Děkuji za bezchybný říjen. Eco skóre 88 je nejlepší v parku, promítne se do odměn.', at: '2. 11. 2026 09:10' },
+]
+const SEED_DRV_IDEAS = [
+  { id: 'i1', driverId: 'dr1', cat: 'Provoz', text: 'Na lince 11 posunout odjezd 6:05 o 3 minuty, navazuje vlak z Protivína a lidé ho nestíhají.', date: '28. 10. 2026', status: 'V posouzení', votes: 4 },
+  { id: 'i2', driverId: 'dr3', cat: 'Vozidla', text: 'Do vozů SOR doplnit držák na tablet pro stazku, teď leží na palubní desce.', date: '20. 10. 2026', status: 'Přijato', votes: 7 },
+  { id: 'i3', driverId: 'dr5', cat: 'Zázemí', text: 'V Kaplici na konečné chybí WC pro řidiče, obratová doba 12 minut nestačí dojít do města.', date: '12. 10. 2026', status: 'Nové', votes: 9 },
+]
+const SEED_DRV_DOCS = [
+  { id: 'd1', driverId: 'dr1', type: 'Občanský průkaz', validTo: '12. 4. 2027', status: 'ok', file: 'op-prochazka.pdf' },
+  { id: 'd2', driverId: 'dr1', type: 'Řidičský průkaz (C, D+E)', validTo: '1. 1. 2028', status: 'ok', file: 'rp-prochazka.pdf' },
+  { id: 'd3', driverId: 'dr1', type: 'Průkaz profesní způsobilosti', validTo: '1. 1. 2026', status: 'expiring', file: 'ppzr-prochazka.pdf' },
+  { id: 'd4', driverId: 'dr1', type: 'Karta řidiče (digitální tachograf)', validTo: '1. 1. 2028', status: 'ok', file: 'karta-ridice.pdf' },
+  { id: 'd5', driverId: 'dr1', type: 'Posudek o zdravotní způsobilosti', validTo: '15. 2. 2027', status: 'ok', file: 'lekarska-2025.pdf' },
+  { id: 'd6', driverId: 'dr1', type: 'Potvrzení o školení BOZP a PO', validTo: '5. 12. 2026', status: 'expiring', file: null },
+  { id: 'd7', driverId: 'dr1', type: 'Výpis z rejstříku trestů', validTo: null, status: 'missing', file: null },
+]
+const DRV_DOC_STATUS = {
+  ok: { label: 'V pořádku', color: 'var(--green)', bg: 'var(--green-soft)' },
+  expiring: { label: 'Končí platnost', color: '#B45309', bg: 'var(--amber-soft)' },
+  missing: { label: 'Chybí', color: 'var(--star)', bg: 'var(--star-soft)' },
+  uploaded: { label: 'Nahráno · čeká na ověření', color: 'var(--blue-ink)', bg: 'var(--blue-soft)' },
+}
+const DRIVER_NAV = [['dashboard', 'Domů', 'home'], ['drv-volno', 'Volno', 'calendar'], ['drv-zpravy', 'Zprávy', 'send'], ['drv-podnety', 'Podněty', 'sparkle'], ['drv-doklady', 'Moje doklady', 'file'], ['drv-mzda', 'Mzda', 'banknote']]
 
 export default function FleetPortal() {
   const [state, setStateRaw] = useState(() => ({
@@ -841,6 +874,8 @@ export default function FleetPortal() {
     audit: SEED_AUDIT,
     search: false, notif: false, ai: false, companyMenu: false, sidebar: false, execReport: null,
     hrMode: {}, timeOff: SEED_TIMEOFF, driverReports: SEED_DRIVER_REPORTS, reportModal: null, timeOffModal: null, reportForm: {}, timeOffForm: {}, optiRun: false,
+    ucTab: 'prehled', accVersion: 0, ucInvFilter: 'vse', ucInvDetail: null, ucNew: null, ucAskCredit: false, ucReason: '', ucExpFilter: 'vse', ucExpDetail: null, ucExpNote: '', ucAcc: 'csob', ucBank: 'vse', ucMonth: null, ucNotes: {},
+    drvMsgs: SEED_DRV_MSGS, drvMsgTo: 'dispecink', drvMsgText: '', drvIdeas: SEED_DRV_IDEAS, drvIdeaText: '', drvIdeaCat: 'Provoz', drvDocs: SEED_DRV_DOCS,
     claimWizard: false, claimStep: 1, claimData: {},
     rowMenu: null, toast: null,
     unsub: null, unsubDone: false, unsubReason: 'Prodej vozidla', unsubDate: '1. 7. 2026',
@@ -893,6 +928,13 @@ export default function FleetPortal() {
   const openReportModal = (driverId, cat) => setState({ reportModal: { driverId }, reportForm: { cat: cat || 'vozidlo', sev: 'mid', text: '' } })
   const setReportForm = (k, v) => setState((s) => ({ reportForm: { ...s.reportForm, [k]: v } }))
   const submitReport = () => { const f = state.reportForm, m = state.reportModal; if (!m || !f.text) return; const entry = { id: 'dr-r' + Date.now(), driverId: m.driverId, cat: f.cat, sev: f.sev, text: f.text, date: '5. 11. 2026', status: 'new' }; setState((s) => ({ driverReports: [entry, ...s.driverReports], reportModal: null })); showToast('Hlášení odesláno dispečinku.') }
+  // Účetnictví: nový doklad
+  const openNewDoc = (docType) => setState({ ucNew: { docType, custId: '', custName: '', custIco: '', custAddr: '', issued: '2026-11-05', duzp: '2026-11-05', dueDays: 14, method: docType === 'prijmovy' ? 'Hotově' : 'Bankovní převod', withVat: false, rows: [{ text: '', qty: '1', unit: 'ks', price: '', vat: docType === 'faktura' ? 12 : 21 }], note: '', related: '', paidOn: '' } })
+  // Řidičský portál: zprávy, podněty, doklady
+  const sendDrvMsg = () => { const t = (state.drvMsgText || '').trim(); if (!t) return; setState((s) => ({ drvMsgs: [...s.drvMsgs, { id: 'm' + Date.now(), driverId: 'dr1', with: s.drvMsgTo || 'dispecink', from: 'ridic', who: 'Jan Procházka', text: t, at: '5. 11. 2026 ' + new Date().toTimeString().slice(0, 5) }], drvMsgText: '' })); showToast('Zpráva odeslána.') }
+  const addIdea = () => { const t = (state.drvIdeaText || '').trim(); if (!t) return; setState((s) => ({ drvIdeas: [{ id: 'i' + Date.now(), driverId: 'dr1', cat: s.drvIdeaCat || 'Provoz', text: t, date: '5. 11. 2026', status: 'Nové', votes: 1 }, ...s.drvIdeas], drvIdeaText: '' })); showToast('Podnět odeslán vedení. Děkujeme!') }
+  const voteIdea = (id) => setState((s) => ({ drvIdeas: s.drvIdeas.map((i) => i.id === id ? { ...i, votes: i.votes + 1 } : i) }))
+  const uploadDrvDoc = (id, file) => { if (!file) return; setState((s) => ({ drvDocs: s.drvDocs.map((x) => x.id === id ? { ...x, status: 'uploaded', file: file.name, uploadedAt: '5. 11. 2026' } : x) })); showToast(`Doklad ${file.name} nahrán, personalistika ho ověří.`) }
   const openClaim = (id) => navigate('claim-detail', { claimId: id })
   const openLine = (id) => navigate('linky-detail', { lineId: id })
   const openStazka = (lineId) => navigate('stazka', { stazkaLine: lineId })
@@ -1156,6 +1198,7 @@ export default function FleetPortal() {
       ['insurance', 'Pojištění', 'shield', null],
       ['financing', 'Financování', 'banknote', String(vehiclesData.filter((v) => v.financing && v.financing.active).length)],
       ['vykony', 'Vyúčtování výkonů', 'scales', null],
+      ['ucetnictvi', 'Účetnictví', 'banknote', String(ACC.alerts().filter((a) => a.level !== 'info').length) || null],
       ['claims', 'Škody', 'umbrella', String(claimsData.filter((c) => c.status !== 'closed').length) || null],
       ['documents', 'Dokumenty', 'file', null],
       ['analytics', 'Reporting', 'trend', null],
@@ -1163,7 +1206,9 @@ export default function FleetPortal() {
       ['settings', 'Nastavení', 'settings', null],
     ]
     const activeRoute = r === 'fleet-detail' ? 'fleets' : r === 'vehicle-detail' ? 'vehicles' : r === 'driver-detail' ? 'drivers' : r === 'bonifikace-detail' ? 'bonifikace' : r === 'documents-detail' ? 'documents' : r === 'claim-detail' ? 'claims' : r === 'linky-detail' ? 'linky' : r === 'stazka' ? 'dispatch' : r === 'anomaly-detail' ? 'anomalies' : r
-    const nav = navItems.map(([id, label, icon, badge]) => {
+    const drvBadge = { 'drv-volno': state.timeOff.filter((t) => t.driverId === 'dr1' && t.status === 'pending').length, 'drv-zpravy': 1, 'drv-doklady': state.drvDocs.filter((x) => x.driverId === 'dr1' && (x.status === 'missing' || x.status === 'expiring')).length }
+    const navSrc = state.role === 'ridic' ? DRIVER_NAV.map(([id, label, icon]) => [id, label, icon, drvBadge[id] ? String(drvBadge[id]) : null]) : navItems
+    const nav = navSrc.map(([id, label, icon, badge]) => {
       const on = activeRoute === id
       return {
         id, label, icon: ic(icon, 20), iconColor: on ? '#fff' : 'var(--side-fg)',
@@ -1197,6 +1242,12 @@ export default function FleetPortal() {
       zajezdy: ['Zájezdy', 'Nepravidelná doprava: kalkulace, objednávky a vyúčtování jízd'],
       elektrobusy: ['Elektrobusy', 'Stav baterií, plán nabíjení a dojezd elektrobusů'],
       vykony: ['Vyúčtování výkonů', 'Ujeté km a spoje, plán vs. skutečnost, podklad pro objednatele'],
+      ucetnictvi: ['Účetnictví', 'Vydané doklady, náklady, banka, uzávěrka, kontrola vedení a daňové podklady'],
+      'drv-volno': ['Volno a dovolená', 'Moje žádosti o volno a zůstatek dovolené'],
+      'drv-zpravy': ['Zprávy', 'Komunikace s dispečinkem a vedením'],
+      'drv-podnety': ['Podněty', 'Nápady na zlepšení provozu, vozidel a zázemí'],
+      'drv-doklady': ['Moje doklady', 'Průkazy, potvrzení a chybějící podklady'],
+      'drv-mzda': ['Moje mzda', 'Výplatnice, odvody a docházka'],
       settings: ['Nastavení', 'Profil a předvolby portálu'],
     }
     let title, sub
@@ -1248,7 +1299,7 @@ export default function FleetPortal() {
       isDashboard: r === 'dashboard', isFleets: r === 'fleets', isFleetDetail: r === 'fleet-detail',
       isVehicles: r === 'vehicles', isVehicleDetail: r === 'vehicle-detail',
       isInsurance: r === 'insurance', isInsuranceDetail: r === 'insurance-detail', isClaims: r === 'claims', isDocuments: r === 'documents', isAnalytics: r === 'analytics', isContacts: r === 'contacts', isSettings: r === 'settings', isDrivers: r === 'drivers', isDriverDetail: r === 'driver-detail', isFinancing: r === 'financing',
-      isLinky: r === 'linky', isLinkyDetail: r === 'linky-detail', isEco: r === 'eco', isAttention: r === 'attention', isDispatch: r === 'dispatch', isStazka: r === 'stazka', isAnomalies: r === 'anomalies', isAnomalyDetail: r === 'anomaly-detail', isMap: r === 'map', isOptimalizace: r === 'optimalizace', isServis: r === 'servis', isZajezdy: r === 'zajezdy', isElektrobusy: r === 'elektrobusy', isVykony: r === 'vykony',
+      isLinky: r === 'linky', isLinkyDetail: r === 'linky-detail', isEco: r === 'eco', isAttention: r === 'attention', isDispatch: r === 'dispatch', isStazka: r === 'stazka', isAnomalies: r === 'anomalies', isAnomalyDetail: r === 'anomaly-detail', isMap: r === 'map', isOptimalizace: r === 'optimalizace', isServis: r === 'servis', isZajezdy: r === 'zajezdy', isElektrobusy: r === 'elektrobusy', isVykony: r === 'vykony', isUcetnictvi: r === 'ucetnictvi', isDrvPortal: r.startsWith('drv-'),
       isDocumentsDetail: r === 'documents-detail',
       openDocCat: (cat) => navigate('documents-detail', { docCat: cat, docOpen: {} }), goDocuments: () => navigate('documents'),
       docPreview: state.docPreview, closeDocPreview: () => setState({ docPreview: null }),
@@ -2620,6 +2671,213 @@ export default function FleetPortal() {
     return { elektrobusy: { kpis, buses, plan } }
   }
 
+  // ---- Účetnictví (převzato z Frenkee CRM, data dopravce) ----
+  const ucetnictviVM = () => {
+    if (state.route !== 'ucetnictvi') return {}
+    void state.accVersion
+    const me = state.role === 'majitel' ? 'Ing. Pavel Šimek' : 'Lenka Nováková'
+    const bump = () => setState((s) => ({ accVersion: (s.accVersion || 0) + 1 }))
+    const kc = ACC.kc, fd = ACC.fmtDate
+    const tab = state.ucTab || 'prehled'
+    const al = ACC.alerts()
+    const TABS = [['prehled', 'Přehled', 'dashboard'], ['faktury', 'Vydané doklady', 'file'], ['naklady', 'Náklady', 'archive'], ['banka', 'Banka', 'banknote'], ['mzdy', 'Mzdy a platby', 'users'], ['uzaverka', 'Uzávěrka a DPH', 'calendar'], ['kontrola', 'Kontrola vedení', 'shield'], ['rok', 'Rok a daň z příjmů', 'scales']]
+    const tabs = TABS.map(([id, label, icon]) => ({ id, label, icon, active: tab === id, badge: id === 'kontrola' ? al.filter((a) => a.level !== 'info').length : 0, onClick: () => setState({ ucTab: id }) }))
+    const TONE_INV = { Vystaveno: ['var(--ink2)', '#EEF2F9'], Zaplaceno: ['var(--green)', 'var(--green-soft)'], 'Po splatnosti': ['var(--star)', 'var(--star-soft)'], Storno: ['#B45309', 'var(--amber-soft)'], 'Dobropisováno': ['var(--purple)', 'var(--purple-soft)'] }
+    const TONE_EXP = { 'Zaúčtováno': ['var(--green)', 'var(--green-soft)'], 'K zaúčtování': ['#B45309', 'var(--amber-soft)'], 'Ke schválení': ['#B45309', 'var(--amber-soft)'], 'Chybí doklad': ['var(--star)', 'var(--star-soft)'] }
+    const TONE_CLOSE = { 'Odesláno': ['var(--green)', 'var(--green-soft)'], 'Uzavřeno': ['var(--blue-ink)', 'var(--blue-soft)'], 'Připraveno': ['#B45309', 'var(--amber-soft)'], 'Otevřeno': ['var(--ink2)', '#EEF2F9'] }
+    const chip = (m, s) => ({ label: s, color: (m[s] || ['var(--ink2)', '#EEF2F9'])[0], bg: (m[s] || ['var(--ink2)', '#EEF2F9'])[1] })
+    const inv = ACC.invoices(), ex = ACC.expenses()
+    const kindOf = (i) => i.kompenzace ? 'vyúčtování výkonů' : ACC.DOC_TYPES[i.docType].short
+    const invRow = (i) => ({ id: i.id, number: i.number, kind: kindOf(i), customer: i.customer, ico: i.ico, item: (i.items[0] || {}).text || '', more: i.items.length - 1, issuedF: fd(i.issued), dueF: fd(i.due), baseF: kc(i.base), vatF: i.vat ? kc(i.vat) : (ACC.DOC_TYPES[i.docType].tax ? (i.kompenzace ? 'mimo DPH' : 'osv.') : '–'), totalF: kc(i.total), chip: chip(TONE_INV, i.status), onClick: () => setState({ ucInvDetail: i.id, ucAskCredit: false, ucReason: '' }) })
+
+    const cf = ACC.cashflow(); const cur = cf.find((m) => m.month === ACC.CURRENT) || cf[0]
+    const open = inv.filter((i) => i.status === 'Vystaveno' || i.status === 'Po splatnosti')
+    const prevM = ACC.MONTHS_2026[ACC.MONTHS_2026.indexOf(ACC.CURRENT) - 1]
+    const prev = ACC.closes().find((c) => c.month === prevM)
+    const cfMax = Math.max(...cf.map((m) => Math.max(m.inflow, m.outflow)), 1)
+    const mil = (n) => (n / 1e6).toFixed(1).replace('.', ',')
+    const prehled = {
+      kpis: [
+        { value: mil(ACC.ACCOUNTS.reduce((s, a) => s + a.balance, 0)), unit: 'mil. Kč', label: 'Na účtech', icon: 'banknote', note: ACC.ACCOUNTS.map((a) => `${a.bank} ${mil(a.balance)} mil.`).join(' · ') },
+        { value: mil(open.reduce((s, i) => s + i.total, 0)), unit: 'mil. Kč', label: 'Pohledávky', icon: 'file', note: `${open.length} dokladů, ${inv.filter((i) => i.status === 'Po splatnosti').length} po splatnosti` },
+        { value: mil(cur.inflow - cur.outflow), unit: 'mil. Kč', label: `Cashflow ${ACC.monthLabel(ACC.CURRENT)}`, icon: 'trend', note: `příjmy ${kc(cur.inflow)}, výdaje ${kc(cur.outflow)}` },
+        { value: String(al.filter((a) => a.level !== 'info').length), label: 'Ke kontrole vedení', icon: 'shield', note: al[0] ? al[0].text : 'vše v pořádku' },
+      ],
+      cf: cf.map((m) => ({ ...m, inH: Math.round(m.inflow / cfMax * 100), outH: Math.round(m.outflow / cfMax * 100), short: m.label.split(' ')[0].slice(0, 3), netK: Math.round((m.inflow - m.outflow) / 1000), cur: m.month === ACC.CURRENT })),
+      prev: prev ? { ...prev, label: ACC.monthLabel(prev.month), chip: chip(TONE_CLOSE, prev.status), revenueF: kc(prev.revenue), costsF: kc(prev.costs), vatDueF: kc(prev.vatDue) } : null,
+      events: ACC.events().slice(0, 8).map((e) => ({ ...e, when: `${fd(e.at)} ${ACC.fmtTime(e.at)}` })),
+    }
+    const filt = state.ucInvFilter || 'vse'
+    const DF = (i, f) => f === 'vse' ? true : f === 'komp' ? !!i.kompenzace : f === 'faktura' ? i.docType === 'faktura' && !i.kompenzace : f === 'zalohy' ? ['proforma', 'zalohova', 'vyzva', 'danovy'].includes(i.docType) : f === 'opravny' ? i.docType === 'opravny' : ['objednavka', 'prijmovy'].includes(i.docType)
+    const faktury = {
+      kpis: [
+        { value: String(inv.filter((i) => i.docType === 'faktura').length), label: 'Faktury (řada FV)', icon: 'file', note: `${mil(inv.filter((i) => i.docType === 'faktura').reduce((s, i) => s + i.total, 0))} mil. Kč za rok` },
+        { value: String(inv.filter((i) => i.kompenzace).length), label: 'Vyúčtování objednatelům', icon: 'scales', note: 'kompenzace JIKORD a město' },
+        { value: mil(open.reduce((s, i) => s + i.total, 0)), unit: 'mil. Kč', label: 'Neuhrazeno', icon: 'clock', note: `${open.length} dokladů, ${inv.filter((i) => i.status === 'Po splatnosti').length} po splatnosti` },
+        { value: String(inv.filter((i) => i.docType === 'opravny').length), label: 'Opravné doklady', icon: 'refresh', note: 'dobropisy k zaplaceným fakturám' },
+      ],
+      filters: [['vse', 'Vše'], ['komp', 'Vyúčtování objednatelům'], ['faktura', 'Faktury'], ['zalohy', 'Výzvy, proformy, zálohy'], ['opravny', 'Opravné'], ['ostatni', 'Objednávky a pokladna']].map(([id, label]) => ({ id, label, count: inv.filter((i) => DF(i, id)).length, active: filt === id, onClick: () => setState({ ucInvFilter: id }) })),
+      rows: inv.filter((i) => DF(i, filt)).map(invRow),
+      docTypes: Object.entries(ACC.DOC_TYPES).map(([k, t]) => ({ id: k, label: t.label, desc: t.desc, onClick: () => openNewDoc(k) })),
+    }
+    const det = state.ucInvDetail ? ACC.invoiceById(state.ucInvDetail) : null
+    const invDetail = det ? (() => {
+      const t = ACC.DOC_TYPES[det.docType]; const tx = det.txId ? ACC.txById(det.txId) : null; const rel = det.relatedId ? ACC.invoiceById(det.relatedId) : null
+      const hasDD = inv.some((d) => d.docType === 'danovy' && d.relatedId === det.id)
+      return {
+        ...det, title: `${t.label} ${det.number}`, company: ACC.COMPANY, issuedF: fd(det.issued), duzpF: fd(det.duzp), dueF: fd(det.due), duzpLabel: t.tax ? 'DUZP' : 'Datum plnění', account: ACC.ACCOUNTS[0].number, chip: chip(TONE_INV, det.status), txInfo: tx ? `${fd(tx.at)} z ${tx.counterAccount}` : '', relatedNo: rel ? rel.number : '',
+        items: det.items.map((it) => ({ ...it, unitPriceF: kc(it.unitPrice), amountF: kc(it.amount), totalF: kc(it.amount + Math.round(it.amount * it.vatRate / 100)), vatLabel: it.vatRate ? `${it.vatRate} %` : 'osv.' })),
+        vatSummary: det.vatSummary.map((r) => ({ ...r, label: `Základ ${r.rate ? r.rate + ' %' : 'osvobozeno / mimo DPH'} ${kc(r.base)}${r.rate ? ', DPH ' + kc(r.vat) : ''}`, totalF: kc(r.base + r.vat) })),
+        totalF: kc(det.total), totalLabel: det.docType === 'opravny' ? 'K vrácení' : 'Celkem k úhradě',
+        canPay: det.status === 'Vystaveno' || det.status === 'Po splatnosti', canCredit: det.status === 'Zaplaceno' && det.docType === 'faktura', canDD: (det.docType === 'zalohova' || det.docType === 'vyzva') && det.status === 'Zaplaceno' && !hasDD, canCancel: !['Zaplaceno', 'Storno', 'Dobropisováno'].includes(det.status),
+        askCredit: state.ucAskCredit, reason: state.ucReason, setReason: (e) => setState({ ucReason: e.target.value }), toggleCredit: (v) => setState({ ucAskCredit: v }),
+        print: () => setState({ execReport: ACC.invoiceHtml(det) }),
+        send: () => showToast(`Doklad ${det.number} odeslán e-mailem (${det.customer})`),
+        pay: () => { ACC.markPaid(det.id, me); bump(); showToast('Označeno jako zaplaceno') },
+        credit: () => { const c = ACC.creditNote(det.id, me, state.ucReason.trim()); bump(); showToast(`Vystaven opravný doklad ${c ? c.number : ''}`); setState({ ucInvDetail: null }) },
+        dd: () => { const d = ACC.taxDocToPayment(det.id, me); bump(); showToast(`Vystaven daňový doklad ${d ? d.number : ''}`); setState({ ucInvDetail: null }) },
+        cancel: () => { ACC.cancelInvoice(det.id, me); bump(); showToast(`Doklad ${det.number} stornován`); setState({ ucInvDetail: null }) },
+        close: () => setState({ ucInvDetail: null }), stop,
+      }
+    })() : null
+    const nd = state.ucNew
+    const setNd = (p) => setState((s) => ({ ucNew: { ...s.ucNew, ...(typeof p === 'function' ? p(s.ucNew) : p) } }))
+    const newDoc = nd ? (() => {
+      const t = ACC.DOC_TYPES[nd.docType]
+      const cust = nd.custId ? ACC.CUSTOMERS.find((c) => c.id === nd.custId) : null
+      const items = nd.rows.filter((r) => r.text.trim() && Number(r.price) > 0).map((r) => { const qty = Number(r.qty) || 1; const price = Number(r.price); const unitBase = nd.withVat ? Math.round(price / (1 + r.vat / 100)) : price; return { text: r.text.trim(), qty, unit: r.unit, unitPrice: unitBase, vatRate: r.vat, amount: Math.round(unitBase * qty) } })
+      const base = items.reduce((s, i) => s + i.amount, 0), vat = items.reduce((s, i) => s + Math.round(i.amount * i.vatRate / 100), 0)
+      const number = `${t.series}-2026-${String(inv.filter((i) => i.series === t.series).length + 1).padStart(4, '0')}`
+      const relatedOptions = inv.filter((i) => nd.docType === 'opravny' ? i.docType === 'faktura' && i.status === 'Zaplaceno' : (i.docType === 'zalohova' || i.docType === 'vyzva') && i.status === 'Zaplaceno').map((i) => ({ id: i.id, label: `${i.number} · ${i.customer} · ${kc(i.total)}` }))
+      const custName = cust ? cust.name : nd.custName
+      const ok = !!(custName && custName.trim()) && items.length > 0 && (nd.docType !== 'opravny' || nd.related)
+      return {
+        ...nd, title: t.label, desc: t.desc, tax: t.tax, number, baseF: kc(base), vatF: kc(vat), totalF: kc(base + vat), ok, relatedOptions, needsRelated: nd.docType === 'opravny' || nd.docType === 'danovy',
+        customers: ACC.CUSTOMERS.map((c) => ({ id: c.id, label: `${c.name} · IČO ${c.ico}` })), custLabel: cust ? `${cust.name} · IČO ${cust.ico} · ${cust.address}` : null,
+        methods: ACC.PAYMENT_METHODS, units: ['ks', 'km', 'hod', 'měs', 'den', 'os'],
+        setCust: (e) => setNd({ custId: e.target.value, custName: '' }), setCustName: (e) => setNd({ custName: e.target.value, custId: '' }), setCustIco: (e) => setNd({ custIco: e.target.value }), setCustAddr: (e) => setNd({ custAddr: e.target.value }),
+        setIssued: (e) => setNd({ issued: e.target.value, duzp: e.target.value }), setDuzp: (e) => setNd({ duzp: e.target.value }), setDueDays: (e) => setNd({ dueDays: Number(e.target.value) || 0 }), setMethod: (e) => setNd({ method: e.target.value }), setWithVat: (e) => setNd({ withVat: e.target.value === 's' }), setNote: (e) => setNd({ note: e.target.value }), setPaidOn: (e) => setNd({ paidOn: e.target.value }),
+        setRelated: (e) => { const o = inv.find((i) => i.id === e.target.value); setNd({ related: e.target.value, custId: o && o.clientId ? o.clientId : '', custName: o && !o.clientId ? o.customer : '', rows: o ? o.items.map((i) => ({ text: i.text, qty: String(i.qty), unit: i.unit, price: String(nd.docType === 'opravny' ? -i.unitPrice : i.unitPrice), vat: i.vatRate })) : nd.rows }) },
+        updRow: (i, patch) => setNd((n) => ({ rows: n.rows.map((r, j) => j === i ? { ...r, ...patch } : r) })), addRow: () => setNd((n) => ({ rows: [...n.rows, { text: '', qty: '1', unit: 'ks', price: '', vat: n.rows[n.rows.length - 1] ? n.rows[n.rows.length - 1].vat : 21 }] })), delRow: (i) => setNd((n) => ({ rows: n.rows.length > 1 ? n.rows.filter((_, j) => j !== i) : [{ text: '', qty: '1', unit: 'ks', price: '', vat: 21 }] })),
+        submit: () => { if (!ok) return; const ico = cust ? cust.ico : nd.custIco; const r = ACC.issueDocument({ docType: nd.docType, clientId: cust ? cust.id : undefined, customer: custName.trim(), ico, dic: ico ? `CZ${ico}` : undefined, address: cust ? cust.address : nd.custAddr, items, issued: new Date(nd.issued), duzp: new Date(nd.duzp), dueDays: nd.dueDays, paymentMethod: nd.method, relatedId: nd.related || undefined, note: nd.note.trim() || undefined, paidAt: nd.paidOn ? new Date(nd.paidOn) : undefined, by: me }); bump(); showToast(`Vystaven doklad ${r.number} na ${kc(r.total)}`); setState({ ucNew: null }) },
+        close: () => setState({ ucNew: null }), stop,
+      }
+    })() : null
+    const ef = state.ucExpFilter || 'vse'
+    const exList = ex.filter((e) => ef === 'vse' ? true : ef === 'k' ? e.status !== 'Zaúčtováno' : e.kind === ef)
+    const exMonth = ex.filter((e) => ACC.inMonth(e.received, ACC.CURRENT))
+    const chart = ACC.CHART.filter((c) => c.type === 'náklad')
+    const naklady = {
+      kpis: [
+        { value: (exMonth.reduce((s, e) => s + e.base, 0) / 1e6).toFixed(2).replace('.', ','), unit: 'mil. Kč', label: `Náklady ${ACC.monthLabel(ACC.CURRENT)}`, icon: 'archive', note: `${exMonth.length} dokladů, DPH na vstupu ${kc(exMonth.reduce((s, e) => s + e.vat, 0))}` },
+        { value: String(ex.filter((e) => e.status !== 'Zaúčtováno').length), label: 'K zaúčtování', icon: 'alert', note: 'AI navrhla účet, účetní potvrdí' },
+        { value: String(ex.filter((e) => e.source === 'E-mail faktury@').length), label: 'Ze schránky faktury@', icon: 'send', note: 'automaticky stažené faktury' },
+        { value: String(ex.filter((e) => e.kind === 'Účtenka').length), label: 'Účtenky a paragony', icon: 'upload', note: 'nahrané přes drag & drop' },
+      ],
+      filters: [['vse', 'Vše', ex.length], ['Faktura', 'Přijaté faktury', ex.filter((e) => e.kind === 'Faktura').length], ['Účtenka', 'Účtenky', ex.filter((e) => e.kind === 'Účtenka').length], ['k', 'K zaúčtování', ex.filter((e) => e.status !== 'Zaúčtováno').length]].map(([id, label, count]) => ({ id, label, count, active: ef === id, onClick: () => setState({ ucExpFilter: id }) })),
+      rows: exList.slice(0, 60).map((e) => ({ id: e.id, supplier: e.supplier, note: e.note, number: e.number, kind: e.kind, category: e.category, account: e.account, receivedF: fd(e.received), baseF: kc(e.base), vatF: e.vatRate ? kc(e.vat) : '–', totalF: kc(e.total), source: e.source, ai: e.ai, chip: chip(TONE_EXP, e.status), unposted: e.status !== 'Zaúčtováno', post: () => { ACC.postExpense(e.id, me); bump(); showToast(`${e.supplier} zaúčtováno na ${e.account}`) }, onClick: () => setState({ ucExpDetail: e.id }) })),
+      note: state.ucExpNote, setNote: (e) => setState({ ucExpNote: e.target.value }),
+      drop: (files) => { if (!files || !files.length) return; [...files].forEach((f) => ACC.addReceipt({ name: f.name, size: f.size }, me, state.ucExpNote)); bump(); showToast(`${files.length} ${files.length === 1 ? 'doklad nahrán' : files.length < 5 ? 'doklady nahrány' : 'dokladů nahráno'}, AI vyčetla údaje a navrhla zaúčtování`); setState({ ucExpNote: '' }) },
+      fetchMail: () => { ACC.fetchMailInvoices(me); bump(); showToast('Schránka faktury@csadbus.cz: staženy 2 nové faktury') },
+      chart,
+      detail: (() => { const e = state.ucExpDetail ? ACC.expenseById(state.ucExpDetail) : null; return e ? { ...e, title: `${e.kind} ${e.number}`, amountLine: `${kc(e.base)} + DPH ${e.vatRate} % ${kc(e.vat)} = ${kc(e.total)}`, payLine: e.paidAt ? fd(e.paidAt) : e.due < ACC.TODAY ? 'po splatnosti, neuhrazeno' : `splatnost ${fd(e.due)}`, chart, setAccount: (ev) => { ACC.postExpense(e.id, me, ev.target.value); bump(); showToast(`Zaúčtováno na ${ev.target.value}`) }, close: () => setState({ ucExpDetail: null }), stop } : null })(),
+    }
+    const accId = state.ucAcc || 'csob', only = state.ucBank || 'vse'
+    const a = ACC.ACCOUNTS.find((x) => x.id === accId) || ACC.ACCOUNTS[0]
+    const allTx = ACC.txs(accId)
+    const unmatched = (t) => !t.invoiceId && !t.expenseId && ['Platba odběratele', 'Kompenzace objednatele', 'Náklad', 'Neznámá'].includes(t.kind)
+    const txList = allTx.filter((t) => only === 'nesparovane' ? unmatched(t) : only === 'flag' ? !!t.flag && !t.approvedBy : true)
+    const banka = {
+      accounts: ACC.ACCOUNTS.map((x) => ({ ...x, active: x.id === accId, balanceF: kc(x.balance), syncF: `${fd(x.lastSync)} ${ACC.fmtTime(x.lastSync)}`, onClick: () => setState({ ucAcc: x.id }) })),
+      title: `Pohyby: ${a.label} (${a.bank})`, sub: `${allTx.filter((t) => t.invoiceId || t.expenseId).length} z ${allTx.length} pohybů spárováno s fakturou nebo dokladem podle variabilního symbolu a částky`,
+      filters: [['vse', 'Vše', allTx.length], ['nesparovane', 'Nespárované', allTx.filter(unmatched).length], ['flag', 'Nesrovnalosti', allTx.filter((t) => t.flag && !t.approvedBy).length]].map(([id, label, count]) => ({ id, label, count, active: only === id, onClick: () => setState({ ucBank: id }) })),
+      isImport: a.mode === 'Výpis',
+      importFile: (f) => { const n = ACC.importStatement(accId, { name: f.name }, me); bump(); showToast(`Výpis ${f.name} načten, porovnán s fakturami (${n} nově spárováno)`) },
+      sync: () => { ACC.importStatement(accId, { name: 'API synchronizace' }, me); bump(); showToast('Účet synchronizován přes bankovní API') },
+      rows: txList.slice(0, 80).map((t) => { const i = t.invoiceId ? ACC.invoiceById(t.invoiceId) : null; const e = t.expenseId ? ACC.expenseById(t.expenseId) : null; return { id: t.id, dateF: fd(t.at), counterparty: t.counterparty, counterAccount: t.counterAccount, vs: t.vs || '–', message: t.message, kind: t.kind, amountF: (t.amount >= 0 ? '+' : '−') + kc(Math.abs(t.amount)), pos: t.amount >= 0, flagged: !!t.flag && !t.approvedBy, doc: i ? { label: i.number, color: 'var(--green)', bg: 'var(--green-soft)' } : e ? { label: `${e.kind} ${e.number}`, color: 'var(--green)', bg: 'var(--green-soft)' } : t.flag && !t.approvedBy ? { label: t.flag, color: t.flag === 'Účet mimo systém' ? 'var(--star)' : '#B45309', bg: t.flag === 'Účet mimo systém' ? 'var(--star-soft)' : 'var(--amber-soft)' } : t.approvedBy ? { label: `Schválil ${t.approvedBy}`, color: 'var(--blue-ink)', bg: 'var(--blue-soft)' } : null, canAttach: t.flag === 'Chybí doklad' && !t.approvedBy, attach: () => { ACC.attachDoc(t.id, me); bump(); showToast('Doklad doplněn a zaúčtován') }, toKontrola: ['Účet mimo systém', 'Ke schválení vedením', 'Nesedí částka'].includes(t.flag) && !t.approvedBy ? () => setState({ ucTab: 'kontrola' }) : null } }),
+    }
+    const people = PEOPLE_ALL().map((p) => ({ p, pr: buildPayroll(p, hrModeOf(p)) }))
+    const emp = people.filter((x) => x.pr.mode === 'zamestnanec'), osvc = people.filter((x) => x.pr.mode === 'osvc')
+    const sumE = (f) => emp.reduce((s, x) => s + f(x.pr), 0)
+    const netSum = sumE((pr) => pr.net), gross = sumE((pr) => pr.gross), socAll = sumE((pr) => -pr.rows[1][1] + pr.employer[0][1]), zdravAll = sumE((pr) => -pr.rows[2][1] + pr.employer[1][1]), danAll = sumE((pr) => -pr.rows[3][1]), osvcSum = osvc.reduce((s, x) => s + x.pr.gross, 0)
+    const mzdy = {
+      kpis: [
+        { value: String(people.length), label: 'Lidí ve mzdách (vzorek)', icon: 'users', note: `${emp.length} zaměstnanců, ${osvc.length} OSVČ` },
+        { value: (gross / 1e3).toFixed(0), unit: 'tis. Kč', label: 'Hrubé mzdy říjen', icon: 'banknote', note: 'z karet lidí (Řidiči)' },
+        { value: (netSum / 1e3).toFixed(0), unit: 'tis. Kč', label: 'K výplatě 10. 11.', icon: 'send', note: 'čisté mzdy zaměstnanců' },
+        { value: ((socAll + zdravAll + danAll) / 1e3).toFixed(0), unit: 'tis. Kč', label: 'Odvody 20. 11.', icon: 'scales', note: 'ČSSZ, ZP a FÚ' },
+      ],
+      platby: [
+        { to: 'Zaměstnanci (hromadný příkaz)', what: 'Čisté mzdy za říjen 2026', due: '10. 11. 2026', acct: 'hromadný příkaz', amountF: kc(netSum), status: 'Ke schválení' },
+        { to: 'ČSSZ, OSSZ České Budějovice', what: 'Sociální pojištění (zaměstnanci + zaměstnavatel)', due: '20. 11. 2026', acct: '21012-7926041/0710', amountF: kc(socAll), status: 'Připraveno' },
+        { to: 'Zdravotní pojišťovny (VZP, ČPZP, OZP)', what: 'Zdravotní pojištění', due: '20. 11. 2026', acct: 'dle pojišťovny', amountF: kc(zdravAll), status: 'Připraveno' },
+        { to: 'Finanční úřad pro Jihočeský kraj', what: 'Zálohy na daň ze závislé činnosti', due: '20. 11. 2026', acct: '713-77627231/0710', amountF: kc(danAll), status: 'Připraveno' },
+        { to: 'OSVČ / subdodavatelé', what: 'Fakturace za výkony říjen', due: 'dle splatnosti faktur', acct: 'dle faktury', amountF: kc(osvcSum), status: 'Čeká na faktury' },
+      ].map((p) => ({ ...p, chip: { label: p.status, color: p.status === 'Připraveno' ? 'var(--green)' : '#B45309', bg: p.status === 'Připraveno' ? 'var(--green-soft)' : 'var(--amber-soft)' } })),
+      rows: people.slice(0, 12).map(({ p, pr }) => ({ id: p.id, name: p.name, position: p.position, mode: pr.modeLabel, grossF: kc(pr.gross), netF: kc(pr.net), costF: kc(pr.employerCost), onClick: p.vehicleIds ? () => openDriver(p.id) : null })),
+      sendAll: () => showToast('Platební příkazy (pain.001) předány do banky ke schválení druhou osobou.'),
+      goHr: () => navigate('drivers'),
+    }
+    const closeList = ACC.closes().filter((c) => c.month !== ACC.CURRENT).reverse()
+    const selM = state.ucMonth || (closeList[0] ? closeList[0].month : ACC.CURRENT)
+    const c = ACC.closes().find((x) => x.month === selM) || ACC.computeClose(selM)
+    const kh = ACC.kontrolniHlaseni(selM)
+    const uzaverka = {
+      rows: closeList.map((x) => ({ month: x.month, label: ACC.monthLabel(x.month), revenueF: Math.round(x.revenue).toLocaleString('cs-CZ'), costsF: Math.round(x.costs).toLocaleString('cs-CZ'), outF: Math.round(x.outputVat).toLocaleString('cs-CZ'), inF: Math.round(x.inputVat).toLocaleString('cs-CZ'), dueF: Math.round(x.vatDue).toLocaleString('cs-CZ'), chip: chip(TONE_CLOSE, x.status), sentNote: x.sentAt ? `${x.sentAt.getDate()}. ${x.sentAt.getMonth() + 1}. · ${x.sentVia === 'Datová schránka' ? 'datovka' : 'XML'}` : '', active: x.month === selM, onClick: () => setState({ ucMonth: x.month }) })),
+      sel: { label: ACC.monthLabel(selM), chip: chip(TONE_CLOSE, c.status), outF: kc(c.outputVat), inF: kc(c.inputVat), coef: c.coef, dedF: kc(c.inputVatDeductible), dueF: kc(Math.max(0, c.vatDue)), over: c.vatDue < 0 ? kc(-c.vatDue) : null, faresF: kc(c.fares || 0), kh: `A4 ${kh.A4.length} řádků, A5 ${kc(kh.A5.base)}, B2 ${kh.B2.length} řádků, B3 ${kc(kh.B3.base)}`, issues: c.issues, canClose: c.status === 'Otevřeno' || c.status === 'Připraveno', canSend: c.status === 'Uzavřeno' || c.status === 'Připraveno', sent: c.status === 'Odesláno' },
+      closeMonth: () => { ACC.closeMonth(selM, me); bump(); showToast(`${ACC.monthLabel(selM)} uzavřen, DPH k úhradě ${kc(c.vatDue)}`) },
+      sendDs: () => { ACC.sendVat(selM, 'Datová schránka', me); bump(); showToast(`Odesláno datovou schránkou (${ACC.COMPANY.dataBox}) na ${ACC.COMPANY.taxOffice}`) },
+      exportXml: () => { ACC.downloadText(`DPH_${selM}.xml`, ACC.vatXml(selM), 'application/xml'); if (c.status !== 'Odesláno') { ACC.sendVat(selM, 'Export XML', me); bump() } showToast('XML pro EPO (DPHDP3 + DPHKH1) staženo') },
+      company: ACC.COMPANY,
+    }
+    const allTxs = ACC.txs()
+    const flagged = allTxs.filter((t) => t.flag && !t.approvedBy)
+    const known = new Set([...ACC.ACCOUNTS.map((x) => x.number), ...inv.map((i) => (ACC.txById(i.txId) || {}).counterAccount || ''), ...ex.map((e) => (ACC.txById(e.txId) || {}).counterAccount || '')])
+    const outUnknown = allTxs.filter((t) => t.amount < 0 && t.kind !== 'Mzdy a odvody' && t.kind !== 'DPH' && !known.has(t.counterAccount) && !t.expenseId && !t.invoiceId)
+    const kontrola = {
+      kpis: [
+        { value: String(flagged.length), label: 'K rozhodnutí vedení', icon: 'alert', note: 'platby mimo systém, bez dokladu, výběry' },
+        { value: String(outUnknown.length), label: 'Odchozí platby na neznámé účty', icon: 'shield', note: 'účet není u žádné faktury ani dokladu' },
+        { value: 'Zapnuto', label: 'Čtyři oči', icon: 'users', note: 'platby nad 100 000 Kč mimo faktury schvaluje majitel' },
+      ],
+      alerts: al.map((x) => { const t = x.txId ? ACC.txById(x.txId) : null; const needsApprove = !!(t && ['Účet mimo systém', 'Ke schválení vedením', 'Nesedí částka'].includes(t.flag)); return { ...x, color: x.level === 'err' ? 'var(--star)' : x.level === 'warn' ? '#B45309' : 'var(--blue-ink)', bg: x.level === 'err' ? 'var(--star-soft)' : x.level === 'warn' ? 'var(--amber-soft)' : 'var(--blue-soft)', needsApprove, note: t ? (state.ucNotes[t.id] || '') : '', setNote: t ? (e) => setState((s) => ({ ucNotes: { ...s.ucNotes, [t.id]: e.target.value } })) : null, approve: needsApprove ? () => { ACC.approveTx(t.id, me, state.ucNotes[t.id]); bump(); showToast('Platba schválena vedením, zapsáno do auditu') } : null, investigate: t ? () => showToast(`Platba ${t.counterparty} předána k prošetření (banka, účetní)`) : null, attach: t && t.flag === 'Chybí doklad' && !t.approvedBy ? () => { ACC.attachDoc(t.id, me); bump(); showToast('Doklad doplněn') } : null, goInv: x.invoiceId ? () => setState({ ucTab: 'faktury', ucInvDetail: x.invoiceId }) : null, goExp: x.expenseId ? () => setState({ ucTab: 'naklady', ucExpDetail: x.expenseId }) : null } }),
+      rules: ['Odchozí platba na účet, který není u žádné faktury, dokladu ani v seznamu firemních účtů → okamžité upozornění majiteli, účetní ji nemůže schválit sama.', 'Platba bez dokladu po 5 dnech → výzva k doplnění, bez dokladu se měsíc neuzavře.', 'Rozdíl mezi fakturou a přijatou částkou (typicky kompenzace objednatele) → nesedí částka, k ručnímu spárování.', 'Výběry a platby vlastníkům, odměny nad limit → schválení druhou osobou (čtyři oči), zápis do auditu.', 'Tankovací karty: čerpání bez přiřazeného vozidla nebo mimo směnu řidiče → upozornění (napojeno na Anomálie).'],
+    }
+    const ys = ACC.yearSummary()
+    const rok = {
+      kpis: [
+        { value: mil(ys.revenue), unit: 'mil. Kč', label: 'Výnosy 2026 (k dnešku)', icon: 'trend', note: `kompenzace ${mil(ys.komp)} mil., jízdné ${mil(ys.fares)} mil., služby ${mil(ys.services)} mil.` },
+        { value: mil(ys.costs), unit: 'mil. Kč', label: 'Náklady 2026', icon: 'archive', note: `daňově neuznatelné ${kc(ys.nonDeductible)}` },
+        { value: mil(ys.base), unit: 'mil. Kč', label: 'Základ daně', icon: 'scales', note: 'výnosy − náklady + neuznatelné' },
+        { value: (ys.tax / 1e6).toFixed(2).replace('.', ','), unit: 'mil. Kč', label: 'Daň z příjmů 21 %', icon: 'banknote', note: 'odhad DPPO, zálohy se odečtou' },
+      ],
+      byAccount: ys.byAccount.map(([acc, v]) => ({ account: acc, name: (ACC.CHART.find((x) => x.account === acc) || {}).name || 'Mzdy a odvody', amountF: kc(v), pct: Math.round(v / ys.costs * 100), nd: acc === '513' })),
+      closedCount: ACC.MONTHS_2026.length - 1,
+      exportCsv: () => { ACC.downloadText('DPPO_2026_podklady.csv', ACC.dppoCsv(), 'text/csv;charset=utf-8'); showToast('Podklady pro daňového poradce staženy (CSV)') },
+      prepare: () => showToast('Návrh přiznání DPPO se připraví po uzavření prosince; podklady jsou průběžně k dispozici.'),
+    }
+    return { ucetnictvi: { tab, tabs, me, company: ACC.COMPANY, prehled, faktury, invDetail, newDoc, naklady, banka, mzdy, uzaverka, kontrola, rok, goTab: (t) => setState({ ucTab: t }) } }
+  }
+
+  // ---- Řidičský portál (role Řidič): volno, zprávy, podněty, doklady, mzda ----
+  const driverPortalVM = () => {
+    if (state.role !== 'ridic' || !state.route.startsWith('drv-')) return {}
+    const d = driversData.find((x) => x.id === 'dr1') || driversData[0]
+    const hr = buildHrVM(d)
+    const withKey = state.drvMsgTo || 'dispecink'
+    const msgs = state.drvMsgs.filter((m) => m.driverId === d.id && m.with === withKey)
+    const docs = state.drvDocs.filter((x) => x.driverId === d.id).map((x) => ({ ...x, meta: DRV_DOC_STATUS[x.status], upload: (file) => uploadDrvDoc(x.id, file) }))
+    const ideaMeta = (s) => s === 'Přijato' ? { label: s, color: 'var(--green)', bg: 'var(--green-soft)' } : s === 'V posouzení' ? { label: s, color: 'var(--blue-ink)', bg: 'var(--blue-soft)' } : { label: s, color: '#B45309', bg: 'var(--amber-soft)' }
+    return { drv: {
+      view: state.route, name: d.name, hr,
+      volno: { items: hr.timeOff, vacLeft: hr.vacLeft, vacTotal: hr.vacTotal, vacUsed: hr.vacUsed, add: hr.addTimeOff },
+      zpravy: { with: withKey, channels: [['dispecink', 'Dispečink', 'Marie Dvořáková · vedoucí dispečinku'], ['vedeni', 'Vedení', 'Ing. Pavel Šimek · ředitel']].map(([id, label, who]) => ({ id, label, who, active: withKey === id, onClick: () => setState({ drvMsgTo: id }) })), msgs, text: state.drvMsgText, setText: (e) => setState({ drvMsgText: e.target.value }), send: sendDrvMsg, canSend: !!(state.drvMsgText && state.drvMsgText.trim()) },
+      podnety: { items: state.drvIdeas.map((i) => ({ ...i, mine: i.driverId === d.id, who: (driversData.find((x) => x.id === i.driverId) || {}).name || '—', meta: ideaMeta(i.status), vote: () => voteIdea(i.id) })), cats: ['Provoz', 'Vozidla', 'Zázemí', 'Jízdní řády', 'Jiné'], cat: state.drvIdeaCat, setCat: (c) => setState({ drvIdeaCat: c }), text: state.drvIdeaText, setText: (e) => setState({ drvIdeaText: e.target.value }), submit: addIdea, canSend: !!(state.drvIdeaText && state.drvIdeaText.trim()) },
+      doklady: { items: docs, missing: docs.filter((x) => x.status === 'missing' || x.status === 'expiring').length },
+      report: (cat) => openReportModal(d.id, cat),
+    } }
+  }
+
   // ---- Dispečink: oběhy vozidel (Gantt) + turnusy řidičů ----
   const dispatchVM = () => {
     if (state.route !== 'dispatch') return {}
@@ -2800,6 +3058,9 @@ export default function FleetPortal() {
       addReport: () => openReportModal(d.id),
       training: buildTraining(d).map((t) => { const due = dueInfo(t.validTo, 60); const badge = !due ? null : due.expired ? { label: `propadlé · ${-due.days} dní`, color: 'var(--star)', bg: 'var(--star-soft)', sev: 2 } : due.days <= 60 ? { label: `končí za ${due.days} dní`, color: '#B45309', bg: 'var(--amber-soft)', sev: 1 } : { label: 'platné', color: 'var(--green)', bg: 'var(--green-soft)', sev: 0 }; return { ...t, badge } }),
       attendance: buildAttendance(d),
+      uploads: state.drvDocs.filter((x) => x.driverId === d.id && x.status === 'uploaded').map((x) => ({ ...x, meta: DRV_DOC_STATUS[x.status] })),
+      docGaps: state.drvDocs.filter((x) => x.driverId === d.id && (x.status === 'missing' || x.status === 'expiring')).map((x) => ({ ...x, meta: DRV_DOC_STATUS[x.status] })),
+      msgs: state.drvMsgs.filter((m) => m.driverId === d.id).slice(-4),
     }
   }
 
@@ -2821,6 +3082,7 @@ export default function FleetPortal() {
     ]
     const shift = { line: myLine.no, name: myLine.name, bus: bus ? `${bus.brand} ${bus.model}` : '', plate: bus ? bus.plate : '', first: myLine.firstDep, last: myLine.lastDep, trips: myLine.tripsDay, onClick: () => openLine(myLine.id) }
     return { driverSelf: { d, name: d.name, initials: d.initials, position: d.position, kpis, hr, shift,
+      links: DRIVER_NAV.slice(1).map(([id, label, icon]) => ({ id, label, icon, onClick: () => navigate(id) })),
       reportCats: [['vozidlo', 'Závada na vozidle', 'wrench'], ['trasa', 'Problém na trase', 'pin'], ['jine', 'Jiné hlášení', 'info']].map((c) => ({ cat: c[0], label: c[1], icon: c[2], onClick: () => openReportModal(d.id, c[0]) })),
     } }
   }
@@ -3330,7 +3592,7 @@ export default function FleetPortal() {
     tireModal: state.tireModal ? { ...state.tireModal, close: () => setState({ tireModal: null }), stop: (e) => e.stopPropagation(), actions: TIRE_ACTIONS, field: (k) => (e) => setTireField(k, e.target.value), onInvoice: (e) => { const f = e.target.files && e.target.files[0]; if (f) setTireField('invoice', f.name) }, save: saveTire } : null,
     fineModal: state.fineModal ? { ...state.fineModal, close: () => setState({ fineModal: null }), stop: (e) => e.stopPropagation(), types: FINE_TYPES, field: (k) => (e) => setFineField(k, e.target.value), togglePaid: () => setState((s) => ({ fineModal: { ...s.fineModal, paid: !s.fineModal.paid } })), save: saveFine } : null,
     ...shellVM(), ...dashboardVM(), ...fleetsVM(), ...fleetDetailVM(), ...vehiclesVM(), ...vehicleDetailVM(),
-    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...ownerDashVM(), ...dispatchDashVM(), ...driverSelfVM(), ...attentionVM(), ...anomaliesVM(), ...anomalyDetailVM(), ...mapVM(), ...vykonyVM(), ...optimalizaceVM(), ...servisVM(), ...zajezdyVM(), ...elektrobusyVM(), ...dispatchVM(), ...stazkaVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(), ...linkyVM(), ...linkyDetailVM(), ...ecoVM(),
+    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...ownerDashVM(), ...dispatchDashVM(), ...driverSelfVM(), ...attentionVM(), ...anomaliesVM(), ...anomalyDetailVM(), ...mapVM(), ...vykonyVM(), ...optimalizaceVM(), ...servisVM(), ...zajezdyVM(), ...elektrobusyVM(), ...ucetnictviVM(), ...driverPortalVM(), ...dispatchVM(), ...stazkaVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(), ...linkyVM(), ...linkyDetailVM(), ...ecoVM(),
   }
 
   return <Render vm={vm} />
