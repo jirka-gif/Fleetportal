@@ -735,6 +735,9 @@ const ROLES = [
   { id: 'ucetni', name: 'Lenka Nováková', title: 'Mzdová účetní', initials: 'LN', short: 'Účetní',
     desc: 'Účetnictví, mzdy, banka, DPH a daňové podklady.', icon: 'banknote' },
 ]
+// Skupiny menu (jako ve Frenkee CRM): Pracovní prostor je vždy otevřený, ostatní jdou sbalit
+const NAV_GROUPS = [['work', 'Pracovní prostor'], ['provoz', 'Provoz'], ['flotila', 'Flotila'], ['lide', 'Lidé'], ['finance', 'Finance'], ['firma', 'Firma']]
+const NAV_GROUP_OF = { dashboard: 'work', map: 'work', anomalies: 'work', linky: 'provoz', dispatch: 'provoz', optimalizace: 'provoz', eco: 'provoz', zajezdy: 'provoz', elektrobusy: 'provoz', fleets: 'flotila', vehicles: 'flotila', servis: 'flotila', insurance: 'flotila', financing: 'flotila', claims: 'flotila', drivers: 'lide', vykony: 'finance', ucetnictvi: 'finance', analytics: 'finance', documents: 'firma', contacts: 'firma', settings: 'firma' }
 const ACCOUNTANT_NAV = [['ucetnictvi', 'Účetnictví', 'banknote'], ['vykony', 'Vyúčtování výkonů', 'scales'], ['drivers', 'Lidé a mzdy', 'users'], ['documents', 'Dokumenty', 'file'], ['analytics', 'Reporting', 'trend']]
 // Plánování směn: dispečer/správce předá řidiči jízdní řád (datum, linka, autobus), řidič vidí kalendář a potvrdí převzetí
 const SHIFT_TURNUS = { 'ranní': ['04:20', '13:10'], 'odpolední': ['12:40', '21:30'], 'celodenní': ['05:00', '17:30'] }
@@ -895,6 +898,7 @@ export default function FleetPortal() {
     hrMode: {}, timeOff: SEED_TIMEOFF, driverReports: SEED_DRIVER_REPORTS, reportModal: null, timeOffModal: null, reportForm: {}, timeOffForm: {}, optiRun: false,
     ucTab: 'prehled', accVersion: 0, ucInvFilter: 'vse', ucInvDetail: null, ucNew: null, ucAskCredit: false, ucReason: '', ucExpFilter: 'vse', ucExpDetail: null, ucExpNote: '', ucAcc: 'csob', ucBank: 'vse', ucMonth: null, ucNotes: {},
     drvMsgs: SEED_DRV_MSGS, drvMsgTo: 'dispecink', drvMsgText: '', drvIdeas: SEED_DRV_IDEAS, drvIdeaText: '', drvIdeaCat: 'Provoz', drvDocs: SEED_DRV_DOCS,
+    navOpen: { provoz: true, flotila: true, lide: true, finance: true, firma: false },
     shifts: SEED_SHIFTS, shiftForm: { dayKey: SHIFT_DAYS[1].key, driverId: 'dr1', lineId: linesData[0].id, busId: linesData[0].busId, turnus: 'ranní' },
     claimWizard: false, claimStep: 1, claimData: {},
     rowMenu: null, toast: null,
@@ -1247,6 +1251,11 @@ export default function FleetPortal() {
         badge, badgeStyle: `font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;color:${on ? '#fff' : 'var(--side-fg)'};background:rgba(255,255,255,${on ? '.22' : '.07'});padding:2px 8px;border-radius:20px`,
       }
     })
+    // skupiny menu podle role: flotilové role mají sekce jako Frenkee CRM, řidič a účetní jednu skupinu
+    const toggleNavGroup = (g) => setState((s) => ({ navOpen: { ...s.navOpen, [g]: !s.navOpen[g] } }))
+    const navGroups = state.role === 'ridic' ? [{ id: 'portal', title: 'Můj portál', items: nav, open: true, collapsible: false }]
+      : state.role === 'ucetni' ? [{ id: 'acc', title: 'Účetní agenda', items: nav, open: true, collapsible: false }]
+      : NAV_GROUPS.map(([id, title]) => ({ id, title, items: nav.filter((n) => (NAV_GROUP_OF[n.id] || 'firma') === id), open: id === 'work' ? true : state.navOpen[id] !== false, collapsible: id !== 'work', toggle: () => toggleNavGroup(id) })).filter((g) => g.items.length > 0)
     const titles = {
       dashboard: ['Přehled', 'Souhrn vozového parku ČSAD AUTOBUSY České Budějovice a.s.'],
       fleets: ['Vozové parky', `${allFleets.length} ${allFleets.length === 1 ? 'lokalita' : allFleets.length < 5 ? 'lokality' : 'lokalit'} · ${vehiclesData.length} vozidel`],
@@ -1325,7 +1334,7 @@ export default function FleetPortal() {
 
     return {
       vp, sidebarOpen: state.sidebar, toggleSidebar: () => setState((s) => ({ sidebar: !s.sidebar })), closeSidebar: () => setState({ sidebar: false }),
-      nav, pageTitle: title, pageSubtitle: sub, route: r, companyVehicles: vehiclesData.length,
+      nav, navGroups, pageTitle: title, pageSubtitle: sub, route: r, companyVehicles: vehiclesData.length,
       isDashboard: r === 'dashboard', isFleets: r === 'fleets', isFleetDetail: r === 'fleet-detail',
       isVehicles: r === 'vehicles', isVehicleDetail: r === 'vehicle-detail',
       isInsurance: r === 'insurance', isInsuranceDetail: r === 'insurance-detail', isClaims: r === 'claims', isDocuments: r === 'documents', isAnalytics: r === 'analytics', isContacts: r === 'contacts', isSettings: r === 'settings', isDrivers: r === 'drivers', isDriverDetail: r === 'driver-detail', isFinancing: r === 'financing',

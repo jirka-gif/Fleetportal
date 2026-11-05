@@ -241,12 +241,23 @@ export default function Render({ vm }) {
           <FleetLogo markSize={34} dark />
         </div>
         <div style={S('flex:1;overflow-y:auto;padding:10px 12px')}>
-          {vm.nav.map((item) => (
-            <Hov key={item.id} onClick={item.onClick} base={item.style} hover={item.hover}>
-              <span style={{ display: 'flex', color: item.iconColor }}>{item.icon}</span>
-              <span style={{ flex: 1 }}>{item.label}</span>
-              {item.badge ? <span style={S(item.badgeStyle)}>{item.badge}</span> : null}
-            </Hov>
+          {(vm.navGroups || [{ id: 'all', title: null, items: vm.nav, open: true, collapsible: false }]).map((g, gi) => (
+            <div key={g.id} style={S(gi ? 'margin-top:6px' : '')}>
+              {g.title && (
+                <Hov onClick={g.collapsible ? g.toggle : undefined} base={`display:flex;align-items:center;justify-content:space-between;padding:${gi ? '12px' : '4px'} 13px 6px;font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:rgba(255,255,255,.42);border-radius:8px;${g.collapsible ? 'cursor:pointer' : ''}`} hover={g.collapsible ? 'color:rgba(255,255,255,.75)' : ''}>
+                  <span>{g.title}</span>
+                  {g.collapsible && <span style={S(`display:flex;transition:transform .16s ease;transform:rotate(${g.open ? '0deg' : '-90deg'})`)}>{ic('chevron', 14)}</span>}
+                  {!g.open && g.items.some((i) => i.badge) && <span style={S('font-size:10px;font-weight:700;color:#fff;background:rgba(255,255,255,.12);padding:1px 7px;border-radius:20px;margin-left:6px')}>{g.items.reduce((a, i) => a + (parseInt(i.badge, 10) || 0), 0) || g.items.filter((i) => i.badge).length}</span>}
+                </Hov>
+              )}
+              {g.open && g.items.map((item) => (
+                <Hov key={item.id} onClick={item.onClick} base={item.style} hover={item.hover}>
+                  <span style={{ display: 'flex', color: item.iconColor }}>{item.icon}</span>
+                  <span style={{ flex: 1 }}>{item.label}</span>
+                  {item.badge ? <span style={S(item.badgeStyle)}>{item.badge}</span> : null}
+                </Hov>
+              ))}
+            </div>
           ))}
         </div>
         <div style={S('padding:12px 12px 16px;flex-shrink:0')}>
