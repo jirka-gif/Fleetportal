@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react'
-import { css as S, Hov, Icon, InsurerLogo, exportData } from './helpers.jsx'
+import { css as S, Hov, Icon, InsurerLogo, exportData, czk } from './helpers.jsx'
 import CzMap from './CzMap.jsx'
 import { vehiclesData, vehicleTypeCat } from './data.js'
 
@@ -380,6 +380,7 @@ export default function Render({ vm }) {
             {vm.isOptimalizace && <Optimalizace vm={vm} />}
             {vm.isServis && <ServisSklady vm={vm} />}
             {vm.isZajezdy && <Zajezdy vm={vm} />}
+            {vm.isZajezdDetail && <ZajezdDetail vm={vm} />}
             {vm.isElektrobusy && <Elektrobusy vm={vm} />}
             {vm.isUcetnictvi && <Ucetnictvi vm={vm} />}
             {vm.isDrvPortal && <DriverPortal vm={vm} />}
@@ -2401,43 +2402,227 @@ function ServisSklady({ vm }) {
 }
 
 /* ============================ ZÁJEZDY ============================ */
+const ZJ_FIELD = (label, el, span) => <div key={label} style={S(`min-width:0${span ? ';grid-column:1 / -1' : ''}`)}><div style={S(UC_LBL)}>{label}</div>{el}</div>
+const ZjChip = ({ st }) => <span style={UC_CHIP(st)}>{st.label}</span>
+function ZjStepper({ steps }) {
+  return (
+    <div style={S('display:flex;align-items:center;gap:0;overflow:hidden')}>
+      {steps.map((s, i) => (
+        <div key={s.label} style={S('display:flex;align-items:center;flex:1;min-width:0')}>
+          <div style={S('display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;flex:1')}>
+            <span style={S(`width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:750;${s.current ? 'background:linear-gradient(135deg,#5B6BF5,#7A5CF8);color:#fff;box-shadow:0 6px 14px -4px rgba(91,107,245,.7)' : s.done ? 'background:var(--green);color:#fff' : 'background:var(--canvas);color:var(--ink3);border:1px solid var(--border2)'}`)}>{s.done && !s.current ? ic('check', 13) : i + 1}</span>
+            <span style={S(`font-size:11px;font-weight:${s.current ? 750 : 600};color:${s.current ? 'var(--ink)' : s.done ? 'var(--ink2)' : 'var(--ink3)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%`)}>{s.label}</span>
+          </div>
+          {i < steps.length - 1 && <span style={S(`height:2px;flex:0 0 18px;margin-bottom:18px;background:${s.done && steps[i + 1].done ? 'var(--green)' : 'var(--border2)'}`)} />}
+        </div>
+      ))}
+    </div>
+  )
+}
+function ZjRows({ rows, mob }) {
+  const cols = mob ? '1fr' : 'minmax(0,1.4fr) minmax(0,1.2fr) 110px 150px'
+  return (
+    <div>
+      {!mob && <div style={S(`display:grid;grid-template-columns:${cols};align-items:center;gap:12px;padding:10px 20px;border-bottom:1px solid var(--border);background:#F7FAFE;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px`)}>
+        <div>Objednatel / trasa</div><div>Termín / vůz a řidič</div><div style={S('text-align:right')}>Cena bez DPH</div><div style={S('text-align:center')}>Stav</div>
+      </div>}
+      {rows.length === 0 && <div style={S('padding:26px 20px;font-size:13px;color:var(--ink3);text-align:center')}>V tomto filtru nejsou žádné zájezdy.</div>}
+      {rows.map((o) => (
+        <Hov key={o.id} onClick={o.onClick} base={`display:grid;grid-template-columns:${cols};align-items:center;gap:${mob ? '6px' : '12px'};padding:12px 20px;border-bottom:1px solid var(--border);cursor:pointer`} hover="background:var(--canvas)">
+          <div style={S('min-width:0')}><div style={S('font-size:13px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{o.custName}</div><div style={S('font-size:11.5px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{o.id} · {o.route}{o.via ? ` přes ${o.via}` : ''}</div></div>
+          <div style={S('min-width:0')}><div style={S('font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{o.dateF}{o.days > 1 ? ` · ${o.days} dny` : ''} · {o.km} km</div><div style={S('font-size:11.5px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{o.busLabel} · {o.drvLabel}</div></div>
+          <div style={S(`text-align:${mob ? 'left' : 'right'}`)}><div style={S('font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap')}>{o.totalF}</div><div style={S('font-size:11px;color:var(--ink3)')}>{o.p.bt.label.split(' (')[0]}{o.p.drivers === 2 ? ' · 2 řidiči' : ''}</div></div>
+          <div style={S(`text-align:${mob ? 'left' : 'center'}`)}><ZjChip st={o.chip} /></div>
+        </Hov>
+      ))}
+    </div>
+  )
+}
 function Zajezdy({ vm }) {
-  const mob = vm.vp.isMobile
+  const mob = vm.vp.isMobile, narrow = mob || vm.vp.isTablet
   const d = vm.zajezdy
   if (!d) return null
   const c = d.calc
+  const inp = (k, type = 'text', extra = '') => <input type={type} value={c[k] ?? ''} onChange={c.set(k)} style={S(UC_INPUT + extra)} />
+  const sel = (k, opts) => <select value={c[k] ?? ''} onChange={c.set(k)} style={S(UC_INPUT)}>{opts}</select>
   return (
     <div>
       <KpiRow items={d.kpis} mb="18px" featuredFirst />
-      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1.5fr 1fr'};gap:16px;align-items:start`)}>
+      <div style={S(`display:grid;grid-template-columns:${narrow ? '1fr' : 'minmax(0,1.35fr) minmax(0,1fr)'};gap:16px;align-items:start`)}>
         <div style={S(`${CARD};overflow:hidden`)}>
-          <div style={S('padding:18px 20px 4px')}><CardHead icon="calendar" color="var(--blue)" title="Objednávky a smlouvy" sub="Zakázková a smluvní doprava" /></div>
-          <HScroll minW={560}>
-            <div style={S('display:grid;grid-template-columns:1fr 100px 70px 110px 110px;align-items:center;gap:12px;padding:10px 20px;border-bottom:1px solid var(--border);background:#F7FAFE;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px')}>
-              <div>Klient / trasa</div><div>Datum</div><div style={S('text-align:right')}>Km</div><div style={S('text-align:right')}>Cena</div><div style={S('text-align:center')}>Stav</div>
-            </div>
-            {d.orders.map((o) => (
-              <div key={o.id} style={S('display:grid;grid-template-columns:1fr 100px 70px 110px 110px;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--border)')}>
-                <div style={S('min-width:0')}><div style={S('font-size:13px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{o.klient}</div><div style={S('font-size:11.5px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{o.trasa}</div></div>
-                <div style={S('font-size:12px;color:var(--ink2)')}>{o.date}</div>
-                <div style={S('text-align:right;font-size:13px;font-variant-numeric:tabular-nums')}>{o.km}</div>
-                <div style={S('text-align:right;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap')}>{o.cenaF}</div>
-                <div style={S('text-align:center')}><span style={S(`font-size:10.5px;font-weight:700;color:${o.color};background:${o.bg};padding:3px 9px;border-radius:20px;white-space:nowrap`)}>{o.statusLabel}</span></div>
-              </div>
-            ))}
-          </HScroll>
+          <div style={S('padding:18px 20px 12px;display:flex;flex-direction:column;gap:12px')}>
+            <CardHead icon="calendar" color="var(--blue)" title="Zájezdy a nabídky" sub="Klikněte na zájezd pro detail, schválení, přidělení vozu a fakturaci" />
+            <UcTabs items={d.filters} />
+          </div>
+          <ZjRows rows={d.rows} mob={mob} />
         </div>
         <div style={S(`${CARD};padding:22px`)}>
-          <CardHead icon="banknote" color="var(--green)" title="Kalkulace ceny jízdy" sub="Orientační nabídka" />
-          <div style={S('margin-top:6px')}>
-            {[['Vzdálenost', `${c.km} km × ${c.rateKm} Kč`], ['Doba', `${c.hod} h × ${c.rateHod} Kč`], ['Přistavení / fix', `${c.fix} Kč`]].map((r, i) => (
-              <div key={i} style={S(`display:flex;justify-content:space-between;gap:12px;padding:9px 0;font-size:13px${i ? ';border-top:1px solid var(--border)' : ''}`)}><span style={S('color:var(--ink2)')}>{r[0]}</span><span style={S('font-weight:600;font-variant-numeric:tabular-nums')}>{r[1]}</span></div>
+          <div style={S('display:flex;align-items:flex-start;gap:10px')}>
+            <div style={S('flex:1;min-width:0')}><CardHead icon="banknote" color="var(--green)" title={c.editId ? `Úprava nabídky ${c.editId}` : 'Kalkulačka nabídky'} sub="Ceník zájezdové dopravy, bez DPH; DPH 12 % osobní doprava" /></div>
+            {c.editId && <UcBtn onClick={c.reset}>Zrušit úpravu</UcBtn>}
+          </div>
+          <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;margin-top:4px')}>
+            {ZJ_FIELD('Objednatel', <select value={c.custId} onChange={c.setCust} style={S(UC_INPUT)}><option value="">Jiný objednatel (zadat ručně)</option>{c.customers.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}</select>, true)}
+            {!c.custId && ZJ_FIELD('Název objednatele', inp('custName'), true)}
+            {ZJ_FIELD('Kontaktní osoba', inp('contact'), true)}
+            {ZJ_FIELD('Odkud', inp('from'))}
+            {ZJ_FIELD('Kam', inp('to'))}
+            {ZJ_FIELD('Přes (volitelně)', inp('via'))}
+            {ZJ_FIELD('Termín odjezdu', inp('dateFrom', 'date'))}
+            {ZJ_FIELD('Počet dní', inp('days', 'number'))}
+            {ZJ_FIELD('Počet osob', inp('pax', 'number'))}
+            {ZJ_FIELD('Kilometry celkem', inp('km', 'number'))}
+            {ZJ_FIELD('Hodiny celkem', inp('hod', 'number'))}
+            {ZJ_FIELD('Typ autobusu', sel('busType', c.busTypes.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)), true)}
+            {ZJ_FIELD('Čekání (h)', inp('wait', 'number'))}
+            {ZJ_FIELD('Noclehy řidičů', inp('nights', 'number'))}
+            <label style={S('grid-column:1 / -1;display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600;cursor:pointer;padding:4px 0')}><input type="checkbox" checked={!!c.foreign} onChange={c.set('foreign')} style={S('width:16px;height:16px')} />Jízda do zahraničí (mýto, dálniční známky, diety)</label>
+            {ZJ_FIELD('Poznámka do nabídky', <textarea value={c.note || ''} onChange={c.set('note')} rows={2} style={S(UC_INPUT + ';height:auto;padding:9px 11px;resize:vertical')} />, true)}
+          </div>
+          <div style={S('margin-top:14px;padding:4px 0 0;border-top:1px solid var(--border)')}>
+            {c.p.lines.map((l, i) => (
+              <div key={l.key} style={S(`display:flex;justify-content:space-between;gap:12px;padding:8px 0;font-size:12.5px${i ? ';border-top:1px solid var(--border)' : ''}`)}><span style={S('color:var(--ink2)')}>{l.label}</span><span style={S('font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap')}>{czk(l.amount)}</span></div>
             ))}
           </div>
-          <div style={S('display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;padding:14px 16px;background:var(--green-soft);border-radius:12px')}>
-            <span style={S('font-size:13px;font-weight:650')}>Cena celkem</span><span style={S('font-size:20px;font-weight:800;letter-spacing:-.5px;color:var(--green)')}>{c.total}</span>
+          <div style={S('display:flex;align-items:center;gap:8px;margin-top:8px;padding:9px 12px;border-radius:10px;background:var(--canvas);font-size:11.5px;color:var(--ink2)')}>{ic(c.p.drivers === 2 ? 'users' : 'user', 14)}<span>{c.aetrNote}</span></div>
+          <div style={S('display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px')}>
+            {[['Bez DPH', c.baseF], ['DPH 12 %', c.vatF], ['Na osobu', c.perPaxF]].map(([l, v]) => <div key={l} style={S('padding:10px 12px;border-radius:10px;background:var(--canvas)')}><div style={S('font-size:11px;color:var(--ink3)')}>{l}</div><div style={S('font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap')}>{v}</div></div>)}
           </div>
-          <div style={S('font-size:11px;color:var(--ink3);margin-top:9px')}>Sazby dle ceníku zájezdové dopravy, bez DPH. Finální cena dle konkrétní objednávky.</div>
+          <div style={S('display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:8px;padding:14px 16px;background:var(--green-soft);border-radius:12px')}>
+            <div><div style={S('font-size:13px;font-weight:650')}>Cena celkem s DPH</div><div style={S('font-size:11.5px;color:var(--ink2)')}>Odhad nákladů {c.costF}, marže {c.margin} %</div></div><span style={S('font-size:22px;font-weight:800;letter-spacing:-.5px;color:var(--green);white-space:nowrap')}>{c.totalF}</span>
+          </div>
+          <div style={S('display:flex;gap:8px;flex-wrap:wrap;margin-top:14px')}>
+            <UcBtn primary onClick={c.save}>{ic('check', 15)}{c.editId ? 'Uložit přepočet' : 'Uložit nabídku'}</UcBtn>
+            <UcBtn onClick={c.print}>{ic('file', 15)}Tisk / PDF nabídky</UcBtn>
+            {!c.editId && <UcBtn onClick={c.toInvoicing}>{ic('banknote', 15)}Poslat do fakturace (proforma)</UcBtn>}
+          </div>
+          <div style={S('font-size:11px;color:var(--ink3);margin-top:10px')}>Odeslání do fakturace uloží nabídku a vystaví proformu v Účetnictví (řada PF). Zálohová faktura a konečná faktura se vystavují z detailu zájezdu.</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+function ZajezdDetail({ vm }) {
+  const mob = vm.vp.isMobile || vm.vp.isTablet
+  const t = vm.zajezd
+  if (!t) return null
+  const Row = ({ l, v, strong }) => <div style={S('display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--border);font-size:12.5px')}><span style={S('color:var(--ink2)')}>{l}</span><span style={S(`font-weight:${strong ? 750 : 600};text-align:right;font-variant-numeric:tabular-nums`)}>{v}</span></div>
+  const Box = ({ icon, color, title, sub, children, right }) => <div style={S(`${CARD};padding:20px`)}><div style={S('display:flex;align-items:flex-start;gap:10px')}><div style={S('flex:1;min-width:0')}><CardHead icon={icon} color={color} title={title} sub={sub} /></div>{right}</div>{children}</div>
+  return (
+    <div>
+      <div style={S(`${CARD};padding:20px 22px;margin-bottom:16px`)}>
+        <div style={S('display:flex;align-items:center;gap:12px;flex-wrap:wrap')}>
+          <Hov onClick={t.back} base="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--ink2);cursor:pointer;padding:6px 10px;border-radius:9px;margin-left:-10px" hover="background:var(--canvas)">{ic('arrowLeft', 15)}Zájezdy</Hov>
+          <span style={S('flex:1')} />
+          <ZjChip st={t.chip} />
+          <UcBtn onClick={t.print}>{ic('file', 15)}Nabídka PDF</UcBtn>
+          <UcBtn onClick={t.edit}>{ic('edit', 15)}Upravit v kalkulačce</UcBtn>
+        </div>
+        <div style={S('display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-top:10px')}>
+          <div style={S('flex:1;min-width:240px')}>
+            <div style={S('font-size:22px;font-weight:800;letter-spacing:-.5px')}>{t.from} → {t.to}</div>
+            <div style={S('font-size:13px;color:var(--ink2);margin-top:3px')}>{t.custName}{t.contact ? ` · ${t.contact}` : ''} · {t.dateF}{t.days > 1 ? `, ${t.days} ${t.days < 5 ? 'dny' : 'dní'}` : ''} · {t.pax} osob</div>
+          </div>
+          <div style={S('text-align:right')}><div style={S('font-size:11.5px;color:var(--ink3)')}>Cena bez DPH</div><div style={S('font-size:22px;font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums')}>{t.baseF}</div></div>
+        </div>
+        <div style={S('margin-top:18px;padding-top:16px;border-top:1px solid var(--border)')}><ZjStepper steps={t.steps} /></div>
+      </div>
+
+      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:16px;align-items:start`)}>
+        <div style={S('display:flex;flex-direction:column;gap:16px')}>
+          <Box icon="pin" color="var(--blue)" title="Trasa a parametry jízdy" sub="Podklad pro kalkulaci">
+            <div style={S('display:flex;flex-direction:column;gap:0;margin:8px 0 10px;position:relative;padding-left:22px')}>
+              {[['Odjezd', t.from], ...(t.via ? t.via.split(',').map((v) => ['Přes', v.trim()]) : []), ['Cíl', t.to]].map(([l, v], i, arr) => (
+                <div key={i} style={S('position:relative;padding:5px 0 9px')}>
+                  <span style={S(`position:absolute;left:-22px;top:9px;width:10px;height:10px;border-radius:50%;background:${i === 0 ? 'var(--green)' : i === arr.length - 1 ? 'var(--star)' : '#fff'};border:2px solid ${i === 0 ? 'var(--green)' : i === arr.length - 1 ? 'var(--star)' : 'var(--ink3)'}`)} />
+                  {i < arr.length - 1 && <span style={S('position:absolute;left:-18px;top:21px;bottom:-5px;width:2px;background:var(--border2)')} />}
+                  <div style={S('font-size:11px;color:var(--ink3)')}>{l}</div><div style={S('font-size:13.5px;font-weight:650')}>{v}</div>
+                </div>
+              ))}
+            </div>
+            <Row l="Termín" v={`${t.dateF}${t.days > 1 ? ` · ${t.days} ${t.days < 5 ? 'dny' : 'dní'}` : ''}`} />
+            <Row l="Vzdálenost a čas" v={`${t.km.toLocaleString('cs-CZ')} km · ${t.hod} h`} />
+            <Row l="Cestující" v={`${t.pax} osob`} />
+            <Row l="Požadovaný vůz" v={t.p.bt.label} />
+            <Row l="Řidiči dle AETR" v={t.needDrv === 2 ? 'dva řidiči (nad 450 km nebo 13 h / den)' : 'jeden řidič'} />
+            <Row l="Zahraničí" v={t.foreign ? 'ano (mýto, známky, diety)' : 'ne'} />
+            {t.note && <div style={S('margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--canvas);font-size:12.5px;color:var(--ink2)')}>{t.note}</div>}
+          </Box>
+          <Box icon="banknote" color="var(--green)" title="Kalkulace ceny" sub="Rozpad nabídky, DPH 12 % osobní doprava">
+            <div style={S('margin-top:4px')}>{t.p.lines.map((l) => <Row key={l.key} l={l.label} v={czk(l.amount)} />)}</div>
+            <Row l="Celkem bez DPH" v={t.baseF} strong />
+            <Row l="DPH 12 %" v={t.vatF} />
+            <div style={S('display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:10px;padding:12px 14px;background:var(--green-soft);border-radius:12px')}><span style={S('font-size:13px;font-weight:650')}>Celkem s DPH</span><span style={S('font-size:20px;font-weight:800;letter-spacing:-.5px;color:var(--green)')}>{t.totalF}</span></div>
+            <div style={S('display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px')}>
+              {[['Na osobu', t.perPaxF], ['Odhad nákladů', t.cost], ['Marže', `${t.margin} %`]].map(([l, v]) => <div key={l} style={S('padding:10px 12px;border-radius:10px;background:var(--canvas)')}><div style={S('font-size:11px;color:var(--ink3)')}>{l}</div><div style={S('font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap')}>{v}</div></div>)}
+            </div>
+          </Box>
+          <Box icon="clock" color="var(--purple)" title="Časová osa" sub="Kdo a kdy, od poptávky po vyúčtování">
+            <div style={S('margin-top:6px')}>
+              {t.timeline.map((e, i) => (
+                <div key={i} style={S(`display:flex;gap:12px;padding:9px 0${i ? ';border-top:1px solid var(--border)' : ''}`)}>
+                  <span style={S(`width:8px;height:8px;border-radius:50%;margin-top:6px;flex-shrink:0;background:${i === 0 ? 'var(--blue)' : 'var(--border2)'}`)} />
+                  <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:600')}>{e.what}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{e.at} · {e.who}</div></div>
+                </div>
+              ))}
+            </div>
+          </Box>
+        </div>
+
+        <div style={S('display:flex;flex-direction:column;gap:16px')}>
+          {t.actions.length > 0 && (
+            <div style={S(`${CARD};padding:18px 20px;border:1px solid var(--blue);background:linear-gradient(135deg,#F5F7FF,#FFFFFF)`)}>
+              <div style={S('font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px')}>Další krok</div>
+              <div style={S('display:flex;gap:8px;flex-wrap:wrap')}>{t.actions.map((a) => <UcBtn key={a.label} primary={a.primary} disabled={a.disabled} onClick={a.onClick}>{ic(a.icon, 15)}{a.label}</UcBtn>)}</div>
+            </div>
+          )}
+          <Box icon="bus" color="var(--blue-ink)" title="Vůz a řidiči" sub={t.canPick ? 'Vyberte vůz a řidiče, potom potvrďte' : t.bus ? 'Přiděleno dispečinkem' : 'Přiděluje se po schválení klientem'}>
+            {t.canPick ? (
+              <div style={S('margin-top:6px')}>
+                <div style={S(UC_LBL)}>Autobus</div>
+                <select value={t.pick.busIdx == null ? '' : t.pick.busIdx} onChange={t.setBus} style={S(UC_INPUT)}><option value="">Vyberte vůz…</option>{t.busOptions.map((b) => <option key={b.idx} value={b.idx}>{b.label}</option>)}</select>
+                <div style={S(`${UC_LBL};margin-top:12px`)}>Řidiči ({t.pick.driverIds.length} / {t.needDrv})</div>
+                <div style={S('display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto')}>
+                  {t.drvOptions.map((o) => <label key={o.id} style={S(`display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid ${o.on ? 'var(--blue)' : 'var(--border)'};border-radius:10px;font-size:12.5px;font-weight:600;cursor:pointer;background:${o.on ? 'var(--blue-soft)' : '#fff'}`)}><input type="checkbox" checked={o.on} onChange={() => t.toggleDrv(o.id)} style={S('width:15px;height:15px')} />{o.label}</label>)}
+                </div>
+              </div>
+            ) : (
+              <div style={S('margin-top:6px')}>
+                <div style={S('display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border2);border-radius:12px')}>
+                  <span style={S('width:40px;height:40px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--blue-soft);color:var(--blue)')}>{ic('bus', 19)}</span>
+                  <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:700')}>{t.bus ? `${t.bus.brand} ${t.bus.model || ''}`.trim() : 'Vůz zatím nepřidělen'}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{t.bus ? `${t.bus.plate} · r. v. ${t.bus.year} · ${t.p.bt.label}` : `Požadavek: ${t.p.bt.label}`}</div></div>
+                </div>
+                <div style={S('display:flex;flex-direction:column;gap:8px;margin-top:8px')}>
+                  {t.drivers.length === 0 && <div style={S('padding:12px 14px;border:1px dashed var(--border2);border-radius:12px;font-size:12.5px;color:var(--ink3)')}>{t.needDrv === 2 ? 'Jízda vyžaduje dva řidiče (AETR), zatím nepřiděleni.' : 'Řidič zatím nepřidělen.'}</div>}
+                  {t.drivers.map((dr) => (
+                    <Hov key={dr.id} onClick={() => t.openDriver(dr.id)} base="display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--border2);border-radius:12px;cursor:pointer" hover="border-color:var(--blue);background:var(--blue-soft)">
+                      <span style={S('width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--purple-soft);color:var(--purple);font-size:12px;font-weight:750')}>{dr.initials}</span>
+                      <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:650')}>{dr.name}</div><div style={S('font-size:11.5px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{dr.position} · ŘP {dr.rp.groups}</div></div>
+                      <span style={S('color:var(--ink3);display:flex')}>{ic('arrow', 15)}</span>
+                    </Hov>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Box>
+          <Box icon="file" color="var(--green)" title="Fakturace" sub="Doklady vystavené do Účetnictví k tomuto zájezdu">
+            <div style={S('margin-top:6px;display:flex;flex-direction:column;gap:8px')}>
+              {t.docs.length === 0 && <div style={S('padding:12px 14px;border:1px dashed var(--border2);border-radius:12px;font-size:12.5px;color:var(--ink3)')}>Zatím žádný doklad. Proformu lze vystavit po odeslání nabídky, zálohu po schválení, fakturu po realizaci.</div>}
+              {t.docs.map((d) => (
+                <Hov key={d.id} onClick={d.onOpen} base="display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--border2);border-radius:12px;cursor:pointer" hover="border-color:var(--green);background:var(--green-soft)">
+                  <span style={S('width:36px;height:36px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--green-soft);color:var(--green)')}>{ic('file', 17)}</span>
+                  <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:650')}>{d.label} {d.number}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{d.status} · otevřít v Účetnictví</div></div>
+                  <span style={S('font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap')}>{d.totalF}</span>
+                </Hov>
+              ))}
+            </div>
+            <div style={S('display:flex;gap:8px;flex-wrap:wrap;margin-top:12px')}>{t.invoiceActions.map((a) => <UcBtn key={a.kind} primary={a.primary && a.enabled} disabled={!a.enabled} onClick={a.onClick}>{ic('banknote', 15)}{a.label}</UcBtn>)}</div>
+          </Box>
+          <Box icon="users" color="var(--purple)" title="Kdo a kdy" sub="Rychlý přehled milníků">
+            <div style={S('margin-top:4px')}>
+              {t.facts.map((f) => <div key={f.label} style={S('display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--border);font-size:12.5px')}><span style={S('display:flex;align-items:center;gap:7px;color:var(--ink2)')}><span style={S(`width:7px;height:7px;border-radius:50%;background:${f.done ? 'var(--green)' : 'var(--border2)'}`)} />{f.label}</span><span style={S(`font-weight:600;text-align:right;color:${f.done ? 'var(--ink)' : 'var(--ink3)'}`)}>{f.val}</span></div>)}
+            </div>
+          </Box>
         </div>
       </div>
     </div>
@@ -5541,18 +5726,18 @@ function DriverSelf({ vm }) {
       <KpiRow items={d.kpis} mb="16px" featuredFirst />
 
       {/* dnešní směna + rychlé hlášení */}
-      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1.3fr 1fr'};gap:16px;align-items:start;margin-bottom:16px`)}>
-        <div style={S(`${CARD};padding:20px`)}>
+      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:16px;align-items:stretch;margin-bottom:16px`)}>
+        <div style={S(`${CARD};padding:20px;display:flex;flex-direction:column`)}>
           <CardHead icon="pin" color="var(--blue)" title="Moje směna dnes" sub="Přiřazená linka a vůz" />
-          <Hov onClick={d.shift.onClick} base="display:flex;align-items:center;gap:13px;padding:12px 10px;border-radius:12px;cursor:pointer;margin-top:4px" hover="background:var(--canvas)">
+          <Hov onClick={d.shift.onClick} base="display:flex;align-items:center;gap:13px;padding:13px 14px;border:1px solid var(--border2);border-radius:12px;cursor:pointer;margin-top:6px" hover="border-color:var(--blue);background:var(--blue-soft)">
             <span style={S('min-width:44px;height:36px;padding:0 10px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#18181B;color:#fff;font-weight:800;font-size:15px')}>{d.shift.line}</span>
             <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{d.shift.name}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{d.shift.bus} · {d.shift.plate}</div></div>
             <span style={S('color:var(--ink3);display:flex')}>{ic('arrow', 16)}</span>
           </Hov>
-          <div style={S('display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;padding-top:12px;border-top:1px solid var(--border)')}>
-            <div><div style={S('font-size:11.5px;color:var(--ink3)')}>První odjezd</div><div style={S('font-size:14px;font-weight:700')}>{d.shift.first}</div></div>
-            <div><div style={S('font-size:11.5px;color:var(--ink3)')}>Poslední odjezd</div><div style={S('font-size:14px;font-weight:700')}>{d.shift.last}</div></div>
-            <div><div style={S('font-size:11.5px;color:var(--ink3)')}>Spojů</div><div style={S('font-size:14px;font-weight:700')}>{d.shift.trips}</div></div>
+          <div style={S('display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:auto;padding-top:14px')}>
+            {[['První odjezd', d.shift.first], ['Poslední odjezd', d.shift.last], ['Spojů', d.shift.trips]].map(([l, v]) => (
+              <div key={l} style={S('padding:12px 14px;border-radius:12px;background:var(--canvas)')}><div style={S('font-size:11.5px;color:var(--ink3)')}>{l}</div><div style={S('font-size:18px;font-weight:750;letter-spacing:-.3px;font-variant-numeric:tabular-nums')}>{v}</div></div>
+            ))}
           </div>
         </div>
         <div style={S(`${CARD};padding:20px`)}>
@@ -5570,7 +5755,7 @@ function DriverSelf({ vm }) {
       </div>
 
       {d.links && (
-        <div style={S(`display:grid;grid-template-columns:repeat(${mob ? 2 : 5},1fr);gap:10px;margin-bottom:16px`)}>
+        <div style={S(`display:grid;grid-template-columns:repeat(${mob ? 2 : d.links.length},1fr);gap:10px;margin-bottom:16px`)}>
           {d.links.map((l) => <Hov key={l.id} onClick={l.onClick} base={`${CARD};padding:14px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center`} hover="border:1px solid var(--blue);transform:translateY(-1px)"><span style={S('width:38px;height:38px;border-radius:11px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center')}>{ic(l.icon, 18)}</span><span style={S('font-size:12.5px;font-weight:650')}>{l.label}</span></Hov>)}
         </div>
       )}

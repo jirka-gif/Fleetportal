@@ -737,7 +737,7 @@ const ROLES = [
 ]
 // Skupiny menu (jako ve Frenkee CRM): Pracovní prostor je vždy otevřený, ostatní jdou sbalit
 const NAV_GROUPS = [['work', 'Pracovní prostor'], ['provoz', 'Provoz'], ['flotila', 'Flotila'], ['lide', 'Lidé'], ['finance', 'Finance'], ['firma', 'Firma']]
-const NAV_GROUP_OF = { dashboard: 'work', map: 'work', anomalies: 'work', linky: 'provoz', dispatch: 'provoz', optimalizace: 'provoz', eco: 'provoz', zajezdy: 'provoz', elektrobusy: 'provoz', fleets: 'flotila', vehicles: 'flotila', servis: 'flotila', insurance: 'flotila', financing: 'flotila', claims: 'flotila', drivers: 'lide', vykony: 'finance', ucetnictvi: 'finance', analytics: 'finance', documents: 'firma', contacts: 'firma', settings: 'firma' }
+const NAV_GROUP_OF = { dashboard: 'work', map: 'work', linky: 'provoz', dispatch: 'provoz', optimalizace: 'provoz', eco: 'provoz', zajezdy: 'provoz', fleets: 'flotila', vehicles: 'flotila', anomalies: 'flotila', servis: 'flotila', elektrobusy: 'flotila', insurance: 'flotila', financing: 'flotila', claims: 'flotila', drivers: 'lide', vykony: 'finance', ucetnictvi: 'finance', analytics: 'finance', documents: 'firma', contacts: 'firma', settings: 'firma' }
 const ACCOUNTANT_NAV = [['ucetnictvi', 'Účetnictví', 'banknote'], ['vykony', 'Vyúčtování výkonů', 'scales'], ['drivers', 'Lidé a mzdy', 'users'], ['documents', 'Dokumenty', 'file'], ['analytics', 'Reporting', 'trend']]
 // Plánování směn: dispečer/správce předá řidiči jízdní řád (datum, linka, autobus), řidič vidí kalendář a potvrdí převzetí
 const SHIFT_TURNUS = { 'ranní': ['04:20', '13:10'], 'odpolední': ['12:40', '21:30'], 'celodenní': ['05:00', '17:30'] }
@@ -755,6 +755,78 @@ const SEED_SHIFTS = [
   { id: 's10', dayKey: '2026-11-07', driverId: 'dr9', lineId: 'L6', turnus: 'celodenní', status: 'planned' },
 ].map((s) => { const l = linesData.find((x) => x.id === s.lineId) || linesData[0]; const [start, end] = SHIFT_TURNUS[s.turnus]; return { ...s, busId: l.busId, start, end, depot: 'Vozovna České Budějovice, Žižkova tř.' } })
 const SHIFT_STATUS = { planned: { label: 'Čeká na potvrzení', color: '#B45309', bg: 'var(--amber-soft)' }, confirmed: { label: 'Převzato řidičem', color: 'var(--green)', bg: 'var(--green-soft)' } }
+
+// ---- Zájezdy: kalkulace nabídek, pipeline a napojení na fakturaci ----
+const TRIP_BUS_TYPES = [
+  { id: 'midi', label: 'Midibus (30 míst)', seats: 30, rateKm: 32, rateHod: 380 },
+  { id: 'standard', label: 'Linkový autobus (49 míst)', seats: 49, rateKm: 38, rateHod: 420 },
+  { id: 'lux', label: 'Zájezdový autobus (53 míst, WC, klima)', seats: 53, rateKm: 46, rateHod: 480 },
+  { id: 'double', label: 'Dvoupodlažní (78 míst)', seats: 78, rateKm: 58, rateHod: 560 },
+]
+const TRIP_RATES = { fix: 1500, waitHour: 320, secondDriverDay: 2800, driverNight: 1900, foreignKm: 4, foreignDay: 2500, parkingDay: 600, vat: 12 }
+const TRIP_STATUS = {
+  poptavka: { label: 'Poptávka', color: '#B45309', bg: 'var(--amber-soft)', step: 0 },
+  nabidka: { label: 'Nabídka odeslána', color: 'var(--blue-ink)', bg: 'var(--blue-soft)', step: 1 },
+  schvaleno: { label: 'Schváleno klientem', color: 'var(--purple)', bg: 'var(--purple-soft)', step: 2 },
+  potvrzeno: { label: 'Potvrzeno (vůz + řidič)', color: 'var(--blue-ink)', bg: 'var(--blue-soft)', step: 3 },
+  realizovano: { label: 'Realizováno', color: 'var(--ink2)', bg: '#EEF2F9', step: 4 },
+  vyuctovano: { label: 'Vyúčtováno', color: 'var(--green)', bg: 'var(--green-soft)', step: 5 },
+}
+const TRIP_STEPS = ['Poptávka', 'Nabídka', 'Schváleno', 'Potvrzeno', 'Realizováno', 'Vyúčtováno']
+/** Cena zájezdu z parametrů; druhý řidič automaticky podle AETR (max. 9 h řízení / den, orientačně 450 km / den). */
+function computeTripPrice(c) {
+  const bt = TRIP_BUS_TYPES.find((b) => b.id === c.busType) || TRIP_BUS_TYPES[1]
+  const km = Math.max(0, Number(c.km) || 0), hod = Math.max(0, Number(c.hod) || 0), days = Math.max(1, Number(c.days) || 1)
+  const nights = Math.max(0, Number(c.nights) || 0), wait = Math.max(0, Number(c.wait) || 0), pax = Math.max(1, Number(c.pax) || 1)
+  // druhý řidič: přes 450 km, přes 9 h řízení (odhad 50 km/h) nebo přes 13 h pracovní doby na den
+  const drivers = (km / days > 450 || km / 50 / days > 9 || hod / days > 13) ? 2 : 1
+  const lines = [
+    { key: 'km', label: `Jízdné ${km.toLocaleString('cs-CZ')} km × ${bt.rateKm} Kč`, amount: km * bt.rateKm },
+    { key: 'hod', label: `Čas ${hod} h × ${bt.rateHod} Kč`, amount: hod * bt.rateHod },
+    { key: 'fix', label: 'Přistavení a odstavení vozu', amount: TRIP_RATES.fix },
+  ]
+  if (drivers === 2) lines.push({ key: 'drv2', label: `Druhý řidič (AETR) ${days} ${days === 1 ? 'den' : days < 5 ? 'dny' : 'dní'} × ${TRIP_RATES.secondDriverDay} Kč`, amount: days * TRIP_RATES.secondDriverDay })
+  if (wait) lines.push({ key: 'wait', label: `Čekání ${wait} h × ${TRIP_RATES.waitHour} Kč`, amount: wait * TRIP_RATES.waitHour })
+  if (nights) lines.push({ key: 'nights', label: `Noclehy řidičů ${nights} × ${drivers} × ${TRIP_RATES.driverNight} Kč`, amount: nights * drivers * TRIP_RATES.driverNight })
+  if (c.foreign) lines.push({ key: 'foreign', label: `Zahraničí: mýto a známky (${km} km × ${TRIP_RATES.foreignKm} Kč + ${days} × ${TRIP_RATES.foreignDay} Kč)`, amount: km * TRIP_RATES.foreignKm + days * TRIP_RATES.foreignDay })
+  if (days > 1) lines.push({ key: 'park', label: `Parkování ${days} × ${TRIP_RATES.parkingDay} Kč`, amount: days * TRIP_RATES.parkingDay })
+  const base = lines.reduce((s, l) => s + l.amount, 0)
+  const vat = Math.round(base * TRIP_RATES.vat / 100)
+  const foreignKmCost = c.foreign ? km * TRIP_RATES.foreignKm + days * TRIP_RATES.foreignDay : 0
+  return { bt, drivers, lines, base, vat, total: base + vat, perPax: Math.round((base + vat) / pax), pax, km, hod, days, nights, wait, foreign: !!c.foreign, foreignKmCost }
+}
+const fmtIsoDate = (iso) => { if (!iso) return '—'; const [y, m, d] = iso.split('-').map(Number); return `${d}. ${m}. ${y}` }
+const tripStamp = () => { const n = new Date(); return `${n.getDate()}. ${n.getMonth() + 1}. ${n.getFullYear()} ${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}` }
+/** Odhad vlastních nákladů zájezdu (PHM, opotřebení, mzdy řidičů, diety, mýto) pro výpočet marže. */
+function tripCostEstimate(p) {
+  return Math.round(p.km * 15.5 + p.hod * p.drivers * 290 + p.nights * p.drivers * 1500 + (p.days > 1 ? p.days * p.drivers * 420 : 0) + (p.foreignKmCost || 0))
+}
+function buildTripQuoteHtml(t, p, company) {
+  const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))
+  const kc = (n) => `${Math.round(n).toLocaleString('cs-CZ')} Kč`
+  const rows = p.lines.map((l) => `<tr><td>${esc(l.label)}</td><td class="r">${kc(l.amount)}</td></tr>`).join('')
+  const dayLabel = p.days === 1 ? '1 den' : `${p.days} ${p.days < 5 ? 'dny' : 'dní'}`
+  return `<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>Nabídka ${esc(t.id)}</title>
+<style>body{font-family:Inter,Helvetica,Arial,sans-serif;color:#111;margin:0;padding:36px 44px;font-size:12.5px;line-height:1.45}h1{font-size:22px;margin:0 0 2px;letter-spacing:-.4px}.sub{color:#666;margin-bottom:22px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:20px}.box{border:1px solid #E3E6EE;border-radius:10px;padding:12px 14px}.box b{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:#777;margin-bottom:4px}table{width:100%;border-collapse:collapse;margin:8px 0 14px}td,th{padding:7px 6px;border-bottom:1px solid #E3E6EE;text-align:left}th{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#777}.r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}.tot td{font-weight:700;border-bottom:none}.big td{font-size:16px;padding-top:10px}.note{color:#555;font-size:11.5px;margin-top:16px}.sig{margin-top:42px;display:flex;justify-content:space-between;gap:30px}.sig div{flex:1;border-top:1px solid #999;padding-top:6px;color:#666;font-size:11px}@media print{body{padding:18px 22px}}</style></head><body>
+<h1>Cenová nabídka ${esc(t.id)}</h1><div class="sub">Nepravidelná (zájezdová) autobusová doprava · vystaveno ${esc(t.offerAt || tripStamp().slice(0, -6))} · platnost 14 dní</div>
+<div class="grid"><div class="box"><b>Dopravce</b>${esc(company.name)}<br>IČO ${esc(company.ico)}, DIČ ${esc(company.dic)}<br>${esc(company.address || '')}</div><div class="box"><b>Objednatel</b>${esc(t.custName)}<br>${t.contact ? 'Kontakt: ' + esc(t.contact) : ''}</div></div>
+<div class="box" style="margin-bottom:18px"><b>Jízda</b><strong>${esc(t.from)} → ${esc(t.to)}</strong>${t.via ? ' přes ' + esc(t.via) : ''}<br>Termín ${esc(fmtIsoDate(t.dateFrom))}, ${dayLabel} · ${p.km.toLocaleString('cs-CZ')} km · ${p.hod} h · ${p.pax} osob · ${esc(p.bt.label)}${p.drivers === 2 ? ' · dva řidiči (AETR)' : ''}${t.foreign ? ' · jízda do zahraničí' : ''}</div>
+<table><thead><tr><th>Položka</th><th class="r">Cena</th></tr></thead><tbody>${rows}
+<tr class="tot"><td>Celkem bez DPH</td><td class="r">${kc(p.base)}</td></tr><tr class="tot"><td>DPH 12 % (osobní doprava)</td><td class="r">${kc(p.vat)}</td></tr><tr class="tot big"><td>Celkem k úhradě</td><td class="r">${kc(p.total)}</td></tr><tr><td colspan="2" style="color:#666;border:none">Orientačně ${kc(p.perPax)} na osobu při ${p.pax} cestujících.</td></tr></tbody></table>
+${t.note ? `<div class="note"><strong>Poznámka:</strong> ${esc(t.note)}</div>` : ''}
+<div class="note">Cena zahrnuje přistavení vozu, řidiče, pohonné hmoty a zákonné pojištění. Čekací doba nad rámec nabídky se účtuje ${TRIP_RATES.waitHour} Kč/h. Parkovné a vstupy nad rámec kalkulace hradí objednatel. Nabídka vychází z modelového ceníku zájezdové dopravy.</div>
+<div class="sig"><div>Za dopravce: ${esc(t.offerBy || '')}</div><div>Za objednatele (datum, podpis)</div></div></body></html>`
+}
+const DEFAULT_TRIP_CALC = { custId: 'c4', custName: '', from: 'České Budějovice', to: 'Praha, ZOO', via: '', dateFrom: '2026-11-14', days: 1, km: 320, hod: 11, pax: 45, busType: 'standard', foreign: false, nights: 0, wait: 2, note: '' }
+const _tripBuses = () => { const b = vehiclesData.filter((v) => vehicleTypeCat(v.druh) === 'Autobusy'); const pick = (re, n) => b.filter((v) => re.test(`${v.brand} ${v.model}`.trim())).slice(0, n); return [...pick(/^Setra/, 4), ...pick(/^Mercedes/, 4), ...pick(/SOR C 10/, 2), ...pick(/CROSSWAY$/i, 2)] }
+const SEED_TRIPS = [
+  { id: 'T-2026-241', custId: 'c4', custName: 'ZŠ Máj I, České Budějovice', contact: 'Mgr. Hana Kovářová', from: 'České Budějovice', to: 'Praha, ZOO', via: 'Písek', dateFrom: '2026-11-14', days: 1, km: 320, hod: 11, pax: 45, busType: 'standard', foreign: false, nights: 0, wait: 2, status: 'poptavka', busIdx: 0, driverIds: [], note: 'Školní výlet, 45 dětí + 4 pedagogové. Odjezd 7:00 od školy.', timeline: [{ at: '3. 11. 2026 09:12', who: 'Marie Dvořáková', what: 'Poptávka přijata e-mailem' }] },
+  { id: 'T-2026-240', custId: 'c5', custName: 'FK Dynamo České Budějovice a.s.', contact: 'Petr Kříž, vedoucí A-týmu', from: 'České Budějovice', to: 'Plzeň, Doosan Arena', via: '', dateFrom: '2026-11-22', days: 1, km: 280, hod: 9, pax: 28, busType: 'lux', foreign: false, nights: 0, wait: 3, status: 'potvrzeno', busIdx: 1, driverIds: ['dr1'], note: 'Zápas, odjezd 11:30 ze Střeleckého ostrova, návrat po zápase.', timeline: [{ at: '28. 10. 2026 10:40', who: 'Marie Dvořáková', what: 'Poptávka přijata' }, { at: '28. 10. 2026 14:05', who: 'Marie Dvořáková', what: 'Nabídka vystavena a odeslána (21 574 Kč bez DPH)' }, { at: '30. 10. 2026 08:50', who: 'Petr Kříž (klient)', what: 'Nabídka schválena klientem' }, { at: '30. 10. 2026 09:15', who: 'Marie Dvořáková', what: 'Potvrzeno: přidělen vůz a řidič Jan Procházka' }] },
+  { id: 'T-2026-238', custId: 'c6', custName: 'ENGEL strojírenská spol. s r.o.', contact: 'Ing. Lukas Mayer', from: 'Kaplice, závod ENGEL', to: 'Linz, Hauptbahnhof', via: '', dateFrom: '2026-12-03', days: 1, km: 160, hod: 6, pax: 38, busType: 'standard', foreign: true, nights: 0, wait: 1, status: 'nabidka', busIdx: 2, driverIds: [], note: 'Transfer zaměstnanců na školení, zpět tentýž den.', timeline: [{ at: '2. 11. 2026 11:20', who: 'Marie Dvořáková', what: 'Poptávka přijata telefonicky' }, { at: '2. 11. 2026 15:30', who: 'Marie Dvořáková', what: 'Nabídka vystavena a odeslána' }] },
+  { id: 'T-2026-236', custId: 'c8', custName: 'Jihočeská univerzita v Českých Budějovicích', contact: 'doc. Ing. Jana Veselá', from: 'České Budějovice, Branišovská', to: 'Vídeň, Technisches Museum', via: 'Třeboň, Gmünd', dateFrom: '2026-12-12', days: 2, km: 460, hod: 14, pax: 50, busType: 'lux', foreign: true, nights: 1, wait: 4, status: 'schvaleno', busIdx: 3, driverIds: [], note: 'Exkurze studentů, 1 nocleh v hotelu Ibis Wien Mariahilf (řidiči zajišťuje objednatel).', timeline: [{ at: '20. 10. 2026 09:00', who: 'Marie Dvořáková', what: 'Poptávka přijata' }, { at: '21. 10. 2026 16:10', who: 'Josef Moučka', what: 'Nabídka vystavena (zájezdový vůz, jeden nocleh)' }, { at: '27. 10. 2026 10:02', who: 'doc. Veselá (klient)', what: 'Nabídka schválena, objednávka č. JU/2026/418' }] },
+  { id: 'T-2026-231', custId: 'c3', custName: 'Senioři Hluboká, z. s.', contact: 'Věra Dlouhá', from: 'Hluboká nad Vltavou', to: 'Český Krumlov, zámek', via: '', dateFrom: '2026-10-28', days: 1, km: 110, hod: 7, pax: 26, busType: 'midi', foreign: false, nights: 0, wait: 3, status: 'vyuctovano', busIdx: 4, driverIds: ['dr3'], note: 'Senioři, nízkopodlažní nástup, zastávka u lékárny.', timeline: [{ at: '10. 10. 2026 08:30', who: 'Marie Dvořáková', what: 'Poptávka přijata' }, { at: '10. 10. 2026 13:00', who: 'Marie Dvořáková', what: 'Nabídka vystavena' }, { at: '14. 10. 2026 09:20', who: 'Věra Dlouhá (klient)', what: 'Schváleno' }, { at: '14. 10. 2026 09:40', who: 'Marie Dvořáková', what: 'Potvrzeno: vůz a řidič Miroslav Kučera' }, { at: '28. 10. 2026 18:30', who: 'Miroslav Kučera', what: 'Realizováno, 112 km, bez závad' }, { at: '29. 10. 2026 08:15', who: 'Lenka Nováková', what: 'Vyúčtováno fakturou (12 % DPH)' }] },
+  { id: 'T-2026-229', custId: 'c7', custName: 'Budějovický Budvar, n. p.', contact: 'Bc. Tomáš Hora', from: 'České Budějovice, Budvar', to: 'Mnichov, Oktoberfest (firemní akce)', via: 'Linz, Passau', dateFrom: '2026-10-02', days: 2, km: 760, hod: 28, pax: 52, busType: 'lux', foreign: true, nights: 1, wait: 6, status: 'realizovano', busIdx: 5, driverIds: ['dr1', 'dr7'], note: 'Firemní zájezd, dva řidiči, parkování u hotelu.', timeline: [{ at: '1. 9. 2026 10:00', who: 'Marie Dvořáková', what: 'Poptávka přijata' }, { at: '2. 9. 2026 09:30', who: 'Josef Moučka', what: 'Nabídka vystavena' }, { at: '5. 9. 2026 14:00', who: 'Bc. Hora (klient)', what: 'Schváleno, zálohová faktura 50 %' }, { at: '8. 9. 2026 08:00', who: 'Marie Dvořáková', what: 'Potvrzeno: vůz a řidiči Procházka + Černý' }, { at: '4. 10. 2026 22:10', who: 'Jan Procházka', what: 'Realizováno, 772 km' }] },
+]
 // CZ mzdové odvody (orientační, 2026). Zaměstnanec vs OSVČ.
 function buildPayroll(d, mode) {
   const gross = 36000 + (_hash(d.id + 'mzda') % 13) * 850 // hrubá mzda / fakturace základ
@@ -900,6 +972,7 @@ export default function FleetPortal() {
     drvMsgs: SEED_DRV_MSGS, drvMsgTo: 'dispecink', drvMsgText: '', drvIdeas: SEED_DRV_IDEAS, drvIdeaText: '', drvIdeaCat: 'Provoz', drvDocs: SEED_DRV_DOCS,
     navOpen: { provoz: true, flotila: true, lide: true, finance: true, firma: false },
     shifts: SEED_SHIFTS, shiftForm: { dayKey: SHIFT_DAYS[1].key, driverId: 'dr1', lineId: linesData[0].id, busId: linesData[0].busId, turnus: 'ranní' },
+    zajTrips: SEED_TRIPS, zajCalc: { ...DEFAULT_TRIP_CALC }, zajDetailId: null, zajFilter: 'vse', zajPick: null,
     claimWizard: false, claimStep: 1, claimData: {},
     rowMenu: null, toast: null,
     unsub: null, unsubDone: false, unsubReason: 'Prodej vozidla', unsubDate: '1. 7. 2026',
@@ -1235,7 +1308,7 @@ export default function FleetPortal() {
       ['contacts', 'Kontakty', 'users', null],
       ['settings', 'Nastavení', 'settings', null],
     ]
-    const activeRoute = r === 'fleet-detail' ? 'fleets' : r === 'vehicle-detail' ? 'vehicles' : r === 'driver-detail' ? 'drivers' : r === 'bonifikace-detail' ? 'bonifikace' : r === 'documents-detail' ? 'documents' : r === 'claim-detail' ? 'claims' : r === 'linky-detail' ? 'linky' : r === 'stazka' ? 'dispatch' : r === 'anomaly-detail' ? 'anomalies' : r
+    const activeRoute = r === 'fleet-detail' ? 'fleets' : r === 'vehicle-detail' ? 'vehicles' : r === 'driver-detail' ? 'drivers' : r === 'bonifikace-detail' ? 'bonifikace' : r === 'documents-detail' ? 'documents' : r === 'claim-detail' ? 'claims' : r === 'linky-detail' ? 'linky' : r === 'stazka' ? 'dispatch' : r === 'anomaly-detail' ? 'anomalies' : r === 'zajezd-detail' ? 'zajezdy' : r
     const drvBadge = { 'drv-smeny': state.shifts.filter((s) => s.driverId === 'dr1' && s.status === 'planned').length, 'drv-volno': state.timeOff.filter((t) => t.driverId === 'dr1' && t.status === 'pending').length, 'drv-zpravy': 1, 'drv-doklady': state.drvDocs.filter((x) => x.driverId === 'dr1' && (x.status === 'missing' || x.status === 'expiring')).length }
     const ucBadge = String(ACC.alerts().filter((a) => a.level !== 'info').length) || null
     const navSrc = state.role === 'ridic' ? DRIVER_NAV.map(([id, label, icon]) => [id, label, icon, drvBadge[id] ? String(drvBadge[id]) : null])
@@ -1299,6 +1372,7 @@ export default function FleetPortal() {
     else if (r === 'linky-detail') { const l = linesData.find((x) => x.id === state.lineId) || linesData[0]; title = `Linka ${l.no} · ${l.name}`; sub = `${l.agency} · ${l.stops.length} zastávek` }
     else if (r === 'stazka') { const l = linesData.find((x) => x.id === state.stazkaLine) || linesData[0]; const b = vehiclesData.find((x) => x.id === l.busId); title = `Stazka · linka ${l.no}`; sub = `${b ? b.brand + ' ' + b.model + ' · ' + b.plate : ''} · ${DISPATCH_DAY_LABEL}` }
     else if (r === 'anomaly-detail') { const a = FLEET_ANOMALIES.find((x) => x.id === state.anomalyId) || FLEET_ANOMALIES[0]; title = a.typeLabel; sub = `${a.plate !== '—' ? a.plate + ' · ' : ''}${a.date}` }
+    else if (r === 'zajezd-detail') { const t = state.zajTrips.find((x) => x.id === state.zajDetailId) || state.zajTrips[0]; title = `${t.from} → ${t.to}`; sub = `Zájezd ${t.id} · ${t.custName} · ${fmtIsoDate(t.dateFrom)}` }
     else { const t = titles[r] || ['', '']; title = t[0]; sub = t[1] }
 
     const aiMessages = state.aiMessages.map((m) => ({
@@ -1338,7 +1412,7 @@ export default function FleetPortal() {
       isDashboard: r === 'dashboard', isFleets: r === 'fleets', isFleetDetail: r === 'fleet-detail',
       isVehicles: r === 'vehicles', isVehicleDetail: r === 'vehicle-detail',
       isInsurance: r === 'insurance', isInsuranceDetail: r === 'insurance-detail', isClaims: r === 'claims', isDocuments: r === 'documents', isAnalytics: r === 'analytics', isContacts: r === 'contacts', isSettings: r === 'settings', isDrivers: r === 'drivers', isDriverDetail: r === 'driver-detail', isFinancing: r === 'financing',
-      isLinky: r === 'linky', isLinkyDetail: r === 'linky-detail', isEco: r === 'eco', isAttention: r === 'attention', isDispatch: r === 'dispatch', isStazka: r === 'stazka', isAnomalies: r === 'anomalies', isAnomalyDetail: r === 'anomaly-detail', isMap: r === 'map', isOptimalizace: r === 'optimalizace', isServis: r === 'servis', isZajezdy: r === 'zajezdy', isElektrobusy: r === 'elektrobusy', isVykony: r === 'vykony', isUcetnictvi: r === 'ucetnictvi', isDrvPortal: r.startsWith('drv-'),
+      isLinky: r === 'linky', isLinkyDetail: r === 'linky-detail', isEco: r === 'eco', isAttention: r === 'attention', isDispatch: r === 'dispatch', isStazka: r === 'stazka', isAnomalies: r === 'anomalies', isAnomalyDetail: r === 'anomaly-detail', isMap: r === 'map', isOptimalizace: r === 'optimalizace', isServis: r === 'servis', isZajezdy: r === 'zajezdy', isZajezdDetail: r === 'zajezd-detail', isElektrobusy: r === 'elektrobusy', isVykony: r === 'vykony', isUcetnictvi: r === 'ucetnictvi', isDrvPortal: r.startsWith('drv-'),
       isDocumentsDetail: r === 'documents-detail',
       openDocCat: (cat) => navigate('documents-detail', { docCat: cat, docOpen: {} }), goDocuments: () => navigate('documents'),
       docPreview: state.docPreview, closeDocPreview: () => setState({ docPreview: null }),
@@ -2658,33 +2732,115 @@ export default function FleetPortal() {
     return { servis: { kpis, zakazky, parts, lowCount, udrzba, phm } }
   }
 
-  // ---- Zájezdy / nepravidelná doprava ----
+  // ---- Zájezdy / nepravidelná doprava: kalkulace nabídek, pipeline, fakturace ----
+  const zajUser = () => (ROLES.find((x) => x.id === state.role) || ROLES[0]).name
+  const zajBuses = _tripBuses()
+  const zajDrivers = driversData.filter((d) => ['dalkova', 'linka'].includes(d.kind))
+  const updTrip = (id, fn) => setState((s) => ({ zajTrips: s.zajTrips.map((t) => t.id === id ? fn(t) : t) }))
+  const tripLog = (t, what, who) => ({ ...t, timeline: [...t.timeline, { at: tripStamp(), who: who || zajUser(), what }] })
+  const setZajCalc = (patch) => setState((s) => ({ zajCalc: { ...s.zajCalc, ...patch } }))
+  const tripFromCalc = (c, id) => ({ ...c, id, days: Math.max(1, Number(c.days) || 1), km: Number(c.km) || 0, hod: Number(c.hod) || 0, pax: Number(c.pax) || 1, nights: Number(c.nights) || 0, wait: Number(c.wait) || 0, custName: c.custId ? (ACC.CUSTOMERS.find((x) => x.id === c.custId) || {}).name : c.custName, contact: c.contact || '' })
+  const saveQuote = (opts = {}) => {
+    const c = state.zajCalc
+    const custName = c.custId ? (ACC.CUSTOMERS.find((x) => x.id === c.custId) || {}).name : c.custName
+    if (!custName || !c.from || !c.to) { showToast('Doplňte objednatele a trasu'); return null }
+    if (c.editId) {
+      updTrip(c.editId, (t) => tripLog({ ...t, ...tripFromCalc(c, t.id), editId: undefined, status: t.status, timeline: t.timeline, busIdx: t.busIdx, driverIds: t.driverIds, docs: t.docs }, 'Kalkulace upravena, nabídka přepočítána'))
+      setState({ zajCalc: { ...DEFAULT_TRIP_CALC } }); showToast(`Nabídka ${c.editId} přepočítána`)
+      return c.editId
+    }
+    const id = `T-2026-${242 + state.zajTrips.filter((t) => t.id > 'T-2026-241').length}`
+    const stamp = tripStamp()
+    const t = { ...tripFromCalc(c, id), editId: undefined, status: 'nabidka', busIdx: null, driverIds: [], docs: [], offerAt: stamp.slice(0, -6), offerBy: zajUser(), timeline: [{ at: stamp, who: zajUser(), what: 'Poptávka zadána do kalkulačky' }, { at: stamp, who: zajUser(), what: `Nabídka vystavena (${czk(computeTripPrice(c).base)} bez DPH)` }] }
+    setState((s) => ({ zajTrips: [t, ...s.zajTrips], zajCalc: { ...DEFAULT_TRIP_CALC } }))
+    if (!opts.silent) showToast(`Nabídka ${id} uložena`)
+    return id
+  }
+  const tripItems = (t, p, kind) => kind === 'zalohova'
+    ? [{ text: `Záloha 50 % na zájezd ${t.id}: ${t.from} → ${t.to}, ${fmtIsoDate(t.dateFrom)}`, qty: 1, unit: 'ks', unitPrice: Math.round(p.base / 2), vatRate: 12, amount: Math.round(p.base / 2) }]
+    : p.lines.map((l) => ({ text: `${l.label} (zájezd ${t.id}, ${t.from} → ${t.to})`, qty: 1, unit: 'ks', unitPrice: l.amount, vatRate: 12, amount: l.amount }))
+  const tripToInvoicing = (id, kind) => {
+    const t = state.zajTrips.find((x) => x.id === id); if (!t) return
+    const p = computeTripPrice(t); const cust = ACC.CUSTOMERS.find((x) => x.id === t.custId)
+    const r = ACC.issueDocument({ docType: kind, clientId: cust ? cust.id : undefined, customer: t.custName, ico: cust ? cust.ico : undefined, dic: cust ? `CZ${cust.ico}` : undefined, address: cust ? cust.address : undefined, items: tripItems(t, p, kind), dueDays: kind === 'faktura' ? 14 : 7, note: `Zájezd ${t.id}: ${t.from} → ${t.to}, ${fmtIsoDate(t.dateFrom)}${t.contact ? ', kontakt ' + t.contact : ''}`, by: zajUser() })
+    const label = ACC.DOC_TYPES[kind].short
+    updTrip(id, (x) => tripLog({ ...x, status: kind === 'faktura' ? 'vyuctovano' : x.status, docs: [...(x.docs || []), { id: r.id, number: r.number, kind, label, total: r.total }] }, `${label} ${r.number} odeslána do fakturace (${czk(r.total)})`))
+    setState((s) => ({ accVersion: (s.accVersion || 0) + 1 }))
+    showToast(`${label} ${r.number} vystavena v Účetnictví (${czk(r.total)})`)
+  }
+  const calcToInvoicing = () => { const id = saveQuote({ silent: true }); if (id) tripToInvoicing(id, 'proforma') }
+  const openTrip = (id) => { const t = state.zajTrips.find((x) => x.id === id); navigate('zajezd-detail', { zajDetailId: id, zajPick: t ? { busIdx: t.busIdx, driverIds: [...t.driverIds] } : null }) }
+  const editTripInCalc = (t) => navigate('zajezdy', { zajCalc: { ...DEFAULT_TRIP_CALC, ...t, editId: t.id } })
+  const tripRow = (t) => {
+    const p = computeTripPrice(t); const st = TRIP_STATUS[t.status]; const bus = t.busIdx != null ? zajBuses[t.busIdx] : null
+    const drv = t.driverIds.map((d) => (driversData.find((x) => x.id === d) || {}).name).filter(Boolean)
+    return { ...t, p, dateF: fmtIsoDate(t.dateFrom), route: `${t.from} → ${t.to}`, totalF: czk(p.base), chip: st, busLabel: bus ? `${bus.brand} ${bus.model || ''} · ${bus.plate}`.replace(/\s+·/, ' ·') : 'vůz nepřidělen', drvLabel: drv.length ? drv.join(' + ') : (p.drivers === 2 ? 'dva řidiči (AETR)' : 'řidič nepřidělen'), onClick: () => openTrip(t.id) }
+  }
   const zajezdyVM = () => {
     if (state.route !== 'zajezdy') return {}
-    const stavy = [['new', 'Poptávka', '#B45309', 'var(--amber-soft)'], ['conf', 'Potvrzeno', 'var(--blue-ink)', 'var(--blue-soft)'], ['done', 'Vyúčtováno', 'var(--green)', 'var(--green-soft)']]
-    const orders = [
-      { klient: 'ZŠ Máj České Budějovice', trasa: 'ČB – Praha ZOO – ČB', date: '14. 11. 2026', km: 320, hod: 11 },
-      { klient: 'FK Dynamo ČB', trasa: 'ČB – Plzeň (zápas)', date: '22. 11. 2026', km: 280, hod: 9 },
-      { klient: 'Senioři Hluboká', trasa: 'Hluboká – Český Krumlov – Hluboká', date: '28. 11. 2026', km: 110, hod: 7 },
-      { klient: 'Firma Engel', trasa: 'Kaplice – Linz (transfer)', date: '3. 12. 2026', km: 160, hod: 6 },
-      { klient: 'SŠ obchodní ČB', trasa: 'ČB – Vídeň – ČB', date: '12. 12. 2026', km: 460, hod: 14 },
-    ].map((o, i) => {
-      const rateKm = 38, rateHod = 420, fix = 1500
-      const cena = o.km * rateKm + o.hod * rateHod + fix
-      const naklad = Math.round(cena * (0.68 + (_hash('z' + i) % 10) / 100))
-      const st = stavy[i % stavy.length]
-      return { ...o, id: 'ZAJ-' + (240 + i), cenaF: czk(cena), marze: Math.round((cena - naklad) / cena * 100), statusLabel: st[1], color: st[2], bg: st[3], cena }
-    })
-    const trzby = orders.reduce((a, o) => a + o.cena, 0)
+    const trips = state.zajTrips
+    const sumBase = (arr) => arr.reduce((a, t) => a + computeTripPrice(t).base, 0)
+    const open = trips.filter((t) => ['poptavka', 'nabidka'].includes(t.status)), won = trips.filter((t) => ['schvaleno', 'potvrzeno'].includes(t.status)), done = trips.filter((t) => ['realizovano', 'vyuctovano'].includes(t.status))
+    const margins = trips.map((t) => { const p = computeTripPrice(t); return (p.base - tripCostEstimate(p)) / p.base })
     const kpis = [
-      { value: String(orders.length), label: 'Objednávky (měsíc)', icon: 'calendar', note: 'zakázková doprava' },
-      { value: (trzby / 1000).toFixed(0), unit: 'tis. Kč', label: 'Tržby zájezdů', icon: 'banknote', note: 'potvrzené + poptávky' },
-      { value: String(Math.round(orders.reduce((a, o) => a + o.marze, 0) / orders.length)), unit: '%', label: 'Průměrná marže', icon: 'trend', note: 'po odečtu nákladů' },
-      { value: '7', label: 'Vozy pro zájezdy', icon: 'bus', note: 'dálkové + zájezdové' },
+      { value: String(open.length), label: 'Otevřené poptávky a nabídky', icon: 'calendar', note: `${(sumBase(open) / 1000).toFixed(0)} tis. Kč v jednání` },
+      { value: (sumBase(won) / 1000).toFixed(0), unit: 'tis. Kč', label: 'Schválené zakázky', icon: 'banknote', note: `${won.length} zájezdů čeká na realizaci` },
+      { value: String(Math.round(margins.reduce((a, m) => a + m, 0) / margins.length * 100)), unit: '%', label: 'Průměrná marže', icon: 'trend', note: 'po odečtu PHM, mezd a mýta' },
+      { value: String(done.length), label: 'Realizováno a vyúčtováno', icon: 'check', note: `${(sumBase(done) / 1000).toFixed(0)} tis. Kč fakturováno` },
     ]
-    const calc = { km: 320, hod: 11, rateKm: 38, rateHod: 420, fix: 1500 }
-    calc.total = czk(calc.km * calc.rateKm + calc.hod * calc.rateHod + calc.fix)
-    return { zajezdy: { kpis, orders, calc } }
+    const f = state.zajFilter || 'vse'
+    const FM = { vse: () => true, otevrene: (t) => ['poptavka', 'nabidka'].includes(t.status), schvalene: (t) => ['schvaleno', 'potvrzeno'].includes(t.status), hotove: (t) => ['realizovano', 'vyuctovano'].includes(t.status) }
+    const filters = [['vse', 'Vše'], ['otevrene', 'Poptávky a nabídky'], ['schvalene', 'Schválené a potvrzené'], ['hotove', 'Realizované']].map(([id, label]) => ({ id, label, count: trips.filter(FM[id]).length, active: f === id, onClick: () => setState({ zajFilter: id }) }))
+    const c = state.zajCalc; const p = computeTripPrice(c)
+    const cost = tripCostEstimate(p)
+    const calc = {
+      ...c, p, costF: czk(cost), margin: p.base ? Math.round((p.base - cost) / p.base * 100) : 0, baseF: czk(p.base), vatF: czk(p.vat), totalF: czk(p.total), perPaxF: czk(p.perPax),
+      busTypes: TRIP_BUS_TYPES, customers: ACC.CUSTOMERS.filter((x) => x.kind === 'zákazník' || x.id === 'c3').map((x) => ({ id: x.id, label: x.name })),
+      set: (k) => (e) => setZajCalc({ [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }),
+      setCust: (e) => setZajCalc({ custId: e.target.value, custName: '' }),
+      aetrNote: p.drivers === 2 ? 'Přes 450 km, 9 h řízení nebo 13 h pracovní doby na den: kalkulováno se dvěma řidiči (AETR).' : 'Do 450 km a 13 h pracovní doby na den stačí jeden řidič (AETR).',
+      save: () => saveQuote(), toInvoicing: calcToInvoicing, reset: () => setState({ zajCalc: { ...DEFAULT_TRIP_CALC } }),
+      print: () => setState({ execReport: buildTripQuoteHtml({ ...c, id: c.editId || 'náhled', custName: c.custId ? (ACC.CUSTOMERS.find((x) => x.id === c.custId) || {}).name : c.custName, offerBy: zajUser() }, p, ACC.COMPANY) }),
+    }
+    return { zajezdy: { kpis, filters, rows: trips.filter(FM[f]).map(tripRow), calc, statusOrder: TRIP_STEPS } }
+  }
+  const zajezdDetailVM = () => {
+    if (state.route !== 'zajezd-detail') return {}
+    const t = state.zajTrips.find((x) => x.id === state.zajDetailId) || state.zajTrips[0]
+    const row = tripRow(t); const p = row.p; const st = TRIP_STATUS[t.status]; const cost = tripCostEstimate(p)
+    const pick = state.zajPick || { busIdx: t.busIdx, driverIds: [...t.driverIds] }
+    const setPick = (patch) => setState((s) => ({ zajPick: { ...(s.zajPick || pick), ...patch } }))
+    const canUc = state.role === 'majitel' || state.role === 'ucetni'
+    const docs = (t.docs || []).map((d) => { const inv = ACC.invoiceById(d.id); return { ...d, totalF: czk(d.total), status: inv ? inv.status : '—', onOpen: () => canUc ? navigate('ucetnictvi', { ucTab: 'faktury', ucInvDetail: d.id }) : showToast('Doklad je v Účetnictví (role majitel nebo účetní)') } })
+    const hasDoc = (k) => (t.docs || []).some((d) => d.kind === k)
+    const stepIdx = st.step
+    const needDrv = p.drivers
+    const busOk = pick.busIdx != null, drvOk = pick.driverIds.length >= needDrv
+    const drvOptions = zajDrivers.map((d) => ({ id: d.id, label: `${d.name} (${d.kind === 'dalkova' ? 'dálková a zájezdová' : 'linková'})`, on: pick.driverIds.includes(d.id) }))
+    const whenBy = (match) => { const e = [...t.timeline].reverse().find((x) => match(x.what)); return e ? `${e.at} · ${e.who}` : null }
+    const facts = [
+      ['Poptávka přijata', whenBy((w) => /Poptávka/.test(w))], ['Nabídka vystavena', whenBy((w) => /Nabídka vystavena|Kalkulace upravena/.test(w))], ['Schváleno klientem', whenBy((w) => /schválen|Schváleno/i.test(w))],
+      ['Potvrzen vůz a řidič', whenBy((w) => /Potvrzeno/.test(w))], ['Realizováno', whenBy((w) => /Realizováno/.test(w))], ['Vyúčtováno', whenBy((w) => /Vyúčtováno|Faktura/.test(w))],
+    ].map(([label, val]) => ({ label, val: val || 'zatím ne', done: !!val }))
+    const actions = []
+    if (t.status === 'poptavka') actions.push({ label: 'Vystavit a odeslat nabídku', primary: true, icon: 'file', onClick: () => { updTrip(t.id, (x) => tripLog({ ...x, status: 'nabidka', offerAt: tripStamp().slice(0, -6), offerBy: zajUser() }, `Nabídka vystavena a odeslána (${czk(p.base)} bez DPH)`)); showToast('Nabídka odeslána klientovi') } })
+    if (t.status === 'nabidka') actions.push({ label: 'Zaznamenat schválení klientem', primary: true, icon: 'check', onClick: () => { updTrip(t.id, (x) => tripLog({ ...x, status: 'schvaleno' }, 'Nabídka schválena klientem (e-mailová objednávka)', `${t.contact || t.custName} (klient)`)); showToast('Zájezd schválen klientem') } })
+    if (t.status === 'schvaleno') actions.push({ label: busOk && drvOk ? 'Potvrdit vůz a řidiče' : `Vyberte vůz a ${needDrv === 2 ? 'dva řidiče' : 'řidiče'}`, primary: true, icon: 'bus', disabled: !(busOk && drvOk), onClick: () => { const names = pick.driverIds.map((d) => (driversData.find((x) => x.id === d) || {}).name).join(' + '); const b = zajBuses[pick.busIdx]; updTrip(t.id, (x) => tripLog({ ...x, status: 'potvrzeno', busIdx: pick.busIdx, driverIds: [...pick.driverIds] }, `Potvrzeno: vůz ${b.plate} a řidič${pick.driverIds.length > 1 ? 'i' : ''} ${names}`)); showToast('Vůz a řidiči potvrzeni, zájezd je v plánu') } })
+    if (t.status === 'potvrzeno') actions.push({ label: 'Označit jako realizováno', primary: true, icon: 'check', onClick: () => { updTrip(t.id, (x) => tripLog({ ...x, status: 'realizovano' }, `Realizováno, ${p.km + (_hash(t.id) % 15)} km dle tachografu, bez závad`, row.drvLabel.split(' + ')[0])); showToast('Zájezd označen jako realizovaný') } })
+    const invoiceActions = [
+      { kind: 'proforma', label: 'Proforma (celá cena)', enabled: stepIdx >= 1 && !hasDoc('proforma') },
+      { kind: 'zalohova', label: 'Zálohová faktura 50 %', enabled: stepIdx >= 2 && !hasDoc('zalohova') },
+      { kind: 'faktura', label: t.status === 'vyuctovano' ? 'Faktura vystavena' : 'Vystavit fakturu (vyúčtovat)', enabled: stepIdx >= 4 && !hasDoc('faktura'), primary: true },
+    ].map((a) => ({ ...a, onClick: () => tripToInvoicing(t.id, a.kind) }))
+    return { zajezd: {
+      ...row, chip: st, steps: TRIP_STEPS.map((s, i) => ({ label: s, done: i <= stepIdx, current: i === stepIdx })), facts, cost: czk(cost), margin: Math.round((p.base - cost) / p.base * 100), baseF: czk(p.base), vatF: czk(p.vat), totalF: czk(p.total), perPaxF: czk(p.perPax),
+      bus: t.busIdx != null ? zajBuses[t.busIdx] : null, drivers: t.driverIds.map((d) => driversData.find((x) => x.id === d)).filter(Boolean), needDrv,
+      canPick: t.status === 'schvaleno', pick, busOptions: zajBuses.map((b, i) => ({ idx: i, label: `${b.brand}${b.model ? ' ' + b.model : ''} · ${b.plate} · r. v. ${b.year}` })), drvOptions,
+      setBus: (e) => setPick({ busIdx: e.target.value === '' ? null : Number(e.target.value) }), toggleDrv: (id) => setPick({ driverIds: pick.driverIds.includes(id) ? pick.driverIds.filter((x) => x !== id) : [...pick.driverIds, id] }),
+      docs, invoiceActions, actions, timeline: [...t.timeline].reverse(),
+      print: () => setState({ execReport: buildTripQuoteHtml(t, p, ACC.COMPANY) }), edit: () => editTripInCalc(t), back: () => navigate('zajezdy'),
+      openDriver: (id) => navigate('driver-detail', { driverId: id }),
+    } }
   }
 
   // ---- Elektrobusy: stav baterií, nabíjení, dojezd ----
@@ -3646,7 +3802,7 @@ export default function FleetPortal() {
     tireModal: state.tireModal ? { ...state.tireModal, close: () => setState({ tireModal: null }), stop: (e) => e.stopPropagation(), actions: TIRE_ACTIONS, field: (k) => (e) => setTireField(k, e.target.value), onInvoice: (e) => { const f = e.target.files && e.target.files[0]; if (f) setTireField('invoice', f.name) }, save: saveTire } : null,
     fineModal: state.fineModal ? { ...state.fineModal, close: () => setState({ fineModal: null }), stop: (e) => e.stopPropagation(), types: FINE_TYPES, field: (k) => (e) => setFineField(k, e.target.value), togglePaid: () => setState((s) => ({ fineModal: { ...s.fineModal, paid: !s.fineModal.paid } })), save: saveFine } : null,
     ...shellVM(), ...dashboardVM(), ...fleetsVM(), ...fleetDetailVM(), ...vehiclesVM(), ...vehicleDetailVM(),
-    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...ownerDashVM(), ...dispatchDashVM(), ...driverSelfVM(), ...attentionVM(), ...anomaliesVM(), ...anomalyDetailVM(), ...mapVM(), ...vykonyVM(), ...optimalizaceVM(), ...servisVM(), ...zajezdyVM(), ...elektrobusyVM(), ...ucetnictviVM(), ...driverPortalVM(), ...dispatchVM(), ...stazkaVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(), ...linkyVM(), ...linkyDetailVM(), ...ecoVM(),
+    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...ownerDashVM(), ...dispatchDashVM(), ...driverSelfVM(), ...attentionVM(), ...anomaliesVM(), ...anomalyDetailVM(), ...mapVM(), ...vykonyVM(), ...optimalizaceVM(), ...servisVM(), ...zajezdyVM(), ...zajezdDetailVM(), ...elektrobusyVM(), ...ucetnictviVM(), ...driverPortalVM(), ...dispatchVM(), ...stazkaVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(), ...linkyVM(), ...linkyDetailVM(), ...ecoVM(),
   }
 
   return <Render vm={vm} />

@@ -94,6 +94,8 @@ const PATHS = {
   check: '<path d="M20 6L9 17l-5-5"/>',
   star: '<path d="M12 2.5l2.9 6.1 6.6.7-4.9 4.5 1.3 6.6L12 17.6l-5.9 2.8 1.3-6.6L2.5 9.3l6.6-.7z" fill="currentColor" stroke="none"/>',
   arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  arrowLeft: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
+  user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
   sparkle: '<path d="M12 3l1.8 4.7L18.5 9l-4.7 1.3L12 15l-1.8-4.7L5.5 9l4.7-1.3z"/><path d="M19 14l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z"/>',
   send: '<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/>',
