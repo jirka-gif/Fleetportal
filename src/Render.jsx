@@ -2270,7 +2270,19 @@ function Vykony({ vm }) {
             <div style={S('margin-top:16px;padding-top:14px;border-top:1px solid var(--border)')}><ZjStepper steps={d.steps} /></div>
             <div style={S('margin-top:16px;padding:16px 18px;border:1px solid var(--blue);border-radius:14px;background:linear-gradient(135deg,#F5F7FF,#FFFFFF)')}>
               <div style={S('font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px')}>Další krok</div>
-              {d.actions.length > 0
+              {d.canResolve ? (
+                <div>
+                  <div style={S('display:flex;gap:10px;align-items:flex-start;margin-bottom:12px')}>
+                    <span style={S('width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--amber-soft);color:#B45309')}>{ic('alert', 15)}</span>
+                    <div style={S('font-size:12.5px;color:var(--ink2);line-height:1.5')}><b style={S('color:var(--ink)')}>Nejdřív rozhodněte {d.openCount} událostí měsíce.</b> U každé v kartě Kontrola měsíce vyberte, zda uznat sankci nebo km, nebo je vyřešte najednou podle pravidel smlouvy. Jakmile nezbude žádná, odemkne se Potvrdit kontrolu.</div>
+                  </div>
+                  <div style={S('display:flex;gap:8px;flex-wrap:wrap')}>
+                    <UcBtn primary onClick={d.resolveAll}>{ic('sparkle', 15)}Vyřešit {d.openCount} událostí podle smlouvy</UcBtn>
+                    <UcBtn onClick={d.goReview}>{ic('alert', 15)}Projít jednotlivě</UcBtn>
+                    {d.actions.map((a) => <UcBtn key={a.label} disabled={a.disabled} onClick={a.onClick}>{ic(a.icon, 15)}Potvrdit kontrolu</UcBtn>)}
+                  </div>
+                </div>
+              ) : d.actions.length > 0
                 ? <div style={S('display:flex;gap:8px;flex-wrap:wrap')}>{d.actions.map((a) => <UcBtn key={a.label} primary={a.primary} disabled={a.disabled} onClick={a.onClick}>{ic(a.icon, 15)}{a.label}</UcBtn>)}</div>
                 : <div style={S('font-size:13px;font-weight:600;color:var(--ink2)')}>Měsíc je vyúčtovaný a uzavřený. Doklady a výkaz najdete vpravo.</div>}
               {d.log.length > 0 && (
@@ -2320,6 +2332,7 @@ function Vykony({ vm }) {
         </div>
 
         <div style={S('display:flex;flex-direction:column;gap:16px')}>
+          <div id="vyk-kontrola" style={S('scroll-margin-top:90px')} />
           <Box icon="alert" color="var(--star)" title="Kontrola měsíce" sub={d.openCount ? `${d.openCount} událostí čeká na rozhodnutí, ${d.issuesTotal - d.openCount} vyřešeno` : `Vše vyřešeno (${d.issuesTotal} událostí)`} right={d.canResolve ? <UcBtn onClick={d.resolveAll}>{ic('sparkle', 14)}Podle smlouvy</UcBtn> : null}>
             <div style={S('display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px')}>
               {d.issueGroups.map((g) => <span key={g.type} style={UC_CHIP(g)}>{g.label}: {g.open ? `${g.open} / ` : ''}{g.total}</span>)}
