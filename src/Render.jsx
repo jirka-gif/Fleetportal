@@ -2582,16 +2582,6 @@ function ZajezdDetail({ vm }) {
               {[['Na osobu', t.perPaxF], ['Odhad nákladů', t.cost], ['Marže', `${t.margin} %`]].map(([l, v]) => <div key={l} style={S('padding:10px 12px;border-radius:10px;background:var(--canvas)')}><div style={S('font-size:11px;color:var(--ink3)')}>{l}</div><div style={S('font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap')}>{v}</div></div>)}
             </div>
           </Box>
-          <Box icon="clock" color="var(--purple)" title="Časová osa" sub="Kdo a kdy, od poptávky po vyúčtování">
-            <div style={S('margin-top:6px')}>
-              {t.timeline.map((e, i) => (
-                <div key={i} style={S(`display:flex;gap:12px;padding:9px 0${i ? ';border-top:1px solid var(--border)' : ''}`)}>
-                  <span style={S(`width:8px;height:8px;border-radius:50%;margin-top:6px;flex-shrink:0;background:${i === 0 ? 'var(--blue)' : 'var(--border2)'}`)} />
-                  <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:600')}>{e.what}</div>{e.detail && <div style={S('font-size:12px;color:var(--ink2);margin-top:1px')}>{e.detail}</div>}<div style={S('font-size:11.5px;color:var(--ink3);margin-top:2px')}>{e.at} · {e.who}</div></div>
-                </div>
-              ))}
-            </div>
-          </Box>
         </div>
 
         <div style={S('display:flex;flex-direction:column;gap:16px')}>
@@ -2600,17 +2590,15 @@ function ZajezdDetail({ vm }) {
             {t.actions.length > 0
               ? <div style={S('display:flex;gap:8px;flex-wrap:wrap')}>{t.actions.map((a) => <UcBtn key={a.label} primary={a.primary} disabled={a.disabled} onClick={a.onClick}>{ic(a.icon, 15)}{a.label}</UcBtn>)}</div>
               : <div style={S('font-size:13px;font-weight:600;color:var(--ink2)')}>{t.status === 'vyuctovano' ? 'Zájezd je vyúčtovaný a uzavřený.' : 'Zájezd je realizovaný, zbývá vystavit fakturu (karta Fakturace).'}</div>}
-            {t.lastEvent && (
-              <div style={S('display:flex;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)')}>
-                <span style={S('width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--blue-soft);color:var(--blue)')}>{ic('clock', 15)}</span>
-                <div style={S('flex:1;min-width:0')}>
-                  <div style={S('font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px')}>Poslední událost · {t.lastEvent.at}</div>
-                  <div style={S('font-size:13px;font-weight:650;margin-top:2px')}>{t.lastEvent.what}</div>
-                  {t.lastEvent.detail && <div style={S('font-size:12px;color:var(--ink2);margin-top:2px')}>{t.lastEvent.detail}</div>}
-                  <div style={S('font-size:11.5px;color:var(--ink3);margin-top:3px')}>{t.lastEvent.who}</div>
+            <div style={S('margin-top:16px;padding-top:12px;border-top:1px solid var(--border)')}>
+              <div style={S('font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px')}>Historie · kdo, kdy a co</div>
+              {t.timeline.map((e, i) => (
+                <div key={i} style={S(`display:flex;gap:12px;padding:9px 0${i ? ';border-top:1px solid var(--border)' : ''}`)}>
+                  <span style={S(`width:8px;height:8px;border-radius:50%;margin-top:6px;flex-shrink:0;background:${i === 0 ? 'var(--blue)' : 'var(--border2)'}`)} />
+                  <div style={S('flex:1;min-width:0')}><div style={S(`font-size:13px;font-weight:${i === 0 ? 700 : 600}`)}>{e.what}</div>{e.detail && <div style={S('font-size:12px;color:var(--ink2);margin-top:1px')}>{e.detail}</div>}<div style={S('font-size:11.5px;color:var(--ink3);margin-top:2px')}>{e.at} · {e.who}</div></div>
                 </div>
-              </div>
-            )}
+              ))}
+            </div>
           </div>
           <Box icon="bus" color="var(--blue-ink)" title="Vůz a řidiči" sub={t.closed ? 'Jízda proběhla' : t.editing ? `Vyberte vůz a ${t.needDrv === 2 ? 'dva řidiče' : 'řidiče'}, potvrzením se zablokuje termín ${t.daysLabel}` : `Zablokováno na ${t.daysLabel}`} right={t.assigned && !t.editing && !t.closed ? <UcBtn onClick={t.startEdit}>{ic('edit', 14)}Změnit</UcBtn> : null}>
             {t.editing && !t.closed ? (
