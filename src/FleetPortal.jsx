@@ -1065,7 +1065,7 @@ export default function FleetPortal() {
     drvMsgs: SEED_DRV_MSGS, drvMsgTo: 'dispecink', drvMsgText: '', drvIdeas: SEED_DRV_IDEAS, drvIdeaText: '', drvIdeaCat: 'Provoz', drvDocs: SEED_DRV_DOCS,
     navOpen: { provoz: true, flotila: true, lide: true, finance: true, firma: false },
     shifts: SEED_SHIFTS, shiftForm: { dayKey: SHIFT_DAYS[1].key, driverId: 'dr1', lineId: linesData[0].id, busId: linesData[0].busId, turnus: 'ranní' },
-    vyk: { month: '2026-10', cust: 'c2', status: { ...VYK_SEED_STATUS }, log: { ...VYK_SEED_LOG }, resolved: {}, docs: {}, lineOpen: null, showAll: false },
+    vyk: { month: '2026-10', cust: 'c2', status: { ...VYK_SEED_STATUS }, log: { ...VYK_SEED_LOG }, resolved: {}, docs: {}, lineOpen: null, lineDay: null, showAll: false },
     zajTrips: SEED_TRIPS, zajCalc: { ...DEFAULT_TRIP_CALC }, zajCalcOpen: false, zajDetailId: null, zajFilter: 'vse', zajPick: null, zajPickEdit: false,
     claimWizard: false, claimStep: 1, claimData: {},
     rowMenu: null, toast: null,
@@ -2782,7 +2782,7 @@ export default function FleetPortal() {
       plneniColor: r.t.plneni >= 99 ? 'var(--green)' : r.t.plneni >= 98 ? '#B45309' : 'var(--star)',
       kompF: czk(r.t.komp), vykonF: czk(r.t.vykon), revF: czk(r.t.revenue), sankceF: czk(r.t.sankce),
       flags: [r.t.plneni < 98 ? 'plnění pod 98 %' : null, r.t.revenue / r.t.kmReal < 10 ? 'nízké tržby na km' : null, r.t.kmPct > 103 ? 'km nad plán' : null].filter(Boolean),
-      onClick: () => vykSet({ lineOpen: r.line.id }),
+      onClick: () => vykSet({ lineOpen: r.line.id, lineDay: null }),
     }))
     const docsList = [...ACC.invoices().filter((i) => i.kompenzace && i.clientId === custId && i.serviceMonth === month), ...(v.docs[key] || []).map((id) => ACC.invoiceById(id)).filter(Boolean)]
     const seen = new Set(); const docs = docsList.filter((d) => { if (seen.has(d.id)) return false; seen.add(d.id); return true }).map((d) => ({ id: d.id, number: d.number, status: d.status, totalF: czk(d.total), issuedF: ACC.fmtDate(d.issued), onOpen: () => (state.role === 'majitel' || state.role === 'ucetni') ? navigate('ucetnictvi', { ucTab: 'faktury', ucInvDetail: d.id }) : showToast('Doklad je v Účetnictví (role majitel nebo účetní)') }))
@@ -2813,11 +2813,52 @@ export default function FleetPortal() {
     const year = VYK_YEAR_MONTHS.map((k) => { const st = vykStatusOf(`${k}:${custId}`); const closed = k < '2026-08' || st === 'uzavreno'; const rows = vykBuilt(k, custId).map((b) => ({ t: vykTotals(b, closed ? new Proxy({}, { get: () => ({ action: 'closed' }) }) : vykResolvedMap(`${k}:${custId}`)) })); const tot = vykSum(rows); return { k, label: vykMonthLabel(k).split(' ')[0], komp: tot.komp || 0, kompF: czk(tot.komp || 0), advF: czk(c.advance), diff: (tot.komp || 0) - c.advance, diffF: czk(Math.abs((tot.komp || 0) - c.advance)), closed, current: k === month } })
     const ytd = year.reduce((a, y) => ({ komp: a.komp + y.komp, adv: a.adv + c.advance }), { komp: 0, adv: 0 })
     const lo = v.lineOpen ? m.rows.find((r) => r.line.id === v.lineOpen) : null
-    const lineDetail = lo ? {
-      no: lo.line.no, name: lo.line.name, t: lo.t, rate: lo.rate, kmTrip: lo.kmTrip, close: () => vykSet({ lineOpen: null }), stop, openLine: () => openLine(lo.line.id),
-      days: lo.days.map((d) => ({ ...d, kmPlanF: d.kmPlan.toLocaleString('cs-CZ'), kmRealF: d.kmReal.toLocaleString('cs-CZ'), revF: czk(d.revenue), weekend: d.dow === 0 || d.dow === 6, issues: d.issues.map((i) => ({ ...i, meta: VYK_ISSUE_TYPES[i.type], resolved: !!resolved[i.id] })) })),
-      issues: lo.issues.filter((i) => !resolved[i.id]).map((i) => issueRow({ ...i, resolved: null })),
-    } : null
+    const lineDetail = lo ? (() => {
+      const [yy, mm] = month.split('-').map(Number)
+      const pm = `${mm === 1 ? yy - 1 : yy}-${String(mm === 1 ? 12 : mm - 1).padStart(2, '0')}`
+      const pt = vykTotals(buildVykLine(lo.line, pm), new Proxy({}, { get: () => ({ action: 'closed' }) }))
+      const t = lo.t
+      const delta = (cur, prev, unit = '%') => { if (!prev) return null; const d = (cur - prev) / prev * 100; return { v: `${d >= 0 ? '+' : '−'}${Math.abs(d).toFixed(1).replace('.', ',')} %`, up: d >= 0 } }
+      const tiles = [
+        { label: 'Spoje jeté / plán', value: `${t.tripsRun.toLocaleString('cs-CZ')} / ${t.tripsPlan.toLocaleString('cs-CZ')}`, note: `plnění ${t.plneni.toFixed(1).replace('.', ',')} %${t.missed ? `, ${t.missed} nejeto` : ''}`, tone: t.plneni >= 99.5 ? 'var(--green)' : t.plneni >= 98 ? '#B45309' : 'var(--star)' },
+        { label: 'Km uznatelné', value: t.kmUzn.toLocaleString('cs-CZ'), note: t.kmNeuzn ? `${t.kmNeuzn.toLocaleString('cs-CZ')} km neuznáno` : `plán ${t.kmPlan.toLocaleString('cs-CZ')}`, delta: delta(t.kmUzn, pt.kmUzn) },
+        { label: 'Tržby z jízdného', value: czk(t.revenue), note: `${(t.revenue / Math.max(1, t.kmReal)).toFixed(1).replace('.', ',')} Kč na km`, delta: delta(t.revenue, pt.revenue) },
+        { label: 'Cestující', value: t.pax.toLocaleString('cs-CZ'), note: `${(t.pax / Math.max(1, t.tripsRun)).toFixed(1).replace('.', ',')} na spoj`, delta: delta(t.pax, pt.pax) },
+        { label: 'Sankce', value: czk(t.sankce), note: t.sankce ? `${Math.round(t.sankce / lo.penalty)} spojů × ${czk(lo.penalty)}` : 'bez sankcí', tone: t.sankce ? 'var(--star)' : 'var(--green)' },
+        { label: 'Kompenzace', value: czk(t.komp), note: `minulý měsíc ${czk(pt.komp)}`, delta: delta(t.komp, pt.komp), strong: true },
+      ]
+      const maxKm = Math.max(...lo.days.map((d) => Math.max(d.kmPlan, d.kmReal)))
+      const maxRev = Math.max(...lo.days.map((d) => d.revenue))
+      const dayState = (d) => { const open = d.issues.some((i) => !resolved[i.id]); return d.tripsRun < d.tripsPlan ? 'missed' : open ? 'open' : d.issues.length ? 'issue' : (d.dow === 0 || d.dow === 6) ? 'weekend' : 'ok' }
+      const sel = lo.days.find((d) => d.dateKey === v.lineDay) || lo.days.find((d) => d.issues.some((i) => !resolved[i.id])) || lo.days.find((d) => d.issues.length) || lo.days[0]
+      const chart = lo.days.map((d) => ({ d: d.d, dateKey: d.dateKey, label: d.label, kmReal: d.kmReal, kmPlan: d.kmPlan, h: d.kmReal / maxKm, hp: d.kmPlan / maxKm, rev: d.revenue / maxRev, state: dayState(d), selected: d.dateKey === sel.dateKey, onClick: () => vykSet({ lineDay: d.dateKey }) }))
+      const firstDow = (new Date(yy, mm - 1, 1).getDay() + 6) % 7
+      const calendar = [...Array.from({ length: firstDow }).map(() => null), ...lo.days.map((d) => ({ d: d.d, dateKey: d.dateKey, km: d.kmReal, rev: d.revenue, pct: d.tripsPlan ? d.tripsRun / d.tripsPlan * 100 : 100, state: dayState(d), weekend: d.dow === 0 || d.dow === 6, dots: d.issues.map((i) => ({ color: VYK_ISSUE_TYPES[i.type].color, done: !!resolved[i.id] })), selected: d.dateKey === sel.dateKey, onClick: () => vykSet({ lineDay: d.dateKey }) }))]
+      const HW = [0, 0, 0, 0, 2, 5, 9, 10, 7, 5, 5, 5, 6, 6, 8, 9, 9, 7, 5, 4, 3, 2, 1, 0]
+      const hw = sel.dow === 0 || sel.dow === 6 ? HW.map((w, h) => h >= 6 && h <= 9 ? Math.round(w * 0.55) : w) : HW
+      const wsum = hw.reduce((a, b) => a + b, 0)
+      const hours = hw.map((w, h) => ({ h, plan: Math.round(sel.tripsPlan * w / wsum) })).filter((x) => x.h >= 4 && x.h <= 23)
+      const missIssue = sel.issues.find((i) => i.type === 'missed'); const subIssue = sel.issues.find((i) => i.type === 'substitute')
+      if (missIssue) { const hh = 6 + (_hash(missIssue.id) % 12); const x = hours.find((y) => y.h === hh); if (x) x.missed = missIssue.trips }
+      if (subIssue) { const hh = 8 + (_hash(subIssue.id) % 10); const x = hours.find((y) => y.h === hh); if (x) x.sub = subIssue.trips }
+      const maxH = Math.max(...hours.map((x) => x.plan), 1)
+      const day = { ...sel, kmRealF: sel.kmReal.toLocaleString('cs-CZ'), kmPlanF: sel.kmPlan.toLocaleString('cs-CZ'), revF: czk(sel.revenue), paxF: sel.pax.toLocaleString('cs-CZ'), pct: (sel.tripsPlan ? sel.tripsRun / sel.tripsPlan * 100 : 100).toFixed(1).replace('.', ','), hours: hours.map((x) => ({ ...x, hPct: x.plan / maxH })), issues: sel.issues.map((i) => issueRow({ ...i, resolved: resolved[i.id] || null })), dateLong: `${['neděle', 'pondělí', 'úterý', 'středa', 'čtvrtek', 'pátek', 'sobota'][sel.dow]} ${sel.d}. ${mm}. ${yy}` }
+      const wf = [
+        { label: 'Výkon', sub: `${t.kmUzn.toLocaleString('cs-CZ')} km × ${lo.rate} Kč`, value: t.vykon, color: '#5B6BF5' },
+        { label: 'Tržby z jízdného', sub: `${Math.round(t.revenue / t.vykon * 100)} % výkonu`, value: -t.revenue, color: '#22C55E' },
+        { label: 'Sankce', sub: t.sankce ? `${Math.round(t.sankce / lo.penalty)} nejetých spojů` : 'žádné', value: -t.sankce, color: '#EF4444' },
+      ]
+      let run = 0; const waterfall = wf.map((x) => { const from = run; run += x.value; return { ...x, valueF: `${x.value < 0 ? '−' : ''}${czk(Math.abs(x.value))}`, left: Math.min(from, run) / t.vykon, width: Math.abs(x.value) / t.vykon } })
+      waterfall.push({ label: 'Kompenzace', sub: 'doplatí objednatel', value: t.komp, valueF: czk(t.komp), color: '#F43F5E', left: 0, width: t.komp / t.vykon, total: true })
+      const lineIssuesOpen = lo.issues.filter((i) => !resolved[i.id])
+      const exportRows = lo.days.map((d) => ({ den: d.label, spojePlan: d.tripsPlan, spojeJete: d.tripsRun, kmPlan: d.kmPlan, kmSkut: d.kmReal, trzby: d.revenue, cestujici: d.pax, udalosti: d.issues.map((i) => `${i.label} (${i.detail})`).join('; ') }))
+      return {
+        no: lo.line.no, name: lo.line.name, t, rate: lo.rate, kmTrip: lo.kmTrip, close: () => vykSet({ lineOpen: null, lineDay: null }), stop, openLine: () => openLine(lo.line.id),
+        prevLabel: vykMonthLabel(pm), tiles, chart, calendar, day, waterfall, recovery: Math.round(t.revenue / t.vykon * 100), openCount: lineIssuesOpen.length, openIssues: lineIssuesOpen.map((i) => issueRow({ ...i, resolved: null })),
+        resolveLine: lineIssuesOpen.length && status === 'kontrola' ? () => { const stamp = tripStamp(); const who = zajUser(); const add = {}; lineIssuesOpen.forEach((i) => { add[i.id] = { action: VYK_ISSUE_TYPES[i.type].def, who, at: stamp } }); setState((st) => ({ vyk: { ...st.vyk, resolved: { ...st.vyk.resolved, [key]: { ...(st.vyk.resolved[key] || {}), ...add } } } })); vykLog(key, `Kontrola linky ${lo.line.no}: ${lineIssuesOpen.length} událostí vyřešeno podle smlouvy`, lineIssuesOpen.map((i) => `${i.dateLabel} ${i.label}`).join(', ')); showToast(`Linka ${lo.line.no}: ${lineIssuesOpen.length} událostí vyřešeno`) } : null,
+        exportCols: [{ key: 'den', label: 'Den' }, { key: 'spojePlan', label: 'Spoje plán' }, { key: 'spojeJete', label: 'Spoje jeté' }, { key: 'kmPlan', label: 'Km plán' }, { key: 'kmSkut', label: 'Km skutečnost' }, { key: 'trzby', label: 'Tržby Kč' }, { key: 'cestujici', label: 'Cestující' }, { key: 'udalosti', label: 'Události' }], exportRows, exportName: `vykony-linka-${lo.line.no}-${month}`, exportTitle: `Linka ${lo.line.no} · ${vykMonthLabel(month)}`,
+      }
+    })() : null
     return { vykony: {
       month, monthLabel: vykMonthLabel(month), months, setMonth: (e) => vykSet({ month: e.target.value, showAll: false, lineOpen: null }), tabs, custId, cust: { ...c, name: custAcc.name, ico: custAcc.ico }, kpis,
       status, steps: VYK_STEPS.map((lbl, i) => ({ label: lbl, done: i <= stepIdx, current: i === stepIdx, when: (() => { const e = (v.log[key] || []).find((x) => [/Sběr dat uzavřen|Měsíc otevřen/, /Kontrola potvrzena/, /Výkaz/, /Vyúčtováno|faktur/, /uzavřen/][i].test(x.what)); return e && i <= stepIdx ? e.at.split(' ').slice(0, 3).join(' ') : null })() })),

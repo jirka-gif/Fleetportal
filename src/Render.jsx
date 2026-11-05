@@ -2368,31 +2368,121 @@ function Vykony({ vm }) {
             </div>
           </div>
 
-      {d.lineDetail && (() => { const L = d.lineDetail; const dc = mob ? '1fr' : '90px 110px 150px 110px 90px minmax(0,1fr)'; return (
-        <UcModal wide title={`Linka ${L.no} · ${L.name}`} sub={`${d.monthLabel} · ${d.cust.short} · ${L.kmTrip} km na spoj · sazba ${L.rate} Kč/km`} onClose={L.close} stop={L.stop}>
-          <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:14px')}>
-            {[['Spoje jeté / plán', `${n(L.t.tripsRun)} / ${n(L.t.tripsPlan)}`], ['Km uznatelné', n(L.t.kmUzn)], ['Km neuznané', n(L.t.kmNeuzn)], ['Tržby', czk(L.t.revenue)], ['Sankce', czk(L.t.sankce)], ['Kompenzace', czk(L.t.komp)]].map(([l, v]) => <div key={l} style={S('padding:10px 12px;border-radius:10px;background:var(--canvas)')}><div style={S('font-size:11px;color:var(--ink3)')}>{l}</div><div style={S('font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap')}>{v}</div></div>)}
-          </div>
-          {L.issues.length > 0 && <div style={S('margin-bottom:14px;padding:12px 14px;border:1px solid var(--amber);border-radius:12px;background:var(--amber-soft)')}>
-            <div style={S('font-size:12.5px;font-weight:700;color:#B45309;margin-bottom:8px')}>{L.issues.length} událostí této linky čeká na rozhodnutí</div>
-            <div style={S('display:flex;flex-direction:column;gap:8px')}>{L.issues.map((i) => <div key={i.id} style={S('display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px')}><span style={S('font-weight:700;min-width:120px')}>{i.dateLabel} · {i.label}</span><span style={S('color:var(--ink2);flex:1;min-width:160px')}>{i.detail} · {i.impact}</span><span style={S('display:flex;gap:6px')}>{i.actions.map((a, k) => <UcBtn key={a.label} primary={k === 0} onClick={a.onClick}>{a.label}</UcBtn>)}</span></div>)}</div>
-          </div>}
-          {!mob && <div style={S(`display:grid;grid-template-columns:${dc};gap:10px;padding:8px 10px;border-bottom:1px solid var(--border);background:#F7FAFE;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px;border-radius:8px 8px 0 0`)}><div>Den</div><div style={S('text-align:right')}>Spoje</div><div style={S('text-align:right')}>Km skut. / plán</div><div style={S('text-align:right')}>Tržby</div><div style={S('text-align:right')}>Cestující</div><div>Události</div></div>}
-          {L.days.map((day) => (
-            <div key={day.d} style={S(`display:grid;grid-template-columns:${dc};gap:10px;padding:7px 10px;border-bottom:1px solid var(--border);font-size:12.5px;font-variant-numeric:tabular-nums;align-items:center;${day.weekend ? 'background:#FAFAFC' : ''}`)}>
-              <div style={S(`font-weight:650;color:${day.weekend ? 'var(--ink3)' : 'var(--ink)'}`)}>{day.label}</div>
-              <div style={S(`text-align:right;${day.tripsRun < day.tripsPlan ? 'color:var(--star);font-weight:700' : ''}`)}>{day.tripsRun} / {day.tripsPlan}</div>
-              <div style={S('text-align:right')}>{day.kmRealF} / {day.kmPlanF}</div>
-              <div style={S('text-align:right')}>{day.revF}</div>
-              <div style={S('text-align:right;color:var(--ink2)')}>{n(day.pax)}</div>
-              <div style={S('display:flex;gap:5px;flex-wrap:wrap')}>{day.issues.map((i) => <span key={i.id} style={S(`display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;color:${i.meta.color};background:${i.meta.bg};padding:2px 8px;border-radius:20px;white-space:nowrap`)}>{i.resolved && ic('check', 11)}{i.label}</span>)}</div>
-            </div>
-          ))}
-          <div style={S('display:flex;gap:8px;margin-top:14px')}><UcBtn onClick={L.openLine}>{ic('pin', 15)}Otevřít linku a jízdní řád</UcBtn><span style={S('flex:1')} /><UcBtn onClick={L.close}>Zavřít</UcBtn></div>
-        </UcModal>
-      ) })()}
+      {d.lineDetail && <VykLineDetail L={d.lineDetail} d={d} mob={mob} narrow={narrow} />}
       {d.newDoc && <UcNewDocument n={d.newDoc} mob={mob} />}
     </div>
+  )
+}
+
+const VYK_STATE = { ok: ['#C7D2FE', '#5B6BF5'], weekend: ['#E2E8F0', '#94A3B8'], issue: ['#BFDBFE', '#3B82F6'], open: ['#FDE68A', '#D97706'], missed: ['#FECACA', '#EF4444'] }
+function VykLineDetail({ L, d, mob, narrow }) {
+  const n = (x) => Math.round(x || 0).toLocaleString('cs-CZ')
+  const H = 150
+  const head = <span style={S('min-width:44px;height:36px;padding:0 9px;border-radius:9px;background:#18181B;color:#fff;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{L.no}</span>
+  const sec = (t, sub, right) => <div style={S('display:flex;align-items:flex-end;gap:10px;margin-bottom:10px')}><div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:750')}>{t}</div>{sub && <div style={S('font-size:11.5px;color:var(--ink3)')}>{sub}</div>}</div>{right}</div>
+  const panel = 'border:1px solid var(--border);border-radius:14px;padding:16px'
+  return (
+    <UcModal xl head={head} title={L.name} sub={`${d.monthLabel} · ${d.cust.short} · ${L.kmTrip} km na spoj · sazba ${L.rate} Kč/km · srovnání s ${L.prevLabel}`} onClose={L.close} stop={L.stop}>
+      <div style={S(`display:grid;grid-template-columns:repeat(${mob ? 2 : 6},minmax(0,1fr));gap:8px;margin-bottom:16px`)}>
+        {L.tiles.map((x) => (
+          <div key={x.label} style={S(`padding:12px 14px;border-radius:12px;${x.strong ? 'background:linear-gradient(135deg,#FFF1F3,#FFFFFF);border:1px solid #FECDD3' : 'background:var(--canvas)'}`)}>
+            <div style={S('font-size:11px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{x.label}</div>
+            <div style={S(`font-size:16px;font-weight:800;letter-spacing:-.3px;font-variant-numeric:tabular-nums;white-space:nowrap;margin-top:2px;color:${x.strong ? 'var(--star)' : x.tone || 'var(--ink)'}`)}>{x.value}</div>
+            <div style={S('display:flex;align-items:center;gap:6px;margin-top:3px;min-width:0')}>
+              {x.delta && <span style={S(`font-size:10.5px;font-weight:750;padding:1px 6px;border-radius:20px;white-space:nowrap;color:${x.delta.up ? 'var(--green)' : 'var(--star)'};background:${x.delta.up ? 'var(--green-soft)' : 'var(--star-soft)'}`)}>{x.delta.v}</span>}
+              <span style={S('font-size:11px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{x.note}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={S(`display:grid;grid-template-columns:${narrow ? '1fr' : 'minmax(0,1.55fr) minmax(0,1fr)'};gap:14px;margin-bottom:14px`)}>
+        <div style={S(panel)}>
+          {sec('Průběh měsíce', 'Km po dnech proti plánu, tržby jako linie; klikněte na den', <div style={S('display:flex;gap:10px;flex-wrap:wrap;font-size:10.5px;color:var(--ink3)')}>{[['ok', 'v plánu'], ['weekend', 'víkend'], ['open', 'ke kontrole'], ['missed', 'nejeté spoje']].map(([k, l]) => <span key={k} style={S('display:flex;align-items:center;gap:4px')}><span style={S(`width:9px;height:9px;border-radius:3px;background:${VYK_STATE[k][1]}`)} />{l}</span>)}</div>)}
+          <div style={S(`position:relative;height:${H}px;display:flex;align-items:flex-end;gap:3px;padding-top:6px`)}>
+            {[0.25, 0.5, 0.75, 1].map((g) => <div key={g} style={S(`position:absolute;left:0;right:0;bottom:${g * (H - 6)}px;border-top:1px dashed var(--border)`)} />)}
+            <svg viewBox={`0 0 ${L.chart.length * 10} 100`} preserveAspectRatio="none" style={{ position: 'absolute', inset: '6px 0 0 0', width: '100%', height: H - 6, pointerEvents: 'none', zIndex: 2 }}>
+              <polyline fill="none" stroke="#22C55E" strokeWidth="1.6" vectorEffect="non-scaling-stroke" strokeLinejoin="round" points={L.chart.map((c, i) => `${i * 10 + 5},${100 - c.rev * 92}`).join(' ')} />
+            </svg>
+            {L.chart.map((c) => (
+              <Hov key={c.d} onClick={c.onClick} base={`position:relative;flex:1;height:100%;display:flex;align-items:flex-end;cursor:pointer;border-radius:5px;${c.selected ? 'background:rgba(91,107,245,.08)' : ''}`} hover="background:rgba(91,107,245,.06)">
+                <div title={`${c.label}: ${c.kmReal} / ${c.kmPlan} km`} style={S(`position:absolute;left:12%;right:12%;bottom:0;height:${c.hp * 100}%;border-radius:4px 4px 0 0;border:1px dashed ${VYK_STATE[c.state][0]}`)} />
+                <div style={S(`position:relative;width:76%;margin:0 auto;height:${c.h * 100}%;border-radius:4px 4px 0 0;background:${c.selected ? '#18181B' : VYK_STATE[c.state][1]};opacity:${c.state === 'weekend' && !c.selected ? .55 : 1}`)} />
+              </Hov>
+            ))}
+          </div>
+          <div style={S('display:flex;gap:3px;margin-top:5px')}>{L.chart.map((c) => <div key={c.d} style={S(`flex:1;text-align:center;font-size:9.5px;font-weight:${c.selected ? 800 : 500};color:${c.selected ? 'var(--ink)' : 'var(--ink3)'}`)}>{c.d % 2 === 1 || c.selected ? c.d : ''}</div>)}</div>
+        </div>
+        <div style={S(panel)}>
+          {sec('Z čeho se skládá kompenzace', `Tržby pokrývají ${L.recovery} % výkonu`)}
+          <div style={S('display:flex;flex-direction:column;gap:11px')}>
+            {L.waterfall.map((w) => (
+              <div key={w.label}>
+                <div style={S('display:flex;justify-content:space-between;gap:10px;font-size:12px;margin-bottom:4px')}><span><b style={S('font-weight:700')}>{w.label}</b> <span style={S('color:var(--ink3)')}>{w.sub}</span></span><span style={S(`font-weight:${w.total ? 800 : 650};font-variant-numeric:tabular-nums;white-space:nowrap;color:${w.total ? 'var(--star)' : 'var(--ink)'}`)}>{w.valueF}</span></div>
+                <div style={S('position:relative;height:12px;border-radius:6px;background:var(--canvas)')}><div style={S(`position:absolute;top:0;bottom:0;left:${w.left * 100}%;width:${Math.max(w.width * 100, 0.6)}%;border-radius:6px;background:${w.color}`)} /></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={S(`display:grid;grid-template-columns:${narrow ? '1fr' : 'minmax(0,1fr) minmax(0,1.15fr)'};gap:14px;margin-bottom:14px`)}>
+        <div style={S(panel)}>
+          {sec('Kalendář měsíce', 'Plnění spojů, km a události po dnech')}
+          <div style={S('display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px')}>
+            {['po', 'út', 'st', 'čt', 'pá', 'so', 'ne'].map((w) => <div key={w} style={S('font-size:10.5px;font-weight:700;color:var(--ink3);text-align:center;text-transform:uppercase')}>{w}</div>)}
+            {L.calendar.map((c, i) => c ? (
+              <Hov key={i} onClick={c.onClick} base={`position:relative;padding:6px 6px 5px;border-radius:9px;cursor:pointer;min-height:50px;border:1.5px solid ${c.selected ? '#18181B' : c.state === 'missed' ? '#FECACA' : c.state === 'open' ? '#FDE68A' : 'var(--border)'};background:${c.selected ? '#18181B' : c.state === 'missed' ? '#FFF5F5' : c.state === 'open' ? '#FFFBEB' : c.weekend ? '#FAFAFC' : '#fff'};color:${c.selected ? '#fff' : 'var(--ink)'}`} hover={c.selected ? '' : 'border-color:var(--blue)'}>
+                <div style={S('display:flex;align-items:center;justify-content:space-between;gap:2px')}><span style={S('font-size:12px;font-weight:800')}>{c.d}</span><span style={S('display:flex;gap:2px')}>{c.dots.map((dt, k) => <span key={k} style={S(`width:6px;height:6px;border-radius:50%;background:${dt.done ? 'transparent' : dt.color};border:1.5px solid ${dt.color}`)} />)}</span></div>
+                <div style={S(`font-size:10px;font-variant-numeric:tabular-nums;margin-top:3px;opacity:${c.selected ? .85 : .7}`)}>{n(c.km)} km</div>
+                <div style={S(`height:3px;border-radius:2px;margin-top:4px;background:${c.selected ? 'rgba(255,255,255,.25)' : 'var(--canvas)'};overflow:hidden`)}><div style={S(`height:100%;width:${Math.min(100, c.pct)}%;background:${c.pct < 100 ? '#EF4444' : c.selected ? '#fff' : '#22C55E'}`)} /></div>
+              </Hov>
+            ) : <div key={i} />)}
+          </div>
+        </div>
+        <div style={S(panel)}>
+          {sec(L.day.dateLong, `${L.day.tripsRun} z ${L.day.tripsPlan} spojů (${L.day.pct} %) · ${L.day.kmRealF} km z ${L.day.kmPlanF} · tržby ${L.day.revF} · ${L.day.paxF} cestujících`)}
+          <div style={S('font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px')}>Spoje po hodinách</div>
+          <div style={S('display:flex;align-items:flex-end;gap:3px;height:74px')}>
+            {L.day.hours.map((h) => (
+              <div key={h.h} title={`${h.h}:00 · ${h.plan} spojů${h.missed ? `, ${h.missed} nejeto` : ''}${h.sub ? `, ${h.sub} náhradní dopravou` : ''}`} style={S('flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end')}>
+                {h.missed && <div style={S(`height:${Math.max(8, h.missed / h.plan * 100 * h.hPct)}%;background:#EF4444;border-radius:3px 3px 0 0`)} />}
+                {h.sub && <div style={S(`height:${Math.max(8, h.sub / h.plan * 100 * h.hPct)}%;background:#3B82F6;${h.missed ? '' : 'border-radius:3px 3px 0 0'}`)} />}
+                <div style={S(`height:${h.hPct * 100}%;background:#C7D2FE;${h.missed || h.sub ? '' : 'border-radius:3px 3px 0 0'}`)} />
+              </div>
+            ))}
+          </div>
+          <div style={S('display:flex;gap:3px;margin-top:4px')}>{L.day.hours.map((h) => <div key={h.h} style={S('flex:1;text-align:center;font-size:9.5px;color:var(--ink3)')}>{h.h % 3 === 0 ? h.h : ''}</div>)}</div>
+          <div style={S('font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 6px')}>Události dne</div>
+          {L.day.issues.length === 0 && <div style={S('display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;background:var(--green-soft);font-size:12.5px;font-weight:600;color:var(--green)')}>{ic('check', 15)}Den proběhl podle jízdního řádu, nic ke kontrole.</div>}
+          <div style={S('display:flex;flex-direction:column;gap:8px')}>
+            {L.day.issues.map((i) => (
+              <div key={i.id} style={S(`padding:10px 12px;border-radius:10px;border-left:3px solid ${i.meta.color};background:${i.resolved ? '#FAFAFC' : i.meta.bg}`)}>
+                <div style={S('display:flex;align-items:center;gap:8px')}><div style={S('flex:1;min-width:0')}><div style={S('font-size:12.5px;font-weight:700')}>{i.label}</div><div style={S('font-size:11.5px;color:var(--ink2)')}>{i.detail} · {i.impact}</div></div><span style={UC_CHIP(i.meta)}>{i.meta.label}</span></div>
+                {i.resolved
+                  ? <div style={S('font-size:11.5px;color:var(--green);font-weight:650;margin-top:6px;display:flex;align-items:center;gap:5px')}>{ic('check', 13)}{i.resolvedLabel}{i.resolved.who ? ` · ${i.resolved.who}` : ''}</div>
+                  : <div style={S('display:flex;gap:6px;flex-wrap:wrap;margin-top:8px')}>{i.actions.map((a, k) => <UcBtn key={a.label} primary={k === 0} onClick={a.onClick}>{a.label}</UcBtn>)}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {L.openCount > 0 && (
+        <div style={S('display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;border-radius:12px;background:var(--amber-soft);border:1px solid #FDE68A;margin-bottom:14px')}>
+          <span style={S('color:#B45309;display:flex')}>{ic('alert', 17)}</span>
+          <div style={S('flex:1;min-width:200px;font-size:12.5px')}><b style={S('color:#B45309')}>{L.openCount} událostí linky čeká na rozhodnutí</b><span style={S('color:var(--ink2)')}> · {L.openIssues.map((i) => `${i.dateLabel} ${i.label}`).join(' · ')}</span></div>
+          {L.resolveLine && <UcBtn primary onClick={L.resolveLine}>{ic('sparkle', 14)}Vyřešit podle smlouvy</UcBtn>}
+        </div>
+      )}
+
+      <div style={S('display:flex;gap:8px;flex-wrap:wrap;align-items:center')}>
+        <UcBtn onClick={L.openLine}>{ic('pin', 15)}Linka a jízdní řád</UcBtn>
+        <ExportMenu filename={L.exportName} title={L.exportTitle} columns={L.exportCols} rows={L.exportRows} />
+        <span style={S('flex:1')} />
+        <UcBtn onClick={L.close}>Zavřít</UcBtn>
+      </div>
+    </UcModal>
   )
 }
 
@@ -2839,12 +2929,12 @@ function Elektrobusy({ vm }) {
 const UC_CHIP = (c) => S(`display:inline-flex;align-items:center;font-size:10.5px;font-weight:700;color:${c.color};background:${c.bg};padding:3px 9px;border-radius:20px;white-space:nowrap`)
 const UC_INPUT = 'width:100%;height:38px;border:1px solid var(--border2);border-radius:10px;padding:0 11px;font-size:13px;font-family:inherit;outline:none;background:#fff'
 const UC_LBL = 'font-size:11.5px;font-weight:650;color:var(--ink3);margin-bottom:5px'
-function UcModal({ title, sub, onClose, stop, wide, children }) {
+function UcModal({ title, sub, onClose, stop, wide, xl, children, head }) {
   return (
     <div onClick={onClose} style={S('position:fixed;inset:0;z-index:70;background:rgba(17,20,34,.55);backdrop-filter:blur(3px);display:flex;align-items:flex-start;justify-content:center;padding:28px 16px;overflow:auto')}>
-      <div onClick={stop} style={S(`width:min(${wide ? '900px' : '560px'},100%);background:#fff;border-radius:16px;box-shadow:0 30px 80px -20px rgba(0,0,0,.5);display:flex;flex-direction:column;max-height:calc(100vh - 56px)`)}>
+      <div onClick={stop} style={S(`width:min(${xl ? '1180px' : wide ? '900px' : '560px'},100%);background:#fff;border-radius:16px;box-shadow:0 30px 80px -20px rgba(0,0,0,.5);display:flex;flex-direction:column;max-height:calc(100vh - 56px)`)}>
         <div style={S('display:flex;align-items:center;gap:11px;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0')}>
-          <div style={S('flex:1;min-width:0')}><div style={S('font-size:15px;font-weight:750')}>{title}</div>{sub && <div style={S('font-size:12px;color:var(--ink3)')}>{sub}</div>}</div>
+          {head}<div style={S('flex:1;min-width:0')}><div style={S('font-size:15px;font-weight:750')}>{title}</div>{sub && <div style={S('font-size:12px;color:var(--ink3)')}>{sub}</div>}</div>
           <Hov onClick={onClose} base="width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink2)" hover="background:var(--canvas)">{ic('close', 17)}</Hov>
         </div>
         <div style={S('padding:18px 20px;overflow:auto')}>{children}</div>
