@@ -765,6 +765,7 @@ const TRIP_BUS_TYPES = [
 ]
 const TRIP_RATES = { fix: 1500, waitHour: 320, secondDriverDay: 2800, driverNight: 1900, foreignKm: 4, foreignDay: 2500, parkingDay: 600, vat: 12 }
 const TRIP_STATUS = {
+  koncept: { label: 'Rozpracovaná kalkulace', color: 'var(--ink3)', bg: '#EEF2F9', step: 0 },
   poptavka: { label: 'Poptávka', color: '#B45309', bg: 'var(--amber-soft)', step: 0 },
   nabidka: { label: 'Nabídka odeslána', color: 'var(--blue-ink)', bg: 'var(--blue-soft)', step: 1 },
   schvaleno: { label: 'Schváleno klientem', color: 'var(--purple)', bg: 'var(--purple-soft)', step: 2 },
@@ -817,15 +818,15 @@ ${t.note ? `<div class="note"><strong>Poznámka:</strong> ${esc(t.note)}</div>` 
 <div class="note">Cena zahrnuje přistavení vozu, řidiče, pohonné hmoty a zákonné pojištění. Čekací doba nad rámec nabídky se účtuje ${TRIP_RATES.waitHour} Kč/h. Parkovné a vstupy nad rámec kalkulace hradí objednatel. Nabídka vychází z modelového ceníku zájezdové dopravy.</div>
 <div class="sig"><div>Za dopravce: ${esc(t.offerBy || '')}</div><div>Za objednatele (datum, podpis)</div></div></body></html>`
 }
-const DEFAULT_TRIP_CALC = { custId: 'c4', custName: '', from: 'České Budějovice', to: 'Praha, ZOO', via: '', dateFrom: '2026-11-14', days: 1, km: 320, hod: 11, pax: 45, busType: 'standard', foreign: false, nights: 0, wait: 2, note: '' }
+const DEFAULT_TRIP_CALC = { custId: 'c4', custName: '', contact: '', email: '', from: 'České Budějovice', to: 'Praha, ZOO', via: '', dateFrom: '2026-11-14', days: 1, km: 320, hod: 11, pax: 45, busType: 'standard', foreign: false, nights: 0, wait: 2, note: '' }
 const _tripBuses = () => { const b = vehiclesData.filter((v) => vehicleTypeCat(v.druh) === 'Autobusy'); const pick = (re, n) => b.filter((v) => re.test(`${v.brand} ${v.model}`.trim())).slice(0, n); return [...pick(/^Setra/, 4), ...pick(/^Mercedes/, 4), ...pick(/SOR C 10/, 2), ...pick(/CROSSWAY$/i, 2)] }
 const SEED_TRIPS = [
-  { id: 'T-2026-241', custId: 'c4', custName: 'ZŠ Máj I, České Budějovice', contact: 'Mgr. Hana Kovářová', from: 'České Budějovice', to: 'Praha, ZOO', via: 'Písek', dateFrom: '2026-11-14', days: 1, km: 320, hod: 11, pax: 45, busType: 'standard', foreign: false, nights: 0, wait: 2, status: 'poptavka', busIdx: 0, driverIds: [], note: 'Školní výlet, 45 dětí + 4 pedagogové. Odjezd 7:00 od školy.', timeline: [{ at: '3. 11. 2026 09:12', who: 'Marie Dvořáková', what: 'Poptávka přijata e-mailem' }] },
-  { id: 'T-2026-240', custId: 'c5', custName: 'FK Dynamo České Budějovice a.s.', contact: 'Petr Kříž, vedoucí A-týmu', from: 'České Budějovice', to: 'Plzeň, Doosan Arena', via: '', dateFrom: '2026-11-22', days: 1, km: 280, hod: 9, pax: 28, busType: 'lux', foreign: false, nights: 0, wait: 3, status: 'potvrzeno', busIdx: 1, driverIds: ['dr1'], note: 'Zápas, odjezd 11:30 ze Střeleckého ostrova, návrat po zápase.', timeline: [{ at: '28. 10. 2026 10:40', who: 'Marie Dvořáková', what: 'Poptávka přijata' }, { at: '28. 10. 2026 14:05', who: 'Marie Dvořáková', what: 'Nabídka vystavena a odeslána (21 574 Kč bez DPH)' }, { at: '30. 10. 2026 08:50', who: 'Petr Kříž (klient)', what: 'Nabídka schválena klientem' }, { at: '30. 10. 2026 09:15', who: 'Marie Dvořáková', what: 'Potvrzeno: přidělen vůz a řidič Jan Procházka' }] },
-  { id: 'T-2026-238', custId: 'c6', custName: 'ENGEL strojírenská spol. s r.o.', contact: 'Ing. Lukas Mayer', from: 'Kaplice, závod ENGEL', to: 'Linz, Hauptbahnhof', via: '', dateFrom: '2026-12-03', days: 1, km: 160, hod: 6, pax: 38, busType: 'standard', foreign: true, nights: 0, wait: 1, status: 'nabidka', busIdx: 2, driverIds: [], note: 'Transfer zaměstnanců na školení, zpět tentýž den.', timeline: [{ at: '2. 11. 2026 11:20', who: 'Marie Dvořáková', what: 'Poptávka přijata telefonicky' }, { at: '2. 11. 2026 15:30', who: 'Marie Dvořáková', what: 'Nabídka vystavena a odeslána' }] },
-  { id: 'T-2026-236', custId: 'c8', custName: 'Jihočeská univerzita v Českých Budějovicích', contact: 'doc. Ing. Jana Veselá', from: 'České Budějovice, Branišovská', to: 'Vídeň, Technisches Museum', via: 'Třeboň, Gmünd', dateFrom: '2026-12-12', days: 2, km: 460, hod: 14, pax: 50, busType: 'lux', foreign: true, nights: 1, wait: 4, status: 'schvaleno', busIdx: 3, driverIds: [], note: 'Exkurze studentů, 1 nocleh v hotelu Ibis Wien Mariahilf (řidiči zajišťuje objednatel).', timeline: [{ at: '20. 10. 2026 09:00', who: 'Marie Dvořáková', what: 'Poptávka přijata' }, { at: '21. 10. 2026 16:10', who: 'Josef Moučka', what: 'Nabídka vystavena (zájezdový vůz, jeden nocleh)' }, { at: '27. 10. 2026 10:02', who: 'doc. Veselá (klient)', what: 'Nabídka schválena, objednávka č. JU/2026/418' }] },
-  { id: 'T-2026-231', custId: 'c3', custName: 'Senioři Hluboká, z. s.', contact: 'Věra Dlouhá', from: 'Hluboká nad Vltavou', to: 'Český Krumlov, zámek', via: '', dateFrom: '2026-10-28', days: 1, km: 110, hod: 7, pax: 26, busType: 'midi', foreign: false, nights: 0, wait: 3, status: 'vyuctovano', busIdx: 4, driverIds: ['dr3'], note: 'Senioři, nízkopodlažní nástup, zastávka u lékárny.', timeline: [{ at: '10. 10. 2026 08:30', who: 'Marie Dvořáková', what: 'Poptávka přijata' }, { at: '10. 10. 2026 13:00', who: 'Marie Dvořáková', what: 'Nabídka vystavena' }, { at: '14. 10. 2026 09:20', who: 'Věra Dlouhá (klient)', what: 'Schváleno' }, { at: '14. 10. 2026 09:40', who: 'Marie Dvořáková', what: 'Potvrzeno: vůz a řidič Miroslav Kučera' }, { at: '28. 10. 2026 18:30', who: 'Miroslav Kučera', what: 'Realizováno, 112 km, bez závad' }, { at: '29. 10. 2026 08:15', who: 'Lenka Nováková', what: 'Vyúčtováno fakturou (12 % DPH)' }] },
-  { id: 'T-2026-229', custId: 'c7', custName: 'Budějovický Budvar, n. p.', contact: 'Bc. Tomáš Hora', from: 'České Budějovice, Budvar', to: 'Mnichov, Oktoberfest (firemní akce)', via: 'Linz, Passau', dateFrom: '2026-10-02', days: 2, km: 760, hod: 28, pax: 52, busType: 'lux', foreign: true, nights: 1, wait: 6, status: 'realizovano', busIdx: 5, driverIds: ['dr1', 'dr7'], note: 'Firemní zájezd, dva řidiči, parkování u hotelu.', timeline: [{ at: '1. 9. 2026 10:00', who: 'Marie Dvořáková', what: 'Poptávka přijata' }, { at: '2. 9. 2026 09:30', who: 'Josef Moučka', what: 'Nabídka vystavena' }, { at: '5. 9. 2026 14:00', who: 'Bc. Hora (klient)', what: 'Schváleno, zálohová faktura 50 %' }, { at: '8. 9. 2026 08:00', who: 'Marie Dvořáková', what: 'Potvrzeno: vůz a řidiči Procházka + Černý' }, { at: '4. 10. 2026 22:10', who: 'Jan Procházka', what: 'Realizováno, 772 km' }] },
+  { id: 'T-2026-241', custId: 'c4', custName: 'ZŠ Máj I, České Budějovice', contact: 'Mgr. Hana Kovářová', email: 'kovarova@zsmaj.cz', from: 'České Budějovice', to: 'Praha, ZOO', via: 'Písek', dateFrom: '2026-11-14', days: 1, km: 320, hod: 11, pax: 45, busType: 'standard', foreign: false, nights: 0, wait: 2, status: 'poptavka', busIdx: 0, driverIds: [], note: 'Školní výlet, 45 dětí + 4 pedagogové. Odjezd 7:00 od školy.', timeline: [{ at: '3. 11. 2026 09:12', who: 'Marie Dvořáková', what: 'Poptávka přijata e-mailem' }] },
+  { id: 'T-2026-240', custId: 'c5', custName: 'FK Dynamo České Budějovice a.s.', contact: 'Petr Kříž, vedoucí A-týmu', email: 'kriz@dynamocb.cz', from: 'České Budějovice', to: 'Plzeň, Doosan Arena', via: '', dateFrom: '2026-11-22', days: 1, km: 280, hod: 9, pax: 28, busType: 'lux', foreign: false, nights: 0, wait: 3, status: 'potvrzeno', busIdx: 1, driverIds: ['dr1'], note: 'Zápas, odjezd 11:30 ze Střeleckého ostrova, návrat po zápase.', timeline: [{ at: '28. 10. 2026 10:40', who: 'Marie Dvořáková', what: 'Poptávka přijata' }, { at: '28. 10. 2026 14:05', who: 'Marie Dvořáková', what: 'Nabídka vystavena a odeslána', detail: 'E-mail na kriz@dynamocb.cz, PDF nabídky T-2026-240, 21 574 Kč bez DPH, platnost do 11. 11. 2026' }, { at: '30. 10. 2026 08:50', who: 'Petr Kříž (klient)', what: 'Nabídka schválena klientem', detail: 'Potvrzení e-mailem z kriz@dynamocb.cz, objednávka bez čísla' }, { at: '30. 10. 2026 09:15', who: 'Marie Dvořáková', what: 'Potvrzeno: přidělen vůz a řidič Jan Procházka', detail: 'Směna zapsána do kalendáře řidiče, klientovi odeslána informace o SPZ a kontaktu na řidiče' }] },
+  { id: 'T-2026-238', custId: 'c6', custName: 'ENGEL strojírenská spol. s r.o.', contact: 'Ing. Lukas Mayer', email: 'lukas.mayer@engel.at', from: 'Kaplice, závod ENGEL', to: 'Linz, Hauptbahnhof', via: '', dateFrom: '2026-12-03', days: 1, km: 160, hod: 6, pax: 38, busType: 'standard', foreign: true, nights: 0, wait: 1, status: 'nabidka', busIdx: 2, driverIds: [], note: 'Transfer zaměstnanců na školení, zpět tentýž den.', timeline: [{ at: '2. 11. 2026 11:20', who: 'Marie Dvořáková', what: 'Poptávka přijata telefonicky' }, { at: '2. 11. 2026 15:30', who: 'Marie Dvořáková', what: 'Nabídka vystavena a odeslána', detail: 'E-mail na lukas.mayer@engel.at, PDF nabídky T-2026-238, platnost do 16. 11. 2026' }] },
+  { id: 'T-2026-236', custId: 'c8', custName: 'Jihočeská univerzita v Českých Budějovicích', contact: 'doc. Ing. Jana Veselá', email: 'vesela@jcu.cz', from: 'České Budějovice, Branišovská', to: 'Vídeň, Technisches Museum', via: 'Třeboň, Gmünd', dateFrom: '2026-12-12', days: 2, km: 460, hod: 14, pax: 50, busType: 'lux', foreign: true, nights: 1, wait: 4, status: 'schvaleno', busIdx: 3, driverIds: [], note: 'Exkurze studentů, 1 nocleh v hotelu Ibis Wien Mariahilf (řidiči zajišťuje objednatel).', timeline: [{ at: '20. 10. 2026 09:00', who: 'Marie Dvořáková', what: 'Poptávka přijata' }, { at: '21. 10. 2026 16:10', who: 'Josef Moučka', what: 'Nabídka vystavena (zájezdový vůz, jeden nocleh)' }, { at: '27. 10. 2026 10:02', who: 'doc. Veselá (klient)', what: 'Nabídka schválena, objednávka č. JU/2026/418' }] },
+  { id: 'T-2026-231', custId: 'c3', custName: 'Senioři Hluboká, z. s.', contact: 'Věra Dlouhá', email: 'seniori.hluboka@seznam.cz', from: 'Hluboká nad Vltavou', to: 'Český Krumlov, zámek', via: '', dateFrom: '2026-10-28', days: 1, km: 110, hod: 7, pax: 26, busType: 'midi', foreign: false, nights: 0, wait: 3, status: 'vyuctovano', busIdx: 4, driverIds: ['dr3'], note: 'Senioři, nízkopodlažní nástup, zastávka u lékárny.', timeline: [{ at: '10. 10. 2026 08:30', who: 'Marie Dvořáková', what: 'Poptávka přijata' }, { at: '10. 10. 2026 13:00', who: 'Marie Dvořáková', what: 'Nabídka vystavena' }, { at: '14. 10. 2026 09:20', who: 'Věra Dlouhá (klient)', what: 'Schváleno' }, { at: '14. 10. 2026 09:40', who: 'Marie Dvořáková', what: 'Potvrzeno: vůz a řidič Miroslav Kučera' }, { at: '28. 10. 2026 18:30', who: 'Miroslav Kučera', what: 'Realizováno, 112 km, bez závad' }, { at: '29. 10. 2026 08:15', who: 'Lenka Nováková', what: 'Vyúčtováno fakturou (12 % DPH)', detail: 'Faktura odeslána e-mailem na seniori.hluboka@seznam.cz, splatnost 14 dní' }] },
+  { id: 'T-2026-229', custId: 'c7', custName: 'Budějovický Budvar, n. p.', contact: 'Bc. Tomáš Hora', email: 'tomas.hora@budvar.cz', from: 'České Budějovice, Budvar', to: 'Mnichov, Oktoberfest (firemní akce)', via: 'Linz, Passau', dateFrom: '2026-10-02', days: 2, km: 760, hod: 28, pax: 52, busType: 'lux', foreign: true, nights: 1, wait: 6, status: 'realizovano', busIdx: 5, driverIds: ['dr1', 'dr7'], note: 'Firemní zájezd, dva řidiči, parkování u hotelu.', timeline: [{ at: '1. 9. 2026 10:00', who: 'Marie Dvořáková', what: 'Poptávka přijata' }, { at: '2. 9. 2026 09:30', who: 'Josef Moučka', what: 'Nabídka vystavena' }, { at: '5. 9. 2026 14:00', who: 'Bc. Hora (klient)', what: 'Schváleno, zálohová faktura 50 %' }, { at: '8. 9. 2026 08:00', who: 'Marie Dvořáková', what: 'Potvrzeno: vůz a řidiči Procházka + Černý' }, { at: '4. 10. 2026 22:10', who: 'Jan Procházka', what: 'Realizováno, 772 km' }] },
 ]
 // CZ mzdové odvody (orientační, 2026). Zaměstnanec vs OSVČ.
 function buildPayroll(d, mode) {
@@ -972,7 +973,7 @@ export default function FleetPortal() {
     drvMsgs: SEED_DRV_MSGS, drvMsgTo: 'dispecink', drvMsgText: '', drvIdeas: SEED_DRV_IDEAS, drvIdeaText: '', drvIdeaCat: 'Provoz', drvDocs: SEED_DRV_DOCS,
     navOpen: { provoz: true, flotila: true, lide: true, finance: true, firma: false },
     shifts: SEED_SHIFTS, shiftForm: { dayKey: SHIFT_DAYS[1].key, driverId: 'dr1', lineId: linesData[0].id, busId: linesData[0].busId, turnus: 'ranní' },
-    zajTrips: SEED_TRIPS, zajCalc: { ...DEFAULT_TRIP_CALC }, zajDetailId: null, zajFilter: 'vse', zajPick: null,
+    zajTrips: SEED_TRIPS, zajCalc: { ...DEFAULT_TRIP_CALC }, zajCalcOpen: false, zajDetailId: null, zajFilter: 'vse', zajPick: null,
     claimWizard: false, claimStep: 1, claimData: {},
     rowMenu: null, toast: null,
     unsub: null, unsubDone: false, unsubReason: 'Prodej vozidla', unsubDate: '1. 7. 2026',
@@ -2737,25 +2738,42 @@ export default function FleetPortal() {
   const zajBuses = _tripBuses()
   const zajDrivers = driversData.filter((d) => ['dalkova', 'linka'].includes(d.kind))
   const updTrip = (id, fn) => setState((s) => ({ zajTrips: s.zajTrips.map((t) => t.id === id ? fn(t) : t) }))
-  const tripLog = (t, what, who) => ({ ...t, timeline: [...t.timeline, { at: tripStamp(), who: who || zajUser(), what }] })
+  const tripLog = (t, what, who, detail) => ({ ...t, timeline: [...t.timeline, { at: tripStamp(), who: who || zajUser(), what, detail }] })
+  const plusDays = (n) => { const d = new Date(Date.now() + n * 864e5); return `${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}` }
+  const sentTo = (t) => t.email ? `e-mail na ${t.email}` : t.contact ? `e-mail kontaktu ${t.contact} (adresa nevyplněna)` : 'e-mail objednatele (adresa nevyplněna)'
+  const offerDetail = (t, p) => `Odesláno ${sentTo(t)}, PDF nabídky ${t.id}, ${czk(p.base)} bez DPH (${czk(p.total)} s DPH), platnost do ${plusDays(14)}`
   const setZajCalc = (patch) => setState((s) => ({ zajCalc: { ...s.zajCalc, ...patch } }))
   const tripFromCalc = (c, id) => ({ ...c, id, days: Math.max(1, Number(c.days) || 1), km: Number(c.km) || 0, hod: Number(c.hod) || 0, pax: Number(c.pax) || 1, nights: Number(c.nights) || 0, wait: Number(c.wait) || 0, custName: c.custId ? (ACC.CUSTOMERS.find((x) => x.id === c.custId) || {}).name : c.custName, contact: c.contact || '' })
+  const calcComplete = (c) => !!((c.custId || (c.custName && c.custName.trim())) && c.from && c.to && Number(c.km) > 0 && Number(c.hod) > 0)
+  /** Uložení kalkulace: i nekompletní (status koncept), ke které se lze vrátit; issue=true rovnou vystaví nabídku. */
   const saveQuote = (opts = {}) => {
     const c = state.zajCalc
-    const custName = c.custId ? (ACC.CUSTOMERS.find((x) => x.id === c.custId) || {}).name : c.custName
-    if (!custName || !c.from || !c.to) { showToast('Doplňte objednatele a trasu'); return null }
+    const complete = calcComplete(c)
+    if (opts.issue && !complete) { showToast('Pro vystavení nabídky doplňte objednatele, trasu, km a hodiny'); return null }
+    const stamp = tripStamp()
     if (c.editId) {
-      updTrip(c.editId, (t) => tripLog({ ...t, ...tripFromCalc(c, t.id), editId: undefined, status: t.status, timeline: t.timeline, busIdx: t.busIdx, driverIds: t.driverIds, docs: t.docs }, 'Kalkulace upravena, nabídka přepočítána'))
-      setState({ zajCalc: { ...DEFAULT_TRIP_CALC } }); showToast(`Nabídka ${c.editId} přepočítána`)
+      updTrip(c.editId, (t) => {
+        const wasDraft = t.status === 'koncept'
+        const status = opts.issue && ['koncept', 'poptavka'].includes(t.status) ? 'nabidka' : (wasDraft && complete ? 'poptavka' : t.status)
+        let x = { ...t, ...tripFromCalc(c, t.id), editId: undefined, status, timeline: t.timeline, busIdx: t.busIdx, driverIds: t.driverIds, docs: t.docs }
+        x = tripLog(x, wasDraft ? 'Kalkulace doplněna' : 'Kalkulace upravena, nabídka přepočítána')
+        if (status === 'nabidka' && t.status !== 'nabidka') x = tripLog({ ...x, offerAt: stamp.slice(0, -6), offerBy: zajUser() }, 'Nabídka vystavena a odeslána', null, offerDetail(x, computeTripPrice(c)))
+        return x
+      })
+      setState({ zajCalc: { ...DEFAULT_TRIP_CALC }, zajCalcOpen: false }); if (!opts.silent) showToast(opts.issue ? `Nabídka ${c.editId} vystavena` : `Kalkulace ${c.editId} uložena`)
       return c.editId
     }
     const id = `T-2026-${242 + state.zajTrips.filter((t) => t.id > 'T-2026-241').length}`
-    const stamp = tripStamp()
-    const t = { ...tripFromCalc(c, id), editId: undefined, status: 'nabidka', busIdx: null, driverIds: [], docs: [], offerAt: stamp.slice(0, -6), offerBy: zajUser(), timeline: [{ at: stamp, who: zajUser(), what: 'Poptávka zadána do kalkulačky' }, { at: stamp, who: zajUser(), what: `Nabídka vystavena (${czk(computeTripPrice(c).base)} bez DPH)` }] }
-    setState((s) => ({ zajTrips: [t, ...s.zajTrips], zajCalc: { ...DEFAULT_TRIP_CALC } }))
-    if (!opts.silent) showToast(`Nabídka ${id} uložena`)
+    const status = !complete ? 'koncept' : opts.issue ? 'nabidka' : 'poptavka'
+    const timeline = [{ at: stamp, who: zajUser(), what: complete ? 'Poptávka zadána a nakalkulována' : 'Kalkulace rozpracována (chybí údaje)' }]
+    const t = { ...tripFromCalc(c, id), editId: undefined, status, busIdx: null, driverIds: [], docs: [], offerAt: status === 'nabidka' ? stamp.slice(0, -6) : undefined, offerBy: status === 'nabidka' ? zajUser() : undefined, timeline }
+    if (!t.custName) t.custName = 'Objednatel nevyplněn'
+    if (status === 'nabidka') timeline.push({ at: stamp, who: zajUser(), what: 'Nabídka vystavena a odeslána', detail: offerDetail(t, computeTripPrice(c)) })
+    setState((s) => ({ zajTrips: [t, ...s.zajTrips], zajCalc: { ...DEFAULT_TRIP_CALC }, zajCalcOpen: false }))
+    if (!opts.silent) showToast(status === 'koncept' ? `Kalkulace ${id} uložena jako rozpracovaná` : status === 'nabidka' ? `Nabídka ${id} vystavena` : `Poptávka ${id} uložena`)
     return id
   }
+  const openCalc = (t) => setState({ zajCalcOpen: true, zajCalc: t ? { ...DEFAULT_TRIP_CALC, ...t, custName: t.custId ? '' : (t.custName === 'Objednatel nevyplněn' ? '' : t.custName), editId: t.id } : { ...DEFAULT_TRIP_CALC } })
   const tripItems = (t, p, kind) => kind === 'zalohova'
     ? [{ text: `Záloha 50 % na zájezd ${t.id}: ${t.from} → ${t.to}, ${fmtIsoDate(t.dateFrom)}`, qty: 1, unit: 'ks', unitPrice: Math.round(p.base / 2), vatRate: 12, amount: Math.round(p.base / 2) }]
     : p.lines.map((l) => ({ text: `${l.label} (zájezd ${t.id}, ${t.from} → ${t.to})`, qty: 1, unit: 'ks', unitPrice: l.amount, vatRate: 12, amount: l.amount }))
@@ -2764,13 +2782,13 @@ export default function FleetPortal() {
     const p = computeTripPrice(t); const cust = ACC.CUSTOMERS.find((x) => x.id === t.custId)
     const r = ACC.issueDocument({ docType: kind, clientId: cust ? cust.id : undefined, customer: t.custName, ico: cust ? cust.ico : undefined, dic: cust ? `CZ${cust.ico}` : undefined, address: cust ? cust.address : undefined, items: tripItems(t, p, kind), dueDays: kind === 'faktura' ? 14 : 7, note: `Zájezd ${t.id}: ${t.from} → ${t.to}, ${fmtIsoDate(t.dateFrom)}${t.contact ? ', kontakt ' + t.contact : ''}`, by: zajUser() })
     const label = ACC.DOC_TYPES[kind].short
-    updTrip(id, (x) => tripLog({ ...x, status: kind === 'faktura' ? 'vyuctovano' : x.status, docs: [...(x.docs || []), { id: r.id, number: r.number, kind, label, total: r.total }] }, `${label} ${r.number} odeslána do fakturace (${czk(r.total)})`))
+    updTrip(id, (x) => tripLog({ ...x, status: kind === 'faktura' ? 'vyuctovano' : x.status, docs: [...(x.docs || []), { id: r.id, number: r.number, kind, label, total: r.total }] }, `${label} ${r.number} vystavena v Účetnictví`, null, `${czk(r.total)}, splatnost ${ACC.fmtDate(r.due)}, VS ${r.vs}, ${sentTo(x)}`))
     setState((s) => ({ accVersion: (s.accVersion || 0) + 1 }))
     showToast(`${label} ${r.number} vystavena v Účetnictví (${czk(r.total)})`)
   }
-  const calcToInvoicing = () => { const id = saveQuote({ silent: true }); if (id) tripToInvoicing(id, 'proforma') }
+  const calcToInvoicing = () => { const id = saveQuote({ silent: true, issue: true }); if (id) tripToInvoicing(id, 'proforma') }
   const openTrip = (id) => { const t = state.zajTrips.find((x) => x.id === id); navigate('zajezd-detail', { zajDetailId: id, zajPick: t ? { busIdx: t.busIdx, driverIds: [...t.driverIds] } : null }) }
-  const editTripInCalc = (t) => navigate('zajezdy', { zajCalc: { ...DEFAULT_TRIP_CALC, ...t, editId: t.id } })
+  const editTripInCalc = (t) => { navigate('zajezdy'); openCalc(t) }
   const tripRow = (t) => {
     const p = computeTripPrice(t); const st = TRIP_STATUS[t.status]; const bus = t.busIdx != null ? zajBuses[t.busIdx] : null
     const drv = t.driverIds.map((d) => (driversData.find((x) => x.id === d) || {}).name).filter(Boolean)
@@ -2780,7 +2798,7 @@ export default function FleetPortal() {
     if (state.route !== 'zajezdy') return {}
     const trips = state.zajTrips
     const sumBase = (arr) => arr.reduce((a, t) => a + computeTripPrice(t).base, 0)
-    const open = trips.filter((t) => ['poptavka', 'nabidka'].includes(t.status)), won = trips.filter((t) => ['schvaleno', 'potvrzeno'].includes(t.status)), done = trips.filter((t) => ['realizovano', 'vyuctovano'].includes(t.status))
+    const open = trips.filter((t) => ['koncept', 'poptavka', 'nabidka'].includes(t.status)), won = trips.filter((t) => ['schvaleno', 'potvrzeno'].includes(t.status)), done = trips.filter((t) => ['realizovano', 'vyuctovano'].includes(t.status))
     const margins = trips.map((t) => { const p = computeTripPrice(t); return (p.base - tripCostEstimate(p)) / p.base })
     const kpis = [
       { value: String(open.length), label: 'Otevřené poptávky a nabídky', icon: 'calendar', note: `${(sumBase(open) / 1000).toFixed(0)} tis. Kč v jednání` },
@@ -2789,8 +2807,8 @@ export default function FleetPortal() {
       { value: String(done.length), label: 'Realizováno a vyúčtováno', icon: 'check', note: `${(sumBase(done) / 1000).toFixed(0)} tis. Kč fakturováno` },
     ]
     const f = state.zajFilter || 'vse'
-    const FM = { vse: () => true, otevrene: (t) => ['poptavka', 'nabidka'].includes(t.status), schvalene: (t) => ['schvaleno', 'potvrzeno'].includes(t.status), hotove: (t) => ['realizovano', 'vyuctovano'].includes(t.status) }
-    const filters = [['vse', 'Vše'], ['otevrene', 'Poptávky a nabídky'], ['schvalene', 'Schválené a potvrzené'], ['hotove', 'Realizované']].map(([id, label]) => ({ id, label, count: trips.filter(FM[id]).length, active: f === id, onClick: () => setState({ zajFilter: id }) }))
+    const FM = { vse: () => true, otevrene: (t) => ['koncept', 'poptavka', 'nabidka'].includes(t.status), schvalene: (t) => ['schvaleno', 'potvrzeno'].includes(t.status), hotove: (t) => ['realizovano', 'vyuctovano'].includes(t.status) }
+    const filters = [['vse', 'Vše'], ['otevrene', 'Rozpracované a nabídky'], ['schvalene', 'Schválené a potvrzené'], ['hotove', 'Realizované']].map(([id, label]) => ({ id, label, count: trips.filter(FM[id]).length, active: f === id, onClick: () => setState({ zajFilter: id }) }))
     const c = state.zajCalc; const p = computeTripPrice(c)
     const cost = tripCostEstimate(p)
     const calc = {
@@ -2799,7 +2817,8 @@ export default function FleetPortal() {
       set: (k) => (e) => setZajCalc({ [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }),
       setCust: (e) => setZajCalc({ custId: e.target.value, custName: '' }),
       aetrNote: p.drivers === 2 ? 'Přes 450 km, 9 h řízení nebo 13 h pracovní doby na den: kalkulováno se dvěma řidiči (AETR).' : 'Do 450 km a 13 h pracovní doby na den stačí jeden řidič (AETR).',
-      save: () => saveQuote(), toInvoicing: calcToInvoicing, reset: () => setState({ zajCalc: { ...DEFAULT_TRIP_CALC } }),
+      open: !!state.zajCalcOpen, complete: calcComplete(c), openNew: () => openCalc(null), close: () => setState({ zajCalcOpen: false, zajCalc: { ...DEFAULT_TRIP_CALC } }), stop,
+      save: () => saveQuote(), saveIssue: () => saveQuote({ issue: true }), toInvoicing: calcToInvoicing, reset: () => setState({ zajCalc: { ...DEFAULT_TRIP_CALC } }),
       print: () => setState({ execReport: buildTripQuoteHtml({ ...c, id: c.editId || 'náhled', custName: c.custId ? (ACC.CUSTOMERS.find((x) => x.id === c.custId) || {}).name : c.custName, offerBy: zajUser() }, p, ACC.COMPANY) }),
     }
     return { zajezdy: { kpis, filters, rows: trips.filter(FM[f]).map(tripRow), calc, statusOrder: TRIP_STEPS } }
@@ -2823,17 +2842,19 @@ export default function FleetPortal() {
       ['Potvrzen vůz a řidič', whenBy((w) => /Potvrzeno/.test(w))], ['Realizováno', whenBy((w) => /Realizováno/.test(w))], ['Vyúčtováno', whenBy((w) => /Vyúčtováno|Faktura/.test(w))],
     ].map(([label, val]) => ({ label, val: val || 'zatím ne', done: !!val }))
     const actions = []
-    if (t.status === 'poptavka') actions.push({ label: 'Vystavit a odeslat nabídku', primary: true, icon: 'file', onClick: () => { updTrip(t.id, (x) => tripLog({ ...x, status: 'nabidka', offerAt: tripStamp().slice(0, -6), offerBy: zajUser() }, `Nabídka vystavena a odeslána (${czk(p.base)} bez DPH)`)); showToast('Nabídka odeslána klientovi') } })
-    if (t.status === 'nabidka') actions.push({ label: 'Zaznamenat schválení klientem', primary: true, icon: 'check', onClick: () => { updTrip(t.id, (x) => tripLog({ ...x, status: 'schvaleno' }, 'Nabídka schválena klientem (e-mailová objednávka)', `${t.contact || t.custName} (klient)`)); showToast('Zájezd schválen klientem') } })
-    if (t.status === 'schvaleno') actions.push({ label: busOk && drvOk ? 'Potvrdit vůz a řidiče' : `Vyberte vůz a ${needDrv === 2 ? 'dva řidiče' : 'řidiče'}`, primary: true, icon: 'bus', disabled: !(busOk && drvOk), onClick: () => { const names = pick.driverIds.map((d) => (driversData.find((x) => x.id === d) || {}).name).join(' + '); const b = zajBuses[pick.busIdx]; updTrip(t.id, (x) => tripLog({ ...x, status: 'potvrzeno', busIdx: pick.busIdx, driverIds: [...pick.driverIds] }, `Potvrzeno: vůz ${b.plate} a řidič${pick.driverIds.length > 1 ? 'i' : ''} ${names}`)); showToast('Vůz a řidiči potvrzeni, zájezd je v plánu') } })
-    if (t.status === 'potvrzeno') actions.push({ label: 'Označit jako realizováno', primary: true, icon: 'check', onClick: () => { updTrip(t.id, (x) => tripLog({ ...x, status: 'realizovano' }, `Realizováno, ${p.km + (_hash(t.id) % 15)} km dle tachografu, bez závad`, row.drvLabel.split(' + ')[0])); showToast('Zájezd označen jako realizovaný') } })
+    if (t.status === 'koncept') actions.push({ label: 'Dokončit kalkulaci', primary: true, icon: 'edit', onClick: () => editTripInCalc(t) })
+    if (t.status === 'poptavka') actions.push({ label: 'Vystavit a odeslat nabídku', primary: true, icon: 'file', onClick: () => { updTrip(t.id, (x) => tripLog({ ...x, status: 'nabidka', offerAt: tripStamp().slice(0, -6), offerBy: zajUser() }, 'Nabídka vystavena a odeslána', null, offerDetail(x, p))); showToast(`Nabídka odeslána: ${sentTo(t)}`) } })
+    if (t.status === 'nabidka') actions.push({ label: 'Zaznamenat schválení klientem', primary: true, icon: 'check', onClick: () => { updTrip(t.id, (x) => tripLog({ ...x, status: 'schvaleno' }, 'Nabídka schválena klientem', `${t.contact || t.custName} (klient)`, `Souhlas přijat ${t.email ? 'e-mailem z ' + t.email : 'e-mailem'}, zaznamenal(a) ${zajUser()}, cena ${czk(p.base)} bez DPH potvrzena`)); showToast('Schválení klientem zaznamenáno') } })
+    if (t.status === 'schvaleno') actions.push({ label: busOk && drvOk ? 'Potvrdit vůz a řidiče' : `Vyberte vůz a ${needDrv === 2 ? 'dva řidiče' : 'řidiče'}`, primary: true, icon: 'bus', disabled: !(busOk && drvOk), onClick: () => { const names = pick.driverIds.map((d) => (driversData.find((x) => x.id === d) || {}).name).join(' + '); const b = zajBuses[pick.busIdx]; updTrip(t.id, (x) => tripLog({ ...x, status: 'potvrzeno', busIdx: pick.busIdx, driverIds: [...pick.driverIds] }, `Potvrzeno: vůz ${b.plate} a řidič${pick.driverIds.length > 1 ? 'i' : ''} ${names}`, null, `${b.brand}${b.model ? ' ' + b.model : ''} ${b.plate}, termín ${fmtIsoDate(t.dateFrom)}; směna zapsána do kalendáře řidiče, klientovi odeslána informace (${sentTo(t)})`)); showToast('Vůz a řidiči potvrzeni, zájezd je v plánu') } })
+    if (t.status === 'potvrzeno') actions.push({ label: 'Označit jako realizováno', primary: true, icon: 'check', onClick: () => { updTrip(t.id, (x) => tripLog({ ...x, status: 'realizovano' }, 'Realizováno', row.drvLabel.split(' + ')[0], `${p.km + (_hash(t.id) % 15)} km dle tachografu, bez závad, stazka uzavřena; připraveno k vyúčtování`)); showToast('Zájezd označen jako realizovaný') } })
     const invoiceActions = [
       { kind: 'proforma', label: 'Proforma (celá cena)', enabled: stepIdx >= 1 && !hasDoc('proforma') },
       { kind: 'zalohova', label: 'Zálohová faktura 50 %', enabled: stepIdx >= 2 && !hasDoc('zalohova') },
       { kind: 'faktura', label: t.status === 'vyuctovano' ? 'Faktura vystavena' : 'Vystavit fakturu (vyúčtovat)', enabled: stepIdx >= 4 && !hasDoc('faktura'), primary: true },
     ].map((a) => ({ ...a, onClick: () => tripToInvoicing(t.id, a.kind) }))
+    const lastEvent = t.timeline[t.timeline.length - 1]
     return { zajezd: {
-      ...row, chip: st, steps: TRIP_STEPS.map((s, i) => ({ label: s, done: i <= stepIdx, current: i === stepIdx })), facts, cost: czk(cost), margin: Math.round((p.base - cost) / p.base * 100), baseF: czk(p.base), vatF: czk(p.vat), totalF: czk(p.total), perPaxF: czk(p.perPax),
+      ...row, chip: st, lastEvent, steps: TRIP_STEPS.map((s, i) => ({ label: s, done: i <= stepIdx, current: i === stepIdx })), facts, cost: czk(cost), margin: Math.round((p.base - cost) / p.base * 100), baseF: czk(p.base), vatF: czk(p.vat), totalF: czk(p.total), perPaxF: czk(p.perPax),
       bus: t.busIdx != null ? zajBuses[t.busIdx] : null, drivers: t.driverIds.map((d) => driversData.find((x) => x.id === d)).filter(Boolean), needDrv,
       canPick: t.status === 'schvaleno', pick, busOptions: zajBuses.map((b, i) => ({ idx: i, label: `${b.brand}${b.model ? ' ' + b.model : ''} · ${b.plate} · r. v. ${b.year}` })), drvOptions,
       setBus: (e) => setPick({ busIdx: e.target.value === '' ? null : Number(e.target.value) }), toggleDrv: (id) => setPick({ driverIds: pick.driverIds.includes(id) ? pick.driverIds.filter((x) => x !== id) : [...pick.driverIds, id] }),

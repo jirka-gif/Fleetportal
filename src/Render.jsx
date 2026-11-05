@@ -1694,7 +1694,7 @@ function Dispatch({ vm }) {
           </div>
           <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1.1fr 1.3fr 1.6fr 1.6fr 1.2fr auto'};gap:8px;align-items:end;padding:14px;background:var(--canvas);border-radius:14px;margin-bottom:16px`)}>
             {[['Den', 'dayKey', d.plan.dates], ['Řidič', 'driverId', d.plan.drivers], ['Linka (jízdní řád)', 'lineId', d.plan.lines], ['Autobus', 'busId', d.plan.buses], ['Turnus', 'turnus', d.plan.turnusy]].map(([lbl, k, opts]) => (
-              <div key={k}><div style={S('font-size:11px;font-weight:650;color:var(--ink3);margin-bottom:5px')}>{lbl}</div><select value={d.plan.form[k]} onChange={(e) => d.plan.set(k, e.target.value)} style={S('width:100%;height:38px;border:1px solid var(--border2);border-radius:10px;padding:0 10px;font-size:12.5px;font-family:inherit;outline:none;background:#fff')}>{opts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}</select></div>
+              <div key={k}><div style={S('font-size:11px;font-weight:650;color:var(--ink3);margin-bottom:5px')}>{lbl}</div><Select value={d.plan.form[k]} onChange={(e) => d.plan.set(k, e.target.value)} height={38} size={12.5} options={opts.map((o) => ({ value: o.id, label: o.label }))} /></div>
             ))}
             <Hov onClick={d.plan.assign} base="display:inline-flex;align-items:center;justify-content:center;gap:7px;height:38px;padding:0 15px;background:linear-gradient(135deg,#5B6BF5,#7A5CF8);color:#fff;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 8px 18px -8px rgba(108,94,246,.7);white-space:nowrap" hover="transform:translateY(-1px)">{ic('send', 15)} Přidělit a předat</Hov>
           </div>
@@ -2444,61 +2444,68 @@ function Zajezdy({ vm }) {
   if (!d) return null
   const c = d.calc
   const inp = (k, type = 'text', extra = '') => <input type={type} value={c[k] ?? ''} onChange={c.set(k)} style={S(UC_INPUT + extra)} />
-  const sel = (k, opts) => <select value={c[k] ?? ''} onChange={c.set(k)} style={S(UC_INPUT)}>{opts}</select>
+  const sel = (k, opts) => <Select value={c[k] ?? ''} onChange={c.set(k)} height={38} size={13} options={opts} />
   return (
     <div>
       <KpiRow items={d.kpis} mb="18px" featuredFirst />
-      <div style={S(`display:grid;grid-template-columns:${narrow ? '1fr' : 'minmax(0,1.35fr) minmax(0,1fr)'};gap:16px;align-items:start`)}>
-        <div style={S(`${CARD};overflow:hidden`)}>
-          <div style={S('padding:18px 20px 12px;display:flex;flex-direction:column;gap:12px')}>
-            <CardHead icon="calendar" color="var(--blue)" title="Zájezdy a nabídky" sub="Klikněte na zájezd pro detail, schválení, přidělení vozu a fakturaci" />
-            <UcTabs items={d.filters} />
+      <div style={S(`${CARD};overflow:hidden`)}>
+        <div style={S('padding:18px 20px 12px;display:flex;flex-direction:column;gap:12px')}>
+          <div style={S('display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap')}>
+            <div style={S('flex:1;min-width:220px')}><CardHead icon="calendar" color="var(--blue)" title="Zájezdy a nabídky" sub="Klikněte na zájezd pro detail, schválení, přidělení vozu a fakturaci" /></div>
+            <UcBtn primary onClick={c.openNew}>{ic('plus', 15)}Nová kalkulace</UcBtn>
           </div>
-          <ZjRows rows={d.rows} mob={mob} />
+          <UcTabs items={d.filters} />
         </div>
-        <div style={S(`${CARD};padding:22px`)}>
-          <div style={S('display:flex;align-items:flex-start;gap:10px')}>
-            <div style={S('flex:1;min-width:0')}><CardHead icon="banknote" color="var(--green)" title={c.editId ? `Úprava nabídky ${c.editId}` : 'Kalkulačka nabídky'} sub="Ceník zájezdové dopravy, bez DPH; DPH 12 % osobní doprava" /></div>
-            {c.editId && <UcBtn onClick={c.reset}>Zrušit úpravu</UcBtn>}
-          </div>
-          <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;margin-top:4px')}>
-            {ZJ_FIELD('Objednatel', <select value={c.custId} onChange={c.setCust} style={S(UC_INPUT)}><option value="">Jiný objednatel (zadat ručně)</option>{c.customers.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}</select>, true)}
-            {!c.custId && ZJ_FIELD('Název objednatele', inp('custName'), true)}
-            {ZJ_FIELD('Kontaktní osoba', inp('contact'), true)}
-            {ZJ_FIELD('Odkud', inp('from'))}
-            {ZJ_FIELD('Kam', inp('to'))}
-            {ZJ_FIELD('Přes (volitelně)', inp('via'))}
-            {ZJ_FIELD('Termín odjezdu', inp('dateFrom', 'date'))}
-            {ZJ_FIELD('Počet dní', inp('days', 'number'))}
-            {ZJ_FIELD('Počet osob', inp('pax', 'number'))}
-            {ZJ_FIELD('Kilometry celkem', inp('km', 'number'))}
-            {ZJ_FIELD('Hodiny celkem', inp('hod', 'number'))}
-            {ZJ_FIELD('Typ autobusu', sel('busType', c.busTypes.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)), true)}
-            {ZJ_FIELD('Čekání (h)', inp('wait', 'number'))}
-            {ZJ_FIELD('Noclehy řidičů', inp('nights', 'number'))}
-            <label style={S('grid-column:1 / -1;display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600;cursor:pointer;padding:4px 0')}><input type="checkbox" checked={!!c.foreign} onChange={c.set('foreign')} style={S('width:16px;height:16px')} />Jízda do zahraničí (mýto, dálniční známky, diety)</label>
-            {ZJ_FIELD('Poznámka do nabídky', <textarea value={c.note || ''} onChange={c.set('note')} rows={2} style={S(UC_INPUT + ';height:auto;padding:9px 11px;resize:vertical')} />, true)}
-          </div>
-          <div style={S('margin-top:14px;padding:4px 0 0;border-top:1px solid var(--border)')}>
-            {c.p.lines.map((l, i) => (
-              <div key={l.key} style={S(`display:flex;justify-content:space-between;gap:12px;padding:8px 0;font-size:12.5px${i ? ';border-top:1px solid var(--border)' : ''}`)}><span style={S('color:var(--ink2)')}>{l.label}</span><span style={S('font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap')}>{czk(l.amount)}</span></div>
-            ))}
-          </div>
-          <div style={S('display:flex;align-items:center;gap:8px;margin-top:8px;padding:9px 12px;border-radius:10px;background:var(--canvas);font-size:11.5px;color:var(--ink2)')}>{ic(c.p.drivers === 2 ? 'users' : 'user', 14)}<span>{c.aetrNote}</span></div>
-          <div style={S('display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px')}>
-            {[['Bez DPH', c.baseF], ['DPH 12 %', c.vatF], ['Na osobu', c.perPaxF]].map(([l, v]) => <div key={l} style={S('padding:10px 12px;border-radius:10px;background:var(--canvas)')}><div style={S('font-size:11px;color:var(--ink3)')}>{l}</div><div style={S('font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap')}>{v}</div></div>)}
-          </div>
-          <div style={S('display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:8px;padding:14px 16px;background:var(--green-soft);border-radius:12px')}>
-            <div><div style={S('font-size:13px;font-weight:650')}>Cena celkem s DPH</div><div style={S('font-size:11.5px;color:var(--ink2)')}>Odhad nákladů {c.costF}, marže {c.margin} %</div></div><span style={S('font-size:22px;font-weight:800;letter-spacing:-.5px;color:var(--green);white-space:nowrap')}>{c.totalF}</span>
-          </div>
-          <div style={S('display:flex;gap:8px;flex-wrap:wrap;margin-top:14px')}>
-            <UcBtn primary onClick={c.save}>{ic('check', 15)}{c.editId ? 'Uložit přepočet' : 'Uložit nabídku'}</UcBtn>
-            <UcBtn onClick={c.print}>{ic('file', 15)}Tisk / PDF nabídky</UcBtn>
-            {!c.editId && <UcBtn onClick={c.toInvoicing}>{ic('banknote', 15)}Poslat do fakturace (proforma)</UcBtn>}
-          </div>
-          <div style={S('font-size:11px;color:var(--ink3);margin-top:10px')}>Odeslání do fakturace uloží nabídku a vystaví proformu v Účetnictví (řada PF). Zálohová faktura a konečná faktura se vystavují z detailu zájezdu.</div>
-        </div>
+        <ZjRows rows={d.rows} mob={mob} />
       </div>
+
+      {c.open && (
+        <UcModal wide title={c.editId ? `Kalkulace ${c.editId}` : 'Nová kalkulace zájezdu'} sub="Ceník zájezdové dopravy, ceny bez DPH; DPH 12 % osobní doprava. Rozpracovanou kalkulaci lze kdykoli uložit a vrátit se k ní." onClose={c.close} stop={c.stop}>
+          <div style={S(`display:grid;grid-template-columns:${narrow ? '1fr' : 'minmax(0,1.25fr) minmax(0,1fr)'};gap:22px;align-items:start`)}>
+            <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:10px 12px')}>
+              {ZJ_FIELD('Objednatel', <Select value={c.custId} onChange={c.setCust} height={38} size={13} options={[{ value: '', label: 'Jiný objednatel (zadat ručně)' }, ...c.customers.map((o) => ({ value: o.id, label: o.label }))]} />, true)}
+              {!c.custId && ZJ_FIELD('Název objednatele', inp('custName'), true)}
+              {ZJ_FIELD('Kontaktní osoba', inp('contact'))}
+              {ZJ_FIELD('E-mail pro zaslání nabídky', inp('email', 'email'))}
+              {ZJ_FIELD('Odkud', inp('from'))}
+              {ZJ_FIELD('Kam', inp('to'))}
+              {ZJ_FIELD('Přes (volitelně)', inp('via'))}
+              {ZJ_FIELD('Termín odjezdu', inp('dateFrom', 'date'))}
+              {ZJ_FIELD('Počet dní', inp('days', 'number'))}
+              {ZJ_FIELD('Počet osob', inp('pax', 'number'))}
+              {ZJ_FIELD('Kilometry celkem', inp('km', 'number'))}
+              {ZJ_FIELD('Hodiny celkem', inp('hod', 'number'))}
+              {ZJ_FIELD('Typ autobusu', sel('busType', c.busTypes.map((b) => ({ value: b.id, label: b.label }))), true)}
+              {ZJ_FIELD('Čekání (h)', inp('wait', 'number'))}
+              {ZJ_FIELD('Noclehy řidičů', inp('nights', 'number'))}
+              <label style={S('grid-column:1 / -1;display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600;cursor:pointer;padding:4px 0')}><input type="checkbox" checked={!!c.foreign} onChange={c.set('foreign')} style={S('width:16px;height:16px')} />Jízda do zahraničí (mýto, dálniční známky, diety)</label>
+              {ZJ_FIELD('Poznámka do nabídky', <textarea value={c.note || ''} onChange={c.set('note')} rows={2} style={S(UC_INPUT + ';height:auto;padding:9px 11px;resize:vertical')} />, true)}
+            </div>
+            <div style={S('display:flex;flex-direction:column;gap:0;padding:16px 18px;border-radius:14px;background:var(--canvas)')}>
+              <div style={S('font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px')}>Rozpad ceny</div>
+              {c.p.lines.map((l, i) => (
+                <div key={l.key} style={S(`display:flex;justify-content:space-between;gap:12px;padding:8px 0;font-size:12.5px${i ? ';border-top:1px solid var(--border2)' : ''}`)}><span style={S('color:var(--ink2)')}>{l.label}</span><span style={S('font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap')}>{czk(l.amount)}</span></div>
+              ))}
+              <div style={S('display:flex;align-items:center;gap:8px;margin-top:8px;padding:9px 12px;border-radius:10px;background:#fff;font-size:11.5px;color:var(--ink2)')}>{ic(c.p.drivers === 2 ? 'users' : 'user', 14)}<span>{c.aetrNote}</span></div>
+              <div style={S('display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px')}>
+                {[['Bez DPH', c.baseF], ['DPH 12 %', c.vatF], ['Na osobu', c.perPaxF]].map(([l, v]) => <div key={l} style={S('padding:10px 12px;border-radius:10px;background:#fff')}><div style={S('font-size:11px;color:var(--ink3)')}>{l}</div><div style={S('font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap')}>{v}</div></div>)}
+              </div>
+              <div style={S('display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:8px;padding:14px 16px;background:var(--green-soft);border-radius:12px')}>
+                <div><div style={S('font-size:13px;font-weight:650')}>Cena celkem s DPH</div><div style={S('font-size:11.5px;color:var(--ink2)')}>Odhad nákladů {c.costF}, marže {c.margin} %</div></div><span style={S('font-size:22px;font-weight:800;letter-spacing:-.5px;color:var(--green);white-space:nowrap')}>{c.totalF}</span>
+              </div>
+              {!c.complete && <div style={S('display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--amber-soft);font-size:12px;color:#B45309')}>{ic('alert', 15)}<span>Chybí objednatel, trasa, km nebo hodiny. Kalkulaci můžete uložit jako rozpracovanou a dokončit později; nabídku lze vystavit až s úplnými údaji.</span></div>}
+            </div>
+          </div>
+          <div style={S('display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)')}>
+            <UcBtn primary onClick={c.save}>{ic('check', 15)}{c.complete ? 'Uložit kalkulaci' : 'Uložit rozpracovanou'}</UcBtn>
+            <UcBtn primary={false} disabled={!c.complete} onClick={c.saveIssue}>{ic('send', 15)}Uložit a vystavit nabídku</UcBtn>
+            <UcBtn disabled={!c.complete} onClick={c.print}>{ic('file', 15)}Tisk / PDF nabídky</UcBtn>
+            <UcBtn disabled={!c.complete} onClick={c.toInvoicing}>{ic('banknote', 15)}Poslat do fakturace (proforma)</UcBtn>
+            <span style={S('flex:1')} />
+            <UcBtn onClick={c.close}>Zavřít bez uložení</UcBtn>
+          </div>
+        </UcModal>
+      )}
     </div>
   )
 }
@@ -2521,7 +2528,7 @@ function ZajezdDetail({ vm }) {
         <div style={S('display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-top:10px')}>
           <div style={S('flex:1;min-width:240px')}>
             <div style={S('font-size:22px;font-weight:800;letter-spacing:-.5px')}>{t.from} → {t.to}</div>
-            <div style={S('font-size:13px;color:var(--ink2);margin-top:3px')}>{t.custName}{t.contact ? ` · ${t.contact}` : ''} · {t.dateF}{t.days > 1 ? `, ${t.days} ${t.days < 5 ? 'dny' : 'dní'}` : ''} · {t.pax} osob</div>
+            <div style={S('font-size:13px;color:var(--ink2);margin-top:3px')}>{t.custName}{t.contact ? ` · ${t.contact}` : ''}{t.email ? ` · ${t.email}` : ''} · {t.dateF}{t.days > 1 ? `, ${t.days} ${t.days < 5 ? 'dny' : 'dní'}` : ''} · {t.pax} osob</div>
           </div>
           <div style={S('text-align:right')}><div style={S('font-size:11.5px;color:var(--ink3)')}>Cena bez DPH</div><div style={S('font-size:22px;font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums')}>{t.baseF}</div></div>
         </div>
@@ -2562,7 +2569,7 @@ function ZajezdDetail({ vm }) {
               {t.timeline.map((e, i) => (
                 <div key={i} style={S(`display:flex;gap:12px;padding:9px 0${i ? ';border-top:1px solid var(--border)' : ''}`)}>
                   <span style={S(`width:8px;height:8px;border-radius:50%;margin-top:6px;flex-shrink:0;background:${i === 0 ? 'var(--blue)' : 'var(--border2)'}`)} />
-                  <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:600')}>{e.what}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{e.at} · {e.who}</div></div>
+                  <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:600')}>{e.what}</div>{e.detail && <div style={S('font-size:12px;color:var(--ink2);margin-top:1px')}>{e.detail}</div>}<div style={S('font-size:11.5px;color:var(--ink3);margin-top:2px')}>{e.at} · {e.who}</div></div>
                 </div>
               ))}
             </div>
@@ -2570,17 +2577,28 @@ function ZajezdDetail({ vm }) {
         </div>
 
         <div style={S('display:flex;flex-direction:column;gap:16px')}>
-          {t.actions.length > 0 && (
-            <div style={S(`${CARD};padding:18px 20px;border:1px solid var(--blue);background:linear-gradient(135deg,#F5F7FF,#FFFFFF)`)}>
-              <div style={S('font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px')}>Další krok</div>
-              <div style={S('display:flex;gap:8px;flex-wrap:wrap')}>{t.actions.map((a) => <UcBtn key={a.label} primary={a.primary} disabled={a.disabled} onClick={a.onClick}>{ic(a.icon, 15)}{a.label}</UcBtn>)}</div>
-            </div>
-          )}
+          <div style={S(`${CARD};padding:18px 20px;border:1px solid var(--blue);background:linear-gradient(135deg,#F5F7FF,#FFFFFF)`)}>
+            <div style={S('font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px')}>Další krok</div>
+            {t.actions.length > 0
+              ? <div style={S('display:flex;gap:8px;flex-wrap:wrap')}>{t.actions.map((a) => <UcBtn key={a.label} primary={a.primary} disabled={a.disabled} onClick={a.onClick}>{ic(a.icon, 15)}{a.label}</UcBtn>)}</div>
+              : <div style={S('font-size:13px;font-weight:600;color:var(--ink2)')}>{t.status === 'vyuctovano' ? 'Zájezd je vyúčtovaný a uzavřený.' : 'Zájezd je realizovaný, zbývá vystavit fakturu (karta Fakturace).'}</div>}
+            {t.lastEvent && (
+              <div style={S('display:flex;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)')}>
+                <span style={S('width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--blue-soft);color:var(--blue)')}>{ic('clock', 15)}</span>
+                <div style={S('flex:1;min-width:0')}>
+                  <div style={S('font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px')}>Poslední událost · {t.lastEvent.at}</div>
+                  <div style={S('font-size:13px;font-weight:650;margin-top:2px')}>{t.lastEvent.what}</div>
+                  {t.lastEvent.detail && <div style={S('font-size:12px;color:var(--ink2);margin-top:2px')}>{t.lastEvent.detail}</div>}
+                  <div style={S('font-size:11.5px;color:var(--ink3);margin-top:3px')}>{t.lastEvent.who}</div>
+                </div>
+              </div>
+            )}
+          </div>
           <Box icon="bus" color="var(--blue-ink)" title="Vůz a řidiči" sub={t.canPick ? 'Vyberte vůz a řidiče, potom potvrďte' : t.bus ? 'Přiděleno dispečinkem' : 'Přiděluje se po schválení klientem'}>
             {t.canPick ? (
               <div style={S('margin-top:6px')}>
                 <div style={S(UC_LBL)}>Autobus</div>
-                <select value={t.pick.busIdx == null ? '' : t.pick.busIdx} onChange={t.setBus} style={S(UC_INPUT)}><option value="">Vyberte vůz…</option>{t.busOptions.map((b) => <option key={b.idx} value={b.idx}>{b.label}</option>)}</select>
+                <Select value={t.pick.busIdx == null ? null : t.pick.busIdx} onChange={t.setBus} height={38} size={13} placeholder="Vyberte vůz…" options={t.busOptions.map((b) => ({ value: b.idx, label: b.label }))} />
                 <div style={S(`${UC_LBL};margin-top:12px`)}>Řidiči ({t.pick.driverIds.length} / {t.needDrv})</div>
                 <div style={S('display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto')}>
                   {t.drvOptions.map((o) => <label key={o.id} style={S(`display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid ${o.on ? 'var(--blue)' : 'var(--border)'};border-radius:10px;font-size:12.5px;font-weight:600;cursor:pointer;background:${o.on ? 'var(--blue-soft)' : '#fff'}`)}><input type="checkbox" checked={o.on} onChange={() => t.toggleDrv(o.id)} style={S('width:15px;height:15px')} />{o.label}</label>)}
@@ -2827,11 +2845,11 @@ function UcNewDocument({ n, mob }) {
   return (
     <UcModal title={n.title} sub={n.desc} onClose={n.close} stop={n.stop} wide>
       {n.needsRelated && (
-        <div style={S('margin-bottom:14px')}><div style={S(UC_LBL)}>{n.docType === 'opravny' ? 'Původní faktura (zaplacená)' : 'Zaplacená záloha / výzva'}</div><select value={n.related} onChange={n.setRelated} style={S(UC_INPUT)}><option value="">Vyberte doklad…</option>{n.relatedOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}</select></div>
+        <div style={S('margin-bottom:14px')}><div style={S(UC_LBL)}>{n.docType === 'opravny' ? 'Původní faktura (zaplacená)' : 'Zaplacená záloha / výzva'}</div><Select value={n.related} onChange={n.setRelated} height={38} size={13} placeholder="Vyberte doklad…" options={n.relatedOptions.map((o) => ({ value: o.id, label: o.label }))} /></div>
       )}
       <div style={S('margin-bottom:14px')}>
         <div style={S(UC_LBL)}>Odběratel</div>
-        <select value={n.custId} onChange={n.setCust} style={S(UC_INPUT)}><option value="">— vyberte z adresáře nebo zadejte nového níže —</option>{n.customers.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
+        <Select value={n.custId} onChange={n.setCust} height={38} size={13} placeholder="Vyberte z adresáře nebo zadejte nového níže" options={[{ value: '', label: 'Nový odběratel (zadat níže)' }, ...n.customers.map((c) => ({ value: c.id, label: c.label }))]} />
         {n.custLabel ? <div style={S('font-size:12px;color:var(--ink2);margin-top:6px')}>{n.custLabel}</div> : (
           <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '2fr 1fr 2fr'};gap:8px;margin-top:8px`)}><input value={n.custName} onChange={n.setCustName} placeholder="Název nového odběratele" style={S(UC_INPUT)} /><input value={n.custIco} onChange={n.setCustIco} placeholder="IČO" style={S(UC_INPUT)} /><input value={n.custAddr} onChange={n.setCustAddr} placeholder="Adresa" style={S(UC_INPUT)} /></div>
         )}
@@ -2841,19 +2859,19 @@ function UcNewDocument({ n, mob }) {
         <div><div style={S(UC_LBL)}>Datum vystavení</div><input type="date" value={n.issued} onChange={n.setIssued} style={S(UC_INPUT)} /></div>
         <div><div style={S(UC_LBL)}>{n.tax ? 'Datum zdaň. plnění' : 'Datum plnění'}</div><input type="date" value={n.duzp} onChange={n.setDuzp} style={S(UC_INPUT)} /></div>
         <div><div style={S(UC_LBL)}>Splatnost (dní)</div><input type="number" min={0} value={n.dueDays} onChange={n.setDueDays} style={S(UC_INPUT)} /></div>
-        <div><div style={S(UC_LBL)}>Způsob úhrady</div><select value={n.method} onChange={n.setMethod} style={S(UC_INPUT)}>{n.methods.map((m) => <option key={m}>{m}</option>)}</select></div>
+        <div><div style={S(UC_LBL)}>Způsob úhrady</div><Select value={n.method} onChange={n.setMethod} height={38} size={13} options={n.methods} /></div>
         <div><div style={S(UC_LBL)}>Uhrazeno dne (nepovinné)</div><input type="date" value={n.paidOn} onChange={n.setPaidOn} style={S(UC_INPUT)} /></div>
-        <div style={{ gridColumn: mob ? 'auto' : 'span 2' }}><div style={S(UC_LBL)}>Výpočet DPH</div><select value={n.withVat ? 's' : 'bez'} onChange={n.setWithVat} style={S(UC_INPUT)}><option value="bez">Ceny uvádím bez DPH (základ)</option><option value="s">Ceny uvádím s DPH</option></select></div>
+        <div style={{ gridColumn: mob ? 'auto' : 'span 2' }}><div style={S(UC_LBL)}>Výpočet DPH</div><Select value={n.withVat ? 's' : 'bez'} onChange={n.setWithVat} height={38} size={13} options={[{ value: 'bez', label: 'Ceny uvádím bez DPH (základ)' }, { value: 's', label: 'Ceny uvádím s DPH' }]} /></div>
       </div>
       <div style={S('border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px')}>
         <div style={S('display:grid;grid-template-columns:70px 80px 1fr 120px 90px 34px;gap:8px;font-size:10.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;margin-bottom:6px')}><span>Počet</span><span>MJ</span><span>Popis</span><span style={S('text-align:right')}>Cena za MJ</span><span>DPH</span><span></span></div>
         {n.rows.map((r, i) => (
           <div key={i} style={S('display:grid;grid-template-columns:70px 80px 1fr 120px 90px 34px;gap:8px;margin-bottom:6px')}>
             <input type="number" min={0} step="0.01" value={r.qty} onChange={(e) => n.updRow(i, { qty: e.target.value })} style={S(UC_INPUT)} />
-            <select value={r.unit} onChange={(e) => n.updRow(i, { unit: e.target.value })} style={S(UC_INPUT)}>{n.units.map((x) => <option key={x}>{x}</option>)}</select>
+            <Select value={r.unit} onChange={(e) => n.updRow(i, { unit: e.target.value })} height={38} size={13} options={n.units} />
             <input value={r.text} onChange={(e) => n.updRow(i, { text: e.target.value })} placeholder="Popis položky (např. zájezd, pronájem, reklama)" style={S(UC_INPUT)} />
             <input type="number" step="0.01" value={r.price} onChange={(e) => n.updRow(i, { price: e.target.value })} style={S(UC_INPUT + ';text-align:right')} />
-            <select value={r.vat} onChange={(e) => n.updRow(i, { vat: Number(e.target.value) })} style={S(UC_INPUT)}><option value={21}>21 %</option><option value={12}>12 %</option><option value={0}>osv.</option></select>
+            <Select value={r.vat} onChange={(e) => n.updRow(i, { vat: Number(e.target.value) })} height={38} size={13} options={[{ value: 21, label: '21 %' }, { value: 12, label: '12 %' }, { value: 0, label: 'osv.' }]} />
             <Hov onClick={() => n.delRow(i)} base="height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink3)" hover="background:var(--star-soft);color:var(--star)">{ic('close', 14)}</Hov>
           </div>
         ))}
@@ -2908,7 +2926,7 @@ function UcExpenseDetail({ e }) {
   return (
     <UcModal title={e.title} sub={`${e.supplier}${e.ico ? ' · IČO ' + e.ico : ''}`} onClose={e.close} stop={e.stop}>
       {[['Soubor', e.file], ['Zdroj', e.source + (e.ai ? ' · AI vyčetla údaje' : '')], ['Kategorie', e.category], ['Částka', e.amountLine], ['Úhrada', e.payLine], ['Poznámka', e.note || '–'], ['Předkontace', e.posting]].map((r, i) => <div key={i} style={S(`display:flex;justify-content:space-between;gap:14px;padding:8px 0;font-size:13px${i ? ';border-top:1px solid var(--border)' : ''}`)}><span style={S('color:var(--ink3)')}>{r[0]}</span><span style={S('font-weight:600;text-align:right')}>{r[1]}</span></div>)}
-      <div style={S('margin-top:14px')}><div style={S(UC_LBL)}>Zaúčtovat na účet</div><select defaultValue={e.account} onChange={e.setAccount} style={S(UC_INPUT)}>{e.chart.map((c) => <option key={c.account} value={c.account}>{c.account} {c.name}</option>)}</select></div>
+      <div style={S('margin-top:14px')}><div style={S(UC_LBL)}>Zaúčtovat na účet</div><Select value={e.account} onChange={e.setAccount} height={38} size={13} options={e.chart.map((c) => ({ value: c.account, label: `${c.account} ${c.name}` }))} /></div>
     </UcModal>
   )
 }
