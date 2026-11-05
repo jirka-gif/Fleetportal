@@ -756,6 +756,95 @@ const SEED_SHIFTS = [
 ].map((s) => { const l = linesData.find((x) => x.id === s.lineId) || linesData[0]; const [start, end] = SHIFT_TURNUS[s.turnus]; return { ...s, busId: l.busId, start, end, depot: 'Vozovna České Budějovice, Žižkova tř.' } })
 const SHIFT_STATUS = { planned: { label: 'Čeká na potvrzení', color: '#B45309', bg: 'var(--amber-soft)' }, confirmed: { label: 'Převzato řidičem', color: 'var(--green)', bg: 'var(--green-soft)' } }
 
+// ---- Vyúčtování výkonů: smlouvy s objednateli, měsíční data po dnech, kontrola, výkaz, fakturace ----
+const VYK_CONTRACTS = {
+  c2: { id: 'c2', short: 'Město České Budějovice (MHD)', contractNo: 'SML/2023/0412-DOP', valid: '1. 1. 2024 až 31. 12. 2033', penaltyTrip: 1500, advance: 11_600_000, advanceDay: 15, rule: 'Úhrada za uznatelné km podle přílohy 2 (indexace k 1. 1. 2026). Sankce 1 500 Kč za nejetý spoj, náhradní doprava bez sankce. Objížďky uznány po odsouhlasení dispečinkem DPMČB.' },
+  c1: { id: 'c1', short: 'JIKORD (Jihočeský kraj)', contractNo: 'JIKORD/2019/VZ-07', valid: '15. 12. 2019 až 14. 12. 2029', penaltyTrip: 2500, advance: 7_250_000, advanceDay: 10, rule: 'Kompenzace = uznatelné km × sazba minus tržby minus sankce. Sankce 2 500 Kč za nejetý spoj. Spoj bez stazky není uznatelný, dokud dopravce nedoloží jízdu z tachografu.' },
+}
+const VYK_STEPS = ['Sběr dat', 'Kontrola', 'Výkaz', 'Fakturace', 'Uzavřeno']
+const VYK_STATUS = { sber: 0, kontrola: 1, vykaz: 2, fakturace: 3, uzavreno: 4 }
+const VYK_MONTHS = ['2026-08', '2026-09', '2026-10']
+const VYK_YEAR_MONTHS = Array.from({ length: 10 }).map((_, i) => `2026-${String(i + 1).padStart(2, '0')}`)
+const vykCustOf = (l) => l.agency && l.agency.includes('Dopravní podnik') ? 'c2' : 'c1'
+const vykKmTrip = (l) => 6 + (_hash(l.id + 'km') % 18) + (l.no === '300' ? 42 : 0)
+const vykRate = (l) => 41 + (_hash(l.id + 's') % 6)
+const vykFare = (l) => 11 + (_hash(l.id + 'f') % 7)
+const VYK_MISS_REASONS = ['porucha vozidla', 'dopravní nehoda na trase', 'nenastoupil řidič (nemoc)', 'uzavírka bez objízdné trasy']
+const VYK_DOW = ['ne', 'po', 'út', 'st', 'čt', 'pá', 'so']
+const vykMonthLabel = (m) => { const [y, mm] = m.split('-').map(Number); return `${['leden', 'únor', 'březen', 'duben', 'květen', 'červen', 'červenec', 'srpen', 'září', 'říjen', 'listopad', 'prosinec'][mm - 1]} ${y}` }
+const VYK_ISSUE_TYPES = {
+  missed: { label: 'Nejeté spoje', color: 'var(--star)', bg: 'var(--star-soft)', actions: [['penalty', 'Uznat sankci'], ['force', 'Vyšší moc, bez sankce']], def: 'penalty' },
+  substitute: { label: 'Náhradní doprava', color: 'var(--blue-ink)', bg: 'var(--blue-soft)', actions: [['ok', 'Vzato na vědomí']], def: 'ok' },
+  detour: { label: 'Objížďka', color: '#B45309', bg: 'var(--amber-soft)', actions: [['accept', 'Uznat km'], ['reject', 'Neuznat km']], def: 'accept' },
+  nostazka: { label: 'Spoj bez stazky', color: 'var(--purple)', bg: 'var(--purple-soft)', actions: [['accept', 'Stazka doplněna, uznat'], ['reject', 'Vyřadit spoj']], def: 'accept' },
+}
+/** Deterministická data linky za měsíc po dnech: spoje, km, tržby, cestující a události ke kontrole. */
+function buildVykLine(l, month) {
+  const [y, mm] = month.split('-').map(Number)
+  const dim = new Date(y, mm, 0).getDate()
+  const kmTrip = vykKmTrip(l), rate = vykRate(l), fare = vykFare(l), penalty = VYK_CONTRACTS[vykCustOf(l)].penaltyTrip
+  const days = [], issues = []
+  for (let d = 1; d <= dim; d++) {
+    const dow = new Date(y, mm - 1, d).getDay(), key = `${l.id}${month}${d}`, h = _hash(key), h2 = _hash(key + 'd'), h3 = _hash(key + 'n'), h4 = _hash(key + 'r')
+    const tripsPlan = Math.round(l.tripsDay * (dow === 0 ? 0.45 : dow === 6 ? 0.55 : 1))
+    let tripsRun = tripsPlan, kmExtra = 0
+    const dayIssues = [], dateKey = `${month}-${String(d).padStart(2, '0')}`, dateLabel = `${VYK_DOW[dow]} ${d}. ${mm}.`
+    if (h % 100 < 4) { const n = 1 + (h % 3); tripsRun -= n; dayIssues.push({ id: `${key}-m`, type: 'missed', lineId: l.id, lineNo: l.no, dateKey, dateLabel, label: `${n} nejet${n === 1 ? 'ý spoj' : 'é spoje'}`, detail: VYK_MISS_REASONS[h4 % VYK_MISS_REASONS.length], trips: n, km: 0, penalty: n * penalty }) }
+    else if (h % 100 < 6) { const n = 2 + (h % 4); dayIssues.push({ id: `${key}-s`, type: 'substitute', lineId: l.id, lineNo: l.no, dateKey, dateLabel, label: `${n} spoje náhradní dopravou`, detail: 'výluka, nasazen náhradní vůz smluvního dopravce', trips: n, km: 0, penalty: 0 }) }
+    if (h2 % 100 < 3) { kmExtra = Math.round(tripsRun * (1.5 + (h2 % 4) * 0.5)); dayIssues.push({ id: `${key}-d`, type: 'detour', lineId: l.id, lineNo: l.no, dateKey, dateLabel, label: `objížďka +${kmExtra} km`, detail: 'uzavírka, objízdná trasa podle rozhodnutí silničního úřadu', trips: 0, km: kmExtra, penalty: 0 }) }
+    if (h3 % 100 < 2) { const n = 1 + (h3 % 2); dayIssues.push({ id: `${key}-n`, type: 'nostazka', lineId: l.id, lineNo: l.no, dateKey, dateLabel, label: `${n} spoj${n > 1 ? 'e' : ''} bez stazky`, detail: 'jízda je v tachografu, chybí záznam ve stazce řidiče', trips: n, km: n * kmTrip, penalty: 0 }) }
+    const kmReal = tripsRun * kmTrip + kmExtra
+    const revFactor = dow === 0 ? 0.5 : dow === 6 ? 0.6 : 1 + (h4 % 7 - 3) / 100
+    const revenue = Math.round(tripsRun * kmTrip * fare * revFactor)
+    days.push({ d, dateKey, label: dateLabel, dow, tripsPlan, tripsRun, kmPlan: tripsPlan * kmTrip, kmReal, revenue, pax: Math.round(revenue / 14.2), issues: dayIssues })
+    issues.push(...dayIssues)
+  }
+  return { line: l, custId: vykCustOf(l), kmTrip, rate, fare, penalty, days, issues }
+}
+/** Součty linky za měsíc s ohledem na výsledek kontroly (resolved: id → { action }). */
+function vykTotals(b, resolved) {
+  const t = { tripsPlan: 0, tripsRun: 0, kmPlan: 0, kmReal: 0, revenue: 0, pax: 0 }
+  b.days.forEach((d) => { t.tripsPlan += d.tripsPlan; t.tripsRun += d.tripsRun; t.kmPlan += d.kmPlan; t.kmReal += d.kmReal; t.revenue += d.revenue; t.pax += d.pax })
+  let kmUzn = t.kmReal, sankce = 0, kmNeuzn = 0, tripsSub = 0, missed = 0, open = 0
+  b.issues.forEach((i) => {
+    const r = resolved[i.id]; const a = r ? (r.action === 'closed' ? VYK_ISSUE_TYPES[i.type].def : r.action) : null
+    if (!r) open++
+    if (i.type === 'missed') { missed += i.trips; if (!a || a === 'penalty') sankce += i.penalty }
+    if (i.type === 'detour' && (!a || a === 'reject')) { kmUzn -= i.km; kmNeuzn += i.km }
+    if (i.type === 'nostazka' && (!a || a === 'reject')) { kmUzn -= i.km; kmNeuzn += i.km }
+    if (i.type === 'substitute') tripsSub += i.trips
+  })
+  const vykon = kmUzn * b.rate, komp = vykon - t.revenue - sankce
+  return { ...t, kmUzn, kmNeuzn, sankce, tripsSub, missed, open, vykon, komp, plneni: t.tripsPlan ? t.tripsRun / t.tripsPlan * 100 : 100, kmPct: t.kmPlan ? t.kmReal / t.kmPlan * 100 : 100 }
+}
+const VYK_SEED_STATUS = { '2026-08:c1': 'uzavreno', '2026-08:c2': 'uzavreno', '2026-09:c1': 'uzavreno', '2026-09:c2': 'uzavreno', '2026-10:c2': 'kontrola', '2026-10:c1': 'sber' }
+const _vykClosedLog = (m, who, d1, d2, d3, d4) => [
+  { at: `${d1} 08:30`, who: 'Marie Dvořáková', what: 'Sběr dat uzavřen', detail: 'Km z tachografů, spoje ze stazek a tržby z odbavovacího systému načteny' },
+  { at: `${d2} 14:10`, who: 'Marie Dvořáková', what: 'Kontrola potvrzena', detail: 'Všechny události měsíce vyřešeny, uznatelné km odsouhlaseny s dispečinkem objednatele' },
+  { at: `${d3} 09:05`, who: who, what: 'Výkaz pro objednatele vystaven', detail: `Výkaz dopravních výkonů za ${vykMonthLabel(m)} odeslán datovou schránkou` },
+  { at: `${d4} 10:20`, who: 'Lenka Nováková', what: 'Vyúčtováno fakturou', detail: 'Kompenzace prokazatelné ztráty vystavena v Účetnictví (mimo DPH), zápočet měsíční zálohy' },
+]
+const VYK_SEED_LOG = {
+  '2026-08:c2': _vykClosedLog('2026-08', 'Ing. Pavel Šimek', '1. 9. 2026', '2. 9. 2026', '3. 9. 2026', '5. 9. 2026'),
+  '2026-08:c1': _vykClosedLog('2026-08', 'Ing. Pavel Šimek', '1. 9. 2026', '2. 9. 2026', '3. 9. 2026', '3. 9. 2026'),
+  '2026-09:c2': _vykClosedLog('2026-09', 'Ing. Pavel Šimek', '1. 10. 2026', '2. 10. 2026', '3. 10. 2026', '5. 10. 2026'),
+  '2026-09:c1': _vykClosedLog('2026-09', 'Ing. Pavel Šimek', '1. 10. 2026', '2. 10. 2026', '3. 10. 2026', '3. 10. 2026'),
+  '2026-10:c2': [{ at: '3. 11. 2026 08:40', who: 'Marie Dvořáková', what: 'Sběr dat uzavřen', detail: 'Km z tachografů 5 linek MHD, spoje ze stazek, tržby z odbavovacího systému DPMČB načteny; zahájena kontrola událostí' }],
+  '2026-10:c1': [{ at: '2. 11. 2026 16:10', who: 'Marie Dvořáková', what: 'Měsíc otevřen', detail: 'Čeká se na import tržeb z odbavovacího systému pro linku 300 (JIKORD)' }],
+}
+function buildVykazHtml(month, cust, rows, tot, docsNote) {
+  const esc = (x) => String(x ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))
+  const n = (x) => Math.round(x).toLocaleString('cs-CZ')
+  const trs = rows.map((r) => `<tr><td><b>Linka ${esc(r.no)}</b><br><span class="m">${esc(r.name)}</span></td><td class="r">${n(r.t.tripsPlan)} / ${n(r.t.tripsRun)}</td><td class="r">${n(r.t.kmPlan)}</td><td class="r">${n(r.t.kmReal)}</td><td class="r">${n(r.t.kmUzn)}</td><td class="r">${r.rate} Kč</td><td class="r">${n(r.t.vykon)} Kč</td><td class="r">${n(r.t.revenue)} Kč</td><td class="r">${n(r.t.sankce)} Kč</td><td class="r"><b>${n(r.t.komp)} Kč</b></td></tr>`).join('')
+  return `<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>Výkaz výkonů ${esc(vykMonthLabel(month))}</title><style>*{box-sizing:border-box}body{font-family:Inter,-apple-system,system-ui,sans-serif;color:#1b1f2a;margin:0;padding:34px 40px;font-size:11.5px}h1{font-size:20px;margin:0}.top{display:flex;justify-content:space-between;gap:20px;border-bottom:3px solid #6D5EF6;padding-bottom:14px}.m{color:#6b7280}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}.box{border:1px solid #E3E6EE;border-radius:10px;padding:10px 12px}.box b.t{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#777;margin-bottom:3px}table{width:100%;border-collapse:collapse;margin-top:8px}th{text-align:left;font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;border-bottom:1px solid #e7e9f2;padding:0 5px 6px}td{padding:7px 5px;border-bottom:1px solid #eef0f5;vertical-align:top}th.r,td.r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}.tot{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}.tot div{padding:10px 12px;background:#F4F2FF;border-radius:10px}.tot b{display:block;font-size:15px;margin-top:2px}.sig{margin-top:40px;display:flex;gap:30px}.sig div{flex:1;border-top:1px solid #999;padding-top:6px;color:#666;font-size:10.5px}@media print{@page{size:A4 landscape;margin:12mm}body{padding:0}}</style></head><body>
+<div class="top"><div><div style="font-weight:800;color:#6D5EF6;font-size:12px">FLEETPORTAL</div><h1>Výkaz dopravních výkonů za ${esc(vykMonthLabel(month))}</h1><div class="m" style="margin-top:3px">Příloha vyúčtování kompenzace podle smlouvy ${esc(cust.contractNo)}</div></div><div class="m" style="text-align:right">${rows.length} linek<br>${n(tot.kmUzn)} uznatelných km<br>${n(tot.tripsRun)} spojů</div></div>
+<div class="grid"><div class="box"><b class="t">Dopravce</b>ČSAD AUTOBUSY České Budějovice a.s.<br>IČO 26060451, DIČ CZ26060451</div><div class="box"><b class="t">Objednatel</b>${esc(cust.name)}<br>IČO ${esc(cust.ico)} · smlouva ${esc(cust.contractNo)}, platnost ${esc(cust.valid)}</div></div>
+<table><thead><tr><th>Linka</th><th class="r">Spoje plán / jeté</th><th class="r">Km plán</th><th class="r">Km skutečnost</th><th class="r">Km uznatelné</th><th class="r">Sazba</th><th class="r">Výkon</th><th class="r">Tržby</th><th class="r">Sankce</th><th class="r">Kompenzace</th></tr></thead><tbody>${trs}</tbody></table>
+<div class="tot"><div>Výkon (uznatelné km × sazba)<b>${n(tot.vykon)} Kč</b></div><div>Tržby z jízdného<b>${n(tot.revenue)} Kč</b></div><div>Sankce za nejeté spoje (${n(tot.missed)})<b>${n(tot.sankce)} Kč</b></div><div>Kompenzace prokazatelné ztráty<b>${n(tot.komp)} Kč</b></div></div>
+<div class="m" style="margin-top:14px;font-size:10.5px">${esc(cust.rule)} Záloha za měsíc ${n(cust.advance)} Kč, ${tot.komp - cust.advance >= 0 ? 'doplatek' : 'přeplatek k vrácení'} ${n(Math.abs(tot.komp - cust.advance))} Kč. ${esc(docsNote || '')} Kompenzace ze závazku veřejné služby podle zákona č. 194/2010 Sb. není úplatou za zdanitelné plnění. Modelová data.</div>
+<div class="sig"><div>Za dopravce</div><div>Za objednatele (převzetí výkazu)</div></div></body></html>`
+}
+
 // ---- Zájezdy: kalkulace nabídek, pipeline a napojení na fakturaci ----
 const TRIP_BUS_TYPES = [
   { id: 'midi', label: 'Midibus (30 míst)', seats: 30, rateKm: 32, rateHod: 380 },
@@ -976,6 +1065,7 @@ export default function FleetPortal() {
     drvMsgs: SEED_DRV_MSGS, drvMsgTo: 'dispecink', drvMsgText: '', drvIdeas: SEED_DRV_IDEAS, drvIdeaText: '', drvIdeaCat: 'Provoz', drvDocs: SEED_DRV_DOCS,
     navOpen: { provoz: true, flotila: true, lide: true, finance: true, firma: false },
     shifts: SEED_SHIFTS, shiftForm: { dayKey: SHIFT_DAYS[1].key, driverId: 'dr1', lineId: linesData[0].id, busId: linesData[0].busId, turnus: 'ranní' },
+    vyk: { month: '2026-10', cust: 'c2', status: { ...VYK_SEED_STATUS }, log: { ...VYK_SEED_LOG }, resolved: {}, docs: {}, lineOpen: null, showAll: false },
     zajTrips: SEED_TRIPS, zajCalc: { ...DEFAULT_TRIP_CALC }, zajCalcOpen: false, zajDetailId: null, zajFilter: 'vse', zajPick: null, zajPickEdit: false,
     claimWizard: false, claimStep: 1, claimData: {},
     rowMenu: null, toast: null,
@@ -2644,44 +2734,98 @@ export default function FleetPortal() {
   }
 
   // ---- Vyúčtování výkonů dopravce (ujeté km a spoje, plán vs. skutečnost) ----
+  // ---- Vyúčtování výkonů: měsíční proces objednatel po objednateli ----
+  const vykSet = (patch) => setState((st) => ({ vyk: { ...st.vyk, ...patch } }))
+  const vykLog = (key, what, detail, who) => setState((st) => ({ vyk: { ...st.vyk, log: { ...st.vyk.log, [key]: [...(st.vyk.log[key] || []), { at: tripStamp(), who: who || zajUser(), what, detail }] } } }))
+  const vykStatusOf = (key) => state.vyk.status[key] || 'sber'
+  const vykResolvedMap = (key) => {
+    const own = state.vyk.resolved[key] || {}
+    if (vykStatusOf(key) !== 'uzavreno') return own
+    return new Proxy(own, { get: (o, id) => o[id] || { action: 'closed' } })
+  }
+  const vykBuilt = (month, custId) => linesData.filter((l) => vykCustOf(l) === custId).map((l) => buildVykLine(l, month))
+  const vykSum = (rows) => rows.reduce((a, r) => { Object.keys(r.t).forEach((k) => { a[k] = (a[k] || 0) + r.t[k] }); return a }, {})
+  const vykMonthFor = (month, custId) => {
+    const key = `${month}:${custId}`; const resolved = vykResolvedMap(key)
+    const rows = vykBuilt(month, custId).map((b) => ({ ...b, t: vykTotals(b, resolved) }))
+    const tot = vykSum(rows); const c = VYK_CONTRACTS[custId]
+    return { key, rows, tot, advance: c.advance, diff: (tot.komp || 0) - c.advance, status: vykStatusOf(key) }
+  }
+  const linkDocToVyk = (key, r) => {
+    setState((st) => ({ vyk: { ...st.vyk, docs: { ...st.vyk.docs, [key]: [...(st.vyk.docs[key] || []), r.id] }, status: { ...st.vyk.status, [key]: 'uzavreno' }, log: { ...st.vyk.log, [key]: [...(st.vyk.log[key] || []), { at: tripStamp(), who: zajUser(), what: 'Vyúčtováno fakturou, měsíc uzavřen', detail: `${r.number} na ${czk(r.total)} (kompenzace mimo DPH), splatnost ${ACC.fmtDate(r.due)}, VS ${r.vs}; zápočet zálohy ${czk(VYK_CONTRACTS[key.split(':')[1]].advance)}` }] } } }))
+  }
+  const vykOpenDoc = (month, custId) => {
+    const m = vykMonthFor(month, custId); const cust = ACC.CUSTOMERS.find((x) => x.id === custId)
+    const rows = m.rows.map((r) => ({ text: `Kompenzace prokazatelné ztráty, linka ${r.line.no} ${r.line.name}, ${vykMonthLabel(month)}: ${r.t.kmUzn.toLocaleString('cs-CZ')} uznatelných km × ${r.rate} Kč, minus tržby ${czk(r.t.revenue)}${r.t.sankce ? ', minus sankce ' + czk(r.t.sankce) : ''}`, qty: '1', unit: 'ks', price: String(Math.round(r.t.komp)), vat: 0 }))
+    setState({ ucNew: { docType: 'faktura', vykKey: m.key, kompenzace: true, serviceMonth: month, custId, custName: '', custIco: '', custAddr: '', issued: isoKey(new Date()), duzp: `${month}-${new Date(Number(month.slice(0, 4)), Number(month.slice(5)), 0).getDate()}`, dueDays: 30, method: 'Bankovní převod', withVat: false, rows, note: `Vyúčtování prokazatelné ztráty za ${vykMonthLabel(month)} podle smlouvy ${VYK_CONTRACTS[custId].contractNo}; zákon č. 194/2010 Sb., není úplatou za zdanitelné plnění. Měsíční záloha ${czk(VYK_CONTRACTS[custId].advance)} se započítává, ${m.diff >= 0 ? 'doplatek' : 'přeplatek'} ${czk(Math.abs(m.diff))}.`, related: '', paidOn: '' } })
+  }
   const vykonyVM = () => {
     if (state.route !== 'vykony') return {}
-    const mil = (n) => (n / 1e6).toFixed(1).replace('.', ',') + ' mil. Kč'
-    const DAYS = 26
-    const objednatelOf = (l) => l.agency && l.agency.includes('Dopravní podnik') ? 'Statutární město České Budějovice (MHD)' : 'JIKORD – Jihočeský kraj'
-    const rows = linesData.map((l, i) => {
-      const sim = simulateLineRun(l)
-      const kmTrip = 6 + (_hash(l.id + 'km') % 18) + (l.no === '300' ? 42 : 0)
-      const kmPlan = Math.round(l.tripsDay * kmTrip * DAYS)
-      const kmReal = Math.round(kmPlan * (0.965 + (sim.onTimePct / 100) * 0.04))
-      const sazba = 41 + (_hash(l.id + 's') % 6) // úhrada za km od objednatele
-      const fare = 11 + (_hash(l.id + 'f') % 7)  // tržby z jízdného na km
-      const vykon = kmReal * sazba
-      const trzby = kmReal * fare
-      const komp = vykon - trzby
-      return { id: l.id, no: l.no, name: l.name, objednatel: objednatelOf(l), kmPlan, kmReal, plneni: Math.round(kmReal / kmPlan * 100), sazba, vykonF: czk(vykon), trzbyF: czk(trzby), kompF: czk(komp), vykon, trzby, komp, onClick: () => openLine(l.id) }
-    })
-    const sum = (k) => rows.reduce((a, r) => a + r[k], 0)
-    const kmTotal = sum('kmReal'), vykonTotal = sum('vykon'), trzbyTotal = sum('trzby'), kompTotal = sum('komp')
+    void state.accVersion
+    const v = state.vyk; const month = v.month, custId = v.cust; const c = VYK_CONTRACTS[custId]; const custAcc = ACC.CUSTOMERS.find((x) => x.id === custId)
+    const m = vykMonthFor(month, custId); const key = m.key; const status = m.status; const stepIdx = VYK_STATUS[status]
+    const resolved = vykResolvedMap(key)
+    const allIssues = m.rows.flatMap((r) => r.issues.map((i) => ({ ...i, lineName: r.line.name, resolved: resolved[i.id] || null })))
+    const openIssues = allIssues.filter((i) => !i.resolved)
+    const tabs = ['c2', 'c1'].map((id) => { const mm = vykMonthFor(month, id); const open = mm.rows.reduce((a, r) => a + r.t.open, 0); return { id, label: VYK_CONTRACTS[id].short, count: open || null, active: id === custId, onClick: () => vykSet({ cust: id, showAll: false }) } })
+    const fmtK = (n) => (n / 1000).toFixed(0)
+    const mil = (n) => (n / 1e6).toFixed(2).replace('.', ',')
     const kpis = [
-      { value: (kmTotal / 1000).toFixed(0), unit: 'tis. km', label: 'Ujeto / měsíc', icon: 'bus', note: `${rows.length} linek · ${DAYS} prov. dní` },
-      { value: mil(vykonTotal), label: 'Výkon (úhrada za km)', icon: 'banknote', note: 'nárok vůči objednateli' },
-      { value: mil(trzbyTotal), label: 'Tržby z jízdného', icon: 'trend', note: 'vybráno od cestujících' },
-      { value: mil(kompTotal), label: 'Kompenzace (ztráta)', icon: 'scales', note: 'doplatí objednatel' },
+      { value: fmtK(m.tot.kmUzn || 0), unit: 'tis. km', label: 'Uznatelné km', icon: 'bus', note: `${fmtK(m.tot.kmReal || 0)} tis. ujeto, plán ${fmtK(m.tot.kmPlan || 0)} tis., plnění spojů ${(m.tot.tripsPlan ? m.tot.tripsRun / m.tot.tripsPlan * 100 : 100).toFixed(1)} %` },
+      { value: mil(m.tot.vykon || 0), unit: 'mil. Kč', label: 'Výkon (km × sazba)', icon: 'banknote', note: `${m.rows.length} linek, sazby ${Math.min(...m.rows.map((r) => r.rate))} až ${Math.max(...m.rows.map((r) => r.rate))} Kč/km` },
+      { value: mil(m.tot.revenue || 0), unit: 'mil. Kč', label: 'Tržby z jízdného', icon: 'trend', note: `${((m.tot.pax || 0) / 1000).toFixed(0)} tis. cestujících, ${((m.tot.revenue || 0) / Math.max(1, m.tot.kmReal || 1)).toFixed(1)} Kč/km` },
+      { value: mil(m.tot.komp || 0), unit: 'mil. Kč', label: 'Kompenzace (nárok)', icon: 'scales', note: `záloha ${mil(c.advance)} mil., ${m.diff >= 0 ? 'doplatek' : 'přeplatek'} ${czk(Math.abs(m.diff))}${m.tot.sankce ? `, sankce ${czk(m.tot.sankce)}` : ''}` },
     ]
-    const objMap = {}
-    rows.forEach((r) => { if (!objMap[r.objednatel]) objMap[r.objednatel] = { komp: 0, km: 0, lines: 0 }; objMap[r.objednatel].komp += r.komp; objMap[r.objednatel].km += r.kmReal; objMap[r.objednatel].lines++ })
-    const objednatele = Object.entries(objMap).map(([name, x], i) => ({ label: name, icon: 'users', color: PARK_COLORS[i % PARK_COLORS.length], value: czk(x.komp), pct: Math.round(x.komp / kompTotal * 100), sub: `${x.lines} linek · ${(x.km / 1000).toFixed(0)} tis. km` }))
-    const genBilling = () => {
-      const trs = rows.map((r) => `<tr><td style="padding:6px 0;font-weight:600">Linka ${r.no}</td><td style="padding:6px 0;color:#6b7280">${r.objednatel.split(' – ')[0].split(' (')[0]}</td><td style="padding:6px 0;text-align:right;font-variant-numeric:tabular-nums">${r.kmReal.toLocaleString('cs-CZ')}</td><td style="padding:6px 0;text-align:right">${r.sazba} Kč</td><td style="padding:6px 0;text-align:right;font-weight:700;white-space:nowrap">${r.vykonF}</td><td style="padding:6px 0;text-align:right;white-space:nowrap">${r.kompF}</td></tr>`).join('')
-      const html = `<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>Vyúčtování výkonů</title><style>*{box-sizing:border-box}body{font-family:-apple-system,system-ui,sans-serif;color:#1b1f2a;margin:0;padding:40px 46px;font-size:12px}h1{font-size:21px;margin:0}.top{display:flex;justify-content:space-between;border-bottom:3px solid #6D5EF6;padding-bottom:16px}.brand{font-weight:800;color:#6D5EF6;font-size:13px}.muted{color:#6b7280}table{width:100%;border-collapse:collapse;margin-top:14px}th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;border-bottom:1px solid #e7e9f2;padding-bottom:6px}th.r,td.r{text-align:right}.tot{display:flex;justify-content:space-between;margin-top:14px;padding:14px 16px;background:#F1ECFF;border-radius:12px;font-weight:800;font-size:15px}@media print{@page{size:A4 landscape;margin:14mm}body{padding:0}}</style></head><body>
-        <div class="top"><div><div class="brand">FLEETPORTAL</div><h1>Vyúčtování dopravních výkonů</h1><div class="muted" style="margin-top:3px">ČSAD AUTOBUSY České Budějovice a.s. · období říjen 2026</div></div><div class="muted" style="text-align:right"><div>${rows.length} linek</div><div>${kmTotal.toLocaleString('cs-CZ')} km</div></div></div>
-        <table><thead><tr><th>Linka</th><th>Objednatel</th><th class="r">Ujeté km</th><th class="r">Sazba/km</th><th class="r">Výkon</th><th class="r">Kompenzace</th></tr></thead><tbody>${trs}</tbody></table>
-        <div class="tot"><span>Celkem výkon / kompenzace</span><span>${czk(vykonTotal)} / ${czk(kompTotal)}</span></div>
-        <div class="muted" style="margin-top:22px;font-size:10.5px">Podklad pro fakturaci objednatelům. Modelový výpočet z ujetých km a sazeb, pro interní potřebu.</div></body></html>`
-      setState({ execReport: html })
+    const months = VYK_MONTHS.map((k) => ({ value: k, label: `${vykMonthLabel(k)}${k === '2026-10' ? ' (zpracovává se)' : ''}` }))
+    const lineRows = m.rows.map((r) => ({
+      id: r.line.id, no: r.line.no, name: r.line.name, t: r.t, rate: r.rate, open: r.t.open,
+      plneniColor: r.t.plneni >= 99 ? 'var(--green)' : r.t.plneni >= 98 ? '#B45309' : 'var(--star)',
+      kompF: czk(r.t.komp), vykonF: czk(r.t.vykon), revF: czk(r.t.revenue), sankceF: czk(r.t.sankce),
+      flags: [r.t.plneni < 98 ? 'plnění pod 98 %' : null, r.t.revenue / r.t.kmReal < 10 ? 'nízké tržby na km' : null, r.t.kmPct > 103 ? 'km nad plán' : null, r.t.kmNeuzn ? `${r.t.kmNeuzn.toLocaleString('cs-CZ')} km neuznáno` : null].filter(Boolean),
+      onClick: () => vykSet({ lineOpen: r.line.id }),
+    }))
+    const docsList = [...ACC.invoices().filter((i) => i.kompenzace && i.clientId === custId && i.serviceMonth === month), ...(v.docs[key] || []).map((id) => ACC.invoiceById(id)).filter(Boolean)]
+    const seen = new Set(); const docs = docsList.filter((d) => { if (seen.has(d.id)) return false; seen.add(d.id); return true }).map((d) => ({ id: d.id, number: d.number, status: d.status, totalF: czk(d.total), issuedF: ACC.fmtDate(d.issued), onOpen: () => (state.role === 'majitel' || state.role === 'ucetni') ? navigate('ucetnictvi', { ucTab: 'faktury', ucInvDetail: d.id }) : showToast('Doklad je v Účetnictví (role majitel nebo účetní)') }))
+    const vykazPdf = () => {
+      setState({ execReport: buildVykazHtml(month, { ...c, name: custAcc.name, ico: custAcc.ico }, lineRows.map((r) => ({ no: r.no, name: r.name, t: r.t, rate: r.rate })), m.tot, docs.length ? `Vyúčtováno dokladem ${docs.map((d) => d.number).join(', ')}.` : '') })
+      if (status === 'vykaz') { setState((st) => ({ vyk: { ...st.vyk, status: { ...st.vyk.status, [key]: 'fakturace' } } })); vykLog(key, 'Výkaz pro objednatele vystaven', `Výkaz dopravních výkonů za ${vykMonthLabel(month)}: ${(m.tot.kmUzn || 0).toLocaleString('cs-CZ')} uznatelných km, kompenzace ${czk(m.tot.komp)}; odesláno datovou schránkou na ${custAcc.name}`) }
     }
-    return { vykony: { kpis, rows, objednatele, genBilling } }
+    const actions = []
+    if (status === 'sber') actions.push({ label: 'Uzavřít sběr dat a zahájit kontrolu', primary: true, icon: 'check', onClick: () => { setState((st) => ({ vyk: { ...st.vyk, status: { ...st.vyk.status, [key]: 'kontrola' } } })); vykLog(key, 'Sběr dat uzavřen', `Načteno ${(m.tot.kmReal || 0).toLocaleString('cs-CZ')} km z tachografů, ${(m.tot.tripsRun || 0).toLocaleString('cs-CZ')} spojů ze stazek, tržby ${czk(m.tot.revenue)} z odbavovacího systému; ke kontrole ${allIssues.length} událostí`); showToast('Sběr dat uzavřen, měsíc je v kontrole') } })
+    if (status === 'kontrola') actions.push({ label: openIssues.length ? `Potvrdit kontrolu (zbývá vyřešit ${openIssues.length})` : 'Potvrdit kontrolu a připravit výkaz', primary: true, icon: 'check', disabled: openIssues.length > 0, onClick: () => { setState((st) => ({ vyk: { ...st.vyk, status: { ...st.vyk.status, [key]: 'vykaz' } } })); vykLog(key, 'Kontrola potvrzena', `${allIssues.length} událostí vyřešeno: uznatelné km ${(m.tot.kmUzn || 0).toLocaleString('cs-CZ')}, neuznáno ${(m.tot.kmNeuzn || 0).toLocaleString('cs-CZ')} km, sankce ${czk(m.tot.sankce)}`); showToast('Kontrola potvrzena, výkaz je připraven k vystavení') } })
+    if (status === 'vykaz') actions.push({ label: 'Vystavit výkaz pro objednatele (PDF)', primary: true, icon: 'file', onClick: vykazPdf })
+    if (status === 'fakturace') actions.push({ label: `Vyúčtovat objednateli: faktura ${czk(m.tot.komp)}`, primary: true, icon: 'banknote', onClick: () => vykOpenDoc(month, custId) })
+    const resolve = (issue, action) => {
+      const lbl = (VYK_ISSUE_TYPES[issue.type].actions.find((a) => a[0] === action) || [])[1] || action
+      setState((st) => ({ vyk: { ...st.vyk, resolved: { ...st.vyk.resolved, [key]: { ...(st.vyk.resolved[key] || {}), [issue.id]: { action, who: zajUser(), at: tripStamp() } } } } }))
+      vykLog(key, `Kontrola: ${issue.label}, linka ${issue.lineNo}, ${issue.dateLabel}`, `${lbl}${issue.type === 'missed' ? (action === 'penalty' ? `, sankce ${czk(issue.penalty)}` : ', bez sankce') : issue.km ? (action === 'accept' ? `, ${issue.km} km uznáno` : `, ${issue.km} km neuznáno`) : ''}; důvod: ${issue.detail}`)
+    }
+    const resolveAll = () => {
+      const stamp = tripStamp(); const who = zajUser()
+      const add = {}; openIssues.forEach((i) => { add[i.id] = { action: VYK_ISSUE_TYPES[i.type].def, who, at: stamp } })
+      setState((st) => ({ vyk: { ...st.vyk, resolved: { ...st.vyk.resolved, [key]: { ...(st.vyk.resolved[key] || {}), ...add } } } }))
+      vykLog(key, `Kontrola: ${openIssues.length} událostí vyřešeno podle pravidel smlouvy`, `nejeté spoje se sankcí, objížďky a doplněné stazky uznány, náhradní doprava vzata na vědomí; jednotlivá rozhodnutí lze v seznamu změnit`)
+      showToast(`${openIssues.length} událostí vyřešeno podle pravidel smlouvy`)
+    }
+    const issueRow = (i) => ({ ...i, meta: VYK_ISSUE_TYPES[i.type], actions: VYK_ISSUE_TYPES[i.type].actions.map(([a, label]) => ({ label, onClick: () => resolve(i, a) })), resolvedLabel: i.resolved ? ((VYK_ISSUE_TYPES[i.type].actions.find((a) => a[0] === i.resolved.action) || [])[1] || 'vyřešeno') : null, impact: i.type === 'missed' ? `sankce ${czk(i.penalty)}` : i.km ? `${i.km} km` : `${i.trips} spojů` })
+    const sortedIssues = [...openIssues, ...allIssues.filter((i) => i.resolved)].map(issueRow)
+    const issueGroups = Object.keys(VYK_ISSUE_TYPES).map((t) => ({ type: t, ...VYK_ISSUE_TYPES[t], total: allIssues.filter((i) => i.type === t).length, open: openIssues.filter((i) => i.type === t).length })).filter((g) => g.total)
+    const year = VYK_YEAR_MONTHS.map((k) => { const st = vykStatusOf(`${k}:${custId}`); const closed = k < '2026-08' || st === 'uzavreno'; const rows = vykBuilt(k, custId).map((b) => ({ t: vykTotals(b, closed ? new Proxy({}, { get: () => ({ action: 'closed' }) }) : vykResolvedMap(`${k}:${custId}`)) })); const tot = vykSum(rows); return { k, label: vykMonthLabel(k).split(' ')[0], komp: tot.komp || 0, kompF: czk(tot.komp || 0), advF: czk(c.advance), diff: (tot.komp || 0) - c.advance, diffF: czk(Math.abs((tot.komp || 0) - c.advance)), closed, current: k === month } })
+    const ytd = year.reduce((a, y) => ({ komp: a.komp + y.komp, adv: a.adv + c.advance }), { komp: 0, adv: 0 })
+    const lo = v.lineOpen ? m.rows.find((r) => r.line.id === v.lineOpen) : null
+    const lineDetail = lo ? {
+      no: lo.line.no, name: lo.line.name, t: lo.t, rate: lo.rate, kmTrip: lo.kmTrip, close: () => vykSet({ lineOpen: null }), stop, openLine: () => openLine(lo.line.id),
+      days: lo.days.map((d) => ({ ...d, kmPlanF: d.kmPlan.toLocaleString('cs-CZ'), kmRealF: d.kmReal.toLocaleString('cs-CZ'), revF: czk(d.revenue), weekend: d.dow === 0 || d.dow === 6, issues: d.issues.map((i) => ({ ...i, meta: VYK_ISSUE_TYPES[i.type], resolved: !!resolved[i.id] })) })),
+      issues: lo.issues.filter((i) => !resolved[i.id]).map((i) => issueRow({ ...i, resolved: null })),
+    } : null
+    return { vykony: {
+      month, monthLabel: vykMonthLabel(month), months, setMonth: (e) => vykSet({ month: e.target.value, showAll: false, lineOpen: null }), tabs, custId, cust: { ...c, name: custAcc.name, ico: custAcc.ico }, kpis,
+      status, steps: VYK_STEPS.map((lbl, i) => ({ label: lbl, done: i <= stepIdx, current: i === stepIdx, when: (() => { const e = (v.log[key] || []).find((x) => [/Sběr dat uzavřen|Měsíc otevřen/, /Kontrola potvrzena/, /Výkaz/, /Vyúčtováno|faktur/, /uzavřen/][i].test(x.what)); return e && i <= stepIdx ? e.at.split(' ').slice(0, 3).join(' ') : null })() })),
+      actions, log: [...(v.log[key] || [])].reverse(), rows: lineRows, tot: m.tot, kompF: czk(m.tot.komp || 0), advanceF: czk(c.advance), diff: m.diff, diffF: czk(Math.abs(m.diff)),
+      issues: v.showAll ? sortedIssues : sortedIssues.slice(0, 8), issuesTotal: sortedIssues.length, openCount: openIssues.length, resolveAll, canResolve: status === 'kontrola' && openIssues.length > 0, showAll: v.showAll, toggleAll: () => vykSet({ showAll: !v.showAll }), issueGroups,
+      year, ytd: { kompF: czk(ytd.komp), advF: czk(ytd.adv), diff: ytd.komp - ytd.adv, diffF: czk(Math.abs(ytd.komp - ytd.adv)) },
+      docs, vykazPdf, openDoc: () => vykOpenDoc(month, custId), canInvoice: status === 'fakturace', lineDetail, newDoc: state.ucNew && state.ucNew.vykKey === key ? buildNewDocVM() : null,
+    } }
   }
 
   // ---- AI optimalizace oběhů vozidel a turnusů řidičů ----
@@ -2952,7 +3096,7 @@ export default function FleetPortal() {
         setIssued: (e) => setNd({ issued: e.target.value, duzp: e.target.value }), setDuzp: (e) => setNd({ duzp: e.target.value }), setDueDays: (e) => setNd({ dueDays: Number(e.target.value) || 0 }), setMethod: (e) => setNd({ method: e.target.value }), setWithVat: (e) => setNd({ withVat: e.target.value === 's' }), setNote: (e) => setNd({ note: e.target.value }), setPaidOn: (e) => setNd({ paidOn: e.target.value }),
         setRelated: (e) => { const o = inv.find((i) => i.id === e.target.value); setNd({ related: e.target.value, custId: o && o.clientId ? o.clientId : '', custName: o && !o.clientId ? o.customer : '', rows: o ? o.items.map((i) => ({ text: i.text, qty: String(i.qty), unit: i.unit, price: String(nd.docType === 'opravny' ? -i.unitPrice : i.unitPrice), vat: i.vatRate })) : nd.rows }) },
         updRow: (i, patch) => setNd((n) => ({ rows: n.rows.map((r, j) => j === i ? { ...r, ...patch } : r) })), addRow: () => setNd((n) => ({ rows: [...n.rows, { text: '', qty: '1', unit: 'ks', price: '', vat: n.rows[n.rows.length - 1] ? n.rows[n.rows.length - 1].vat : 21 }] })), delRow: (i) => setNd((n) => ({ rows: n.rows.length > 1 ? n.rows.filter((_, j) => j !== i) : [{ text: '', qty: '1', unit: 'ks', price: '', vat: 21 }] })),
-        submit: () => { if (!ok) return; const ico = cust ? cust.ico : nd.custIco; const r = ACC.issueDocument({ docType: nd.docType, clientId: cust ? cust.id : undefined, customer: custName.trim(), ico, dic: ico ? `CZ${ico}` : undefined, address: cust ? cust.address : nd.custAddr, items, issued: new Date(nd.issued), duzp: new Date(nd.duzp), dueDays: nd.dueDays, paymentMethod: nd.method, relatedId: nd.related || undefined, note: nd.note.trim() || undefined, paidAt: nd.paidOn ? new Date(nd.paidOn) : undefined, by: me }); bump(); if (nd.tripId) linkDocToTrip(nd.tripId, nd.docType, r); showToast(`Vystaven doklad ${r.number} na ${kc(r.total)}${nd.tripId ? ', založen v Účetnictví a připsán k zájezdu' : ''}`); setState({ ucNew: null }) },
+        submit: () => { if (!ok) return; const ico = cust ? cust.ico : nd.custIco; const r = ACC.issueDocument({ docType: nd.docType, clientId: cust ? cust.id : undefined, customer: custName.trim(), ico, dic: ico ? `CZ${ico}` : undefined, address: cust ? cust.address : nd.custAddr, items, issued: new Date(nd.issued), duzp: new Date(nd.duzp), dueDays: nd.dueDays, paymentMethod: nd.method, relatedId: nd.related || undefined, note: nd.note.trim() || undefined, paidAt: nd.paidOn ? new Date(nd.paidOn) : undefined, kompenzace: !!nd.kompenzace, serviceMonth: nd.serviceMonth, by: me }); bump(); if (nd.tripId) linkDocToTrip(nd.tripId, nd.docType, r); if (nd.vykKey) linkDocToVyk(nd.vykKey, r); showToast(`Vystaven doklad ${r.number} na ${kc(r.total)}${nd.tripId ? ', založen v Účetnictví a připsán k zájezdu' : nd.vykKey ? ', měsíc vyúčtován a uzavřen' : ''}`); setState({ ucNew: null }) },
         close: () => setState({ ucNew: null }), stop,
       }
     })() : null

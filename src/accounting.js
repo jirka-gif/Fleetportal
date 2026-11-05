@@ -171,7 +171,9 @@ export function seedAccounting(opts = {}) {
 
   /* 1) vyúčtování výkonů objednatelům: měsíčně za každou linku (kompenzace mimo DPH) */
   for (const m of months) {
+    if (m === months[0] || m === CURRENT) continue // vyúčtování se vystavuje měsíc po výkonu; aktuální měsíc řeší modul Vyúčtování výkonů
     const [yy, mm] = m.split('-').map(Number)
+    const svc = `${yy}-${String(mm - 1).padStart(2, '0')}` // měsíc výkonu
     const groups = { c1: [], c2: [] }
     lines.forEach((l) => { const isMhd = l.agency && l.agency.includes('Dopravní podnik'); groups[isMhd ? 'c2' : 'c1'].push(l) })
     for (const cid of ['c1', 'c2']) {
@@ -181,12 +183,12 @@ export function seedAccounting(opts = {}) {
       const due = new Date(+issued + 30 * DAY)
       const items = groups[cid].map((l) => {
         const kmTrip = 6 + (hashOf(l.id + 'km') % 18) + (l.no === '300' ? 42 : 0)
-        const km = Math.round(l.tripsDay * kmTrip * 26 * (0.97 + (hashOf(l.id + m) % 5) / 100))
+        const km = Math.round(l.tripsDay * kmTrip * 26 * (0.97 + (hashOf(l.id + svc) % 5) / 100))
         const sazba = 41 + (hashOf(l.id + 's') % 6), fare = 11 + (hashOf(l.id + 'f') % 7)
-        return item(`Kompenzace prokazatelné ztráty, linka ${l.no} ${l.name}, ${monthLabel(m)} (${km.toLocaleString('cs-CZ')} km × ${sazba - fare} Kč)`, km * (sazba - fare), 0, km, 'km')
+        return item(`Kompenzace prokazatelné ztráty, linka ${l.no} ${l.name}, ${monthLabel(svc)} (${km.toLocaleString('cs-CZ')} km × ${sazba - fare} Kč)`, km * (sazba - fare), 0, km, 'km')
       })
-      const inv = addInvoice({ docType: 'faktura', series: 'FV', clientId: cid, customer: c.name, ico: c.ico, dic: `CZ${c.ico}`, address: c.address, issued, due, items, status: 'Vystaveno', kompenzace: true, by,
-        note: 'Úhrada prokazatelné ztráty ze závazku veřejné služby podle zákona č. 194/2010 Sb.; není úplatou za zdanitelné plnění.' })
+      const inv = addInvoice({ docType: 'faktura', series: 'FV', clientId: cid, customer: c.name, ico: c.ico, dic: `CZ${c.ico}`, address: c.address, issued, due, items, status: 'Vystaveno', kompenzace: true, by, serviceMonth: svc,
+        note: `Vyúčtování prokazatelné ztráty za ${monthLabel(svc)} ze závazku veřejné služby podle zákona č. 194/2010 Sb.; není úplatou za zdanitelné plnění.` })
       const h = hashOf(inv.id)
       const late = m === CURRENT ? true : h % 100 < 8
       if (!late) {
