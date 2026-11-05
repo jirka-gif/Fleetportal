@@ -2412,8 +2412,9 @@ function ZjStepper({ steps }) {
           <div style={S('display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;flex:1')}>
             <span style={S(`width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:750;${s.current ? 'background:linear-gradient(135deg,#5B6BF5,#7A5CF8);color:#fff;box-shadow:0 6px 14px -4px rgba(91,107,245,.7)' : s.done ? 'background:var(--green);color:#fff' : 'background:var(--canvas);color:var(--ink3);border:1px solid var(--border2)'}`)}>{s.done && !s.current ? ic('check', 13) : i + 1}</span>
             <span style={S(`font-size:11px;font-weight:${s.current ? 750 : 600};color:${s.current ? 'var(--ink)' : s.done ? 'var(--ink2)' : 'var(--ink3)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%`)}>{s.label}</span>
+            <span style={S(`font-size:10px;color:var(--ink3);white-space:nowrap;margin-top:-3px;height:12px;font-variant-numeric:tabular-nums`)}>{s.when || ''}</span>
           </div>
-          {i < steps.length - 1 && <span style={S(`height:2px;flex:0 0 18px;margin-bottom:18px;background:${s.done && steps[i + 1].done ? 'var(--green)' : 'var(--border2)'}`)} />}
+          {i < steps.length - 1 && <span style={S(`height:2px;flex:0 0 18px;margin-bottom:30px;background:${s.done && steps[i + 1].done ? 'var(--green)' : 'var(--border2)'}`)} />}
         </div>
       ))}
     </div>
@@ -2635,11 +2636,6 @@ function ZajezdDetail({ vm }) {
               ))}
             </div>
             <div style={S('display:flex;gap:8px;flex-wrap:wrap;margin-top:12px')}>{t.invoiceActions.map((a) => <UcBtn key={a.kind} primary={a.primary && a.enabled} disabled={!a.enabled} onClick={a.onClick}>{ic('banknote', 15)}{a.label}</UcBtn>)}</div>
-          </Box>
-          <Box icon="users" color="var(--purple)" title="Kdo a kdy" sub="Rychlý přehled milníků">
-            <div style={S('margin-top:4px')}>
-              {t.facts.map((f) => <div key={f.label} style={S('display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--border);font-size:12.5px')}><span style={S('display:flex;align-items:center;gap:7px;color:var(--ink2)')}><span style={S(`width:7px;height:7px;border-radius:50%;background:${f.done ? 'var(--green)' : 'var(--border2)'}`)} />{f.label}</span><span style={S(`font-weight:600;text-align:right;color:${f.done ? 'var(--ink)' : 'var(--ink3)'}`)}>{f.val}</span></div>)}
-            </div>
           </Box>
         </div>
       </div>

@@ -2854,7 +2854,7 @@ export default function FleetPortal() {
     ].map((a) => ({ ...a, onClick: () => tripToInvoicing(t.id, a.kind) }))
     const lastEvent = t.timeline[t.timeline.length - 1]
     return { zajezd: {
-      ...row, chip: st, lastEvent, steps: TRIP_STEPS.map((s, i) => ({ label: s, done: i <= stepIdx, current: i === stepIdx })), facts, cost: czk(cost), margin: Math.round((p.base - cost) / p.base * 100), baseF: czk(p.base), vatF: czk(p.vat), totalF: czk(p.total), perPaxF: czk(p.perPax),
+      ...row, chip: st, lastEvent, steps: TRIP_STEPS.map((s, i) => ({ label: s, done: i <= stepIdx, current: i === stepIdx, when: facts[i] && facts[i].done ? facts[i].val.split(' · ')[0].split(' ').slice(0, 3).join(' ') : null })), cost: czk(cost), margin: Math.round((p.base - cost) / p.base * 100), baseF: czk(p.base), vatF: czk(p.vat), totalF: czk(p.total), perPaxF: czk(p.perPax),
       bus: t.busIdx != null ? zajBuses[t.busIdx] : null, drivers: t.driverIds.map((d) => driversData.find((x) => x.id === d)).filter(Boolean), needDrv,
       canPick: t.status === 'schvaleno', pick, busOptions: zajBuses.map((b, i) => ({ idx: i, label: `${b.brand}${b.model ? ' ' + b.model : ''} · ${b.plate} · r. v. ${b.year}` })), drvOptions,
       setBus: (e) => setPick({ busIdx: e.target.value === '' ? null : Number(e.target.value) }), toggleDrv: (id) => setPick({ driverIds: pick.driverIds.includes(id) ? pick.driverIds.filter((x) => x !== id) : [...pick.driverIds, id] }),
