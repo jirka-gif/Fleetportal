@@ -732,7 +732,26 @@ const ROLES = [
     desc: 'Linky, jízdní řády, řidiči a anomálie provozu.', icon: 'pin' },
   { id: 'ridic', name: 'Jan Procházka', title: 'Řidič autobusu', initials: 'JP', short: 'Řidič', driverId: 'dr1',
     desc: 'Moje směny, mzda, dovolená a hlášení z provozu.', icon: 'user1' },
+  { id: 'ucetni', name: 'Lenka Nováková', title: 'Mzdová účetní', initials: 'LN', short: 'Účetní',
+    desc: 'Účetnictví, mzdy, banka, DPH a daňové podklady.', icon: 'banknote' },
 ]
+const ACCOUNTANT_NAV = [['ucetnictvi', 'Účetnictví', 'banknote'], ['vykony', 'Vyúčtování výkonů', 'scales'], ['drivers', 'Lidé a mzdy', 'users'], ['documents', 'Dokumenty', 'file'], ['analytics', 'Reporting', 'trend']]
+// Plánování směn: dispečer/správce předá řidiči jízdní řád (datum, linka, autobus), řidič vidí kalendář a potvrdí převzetí
+const SHIFT_TURNUS = { 'ranní': ['04:20', '13:10'], 'odpolední': ['12:40', '21:30'], 'celodenní': ['05:00', '17:30'] }
+const SHIFT_DAYS = Array.from({ length: 7 }).map((_, i) => { const dt = new Date(2026, 10, 5 + i); const dn = ['ne', 'po', 'út', 'st', 'čt', 'pá', 'so'][dt.getDay()]; return { key: `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`, dateStr: `${dt.getDate()}. ${dt.getMonth() + 1}. ${dt.getFullYear()}`, label: `${dn} ${dt.getDate()}. ${dt.getMonth() + 1}.`, dow: dt.getDay(), today: i === 0 } })
+const SEED_SHIFTS = [
+  { id: 's1', dayKey: '2026-11-05', driverId: 'dr1', lineId: 'L5', turnus: 'ranní', status: 'confirmed' },
+  { id: 's2', dayKey: '2026-11-06', driverId: 'dr1', lineId: 'L6', turnus: 'celodenní', status: 'planned' },
+  { id: 's3', dayKey: '2026-11-07', driverId: 'dr1', lineId: 'L5', turnus: 'odpolední', status: 'planned' },
+  { id: 's4', dayKey: '2026-11-09', driverId: 'dr1', lineId: 'L1', turnus: 'ranní', status: 'planned' },
+  { id: 's5', dayKey: '2026-11-10', driverId: 'dr1', lineId: 'L1', turnus: 'ranní', status: 'planned' },
+  { id: 's6', dayKey: '2026-11-05', driverId: 'dr2', lineId: 'L2', turnus: 'ranní', status: 'confirmed' },
+  { id: 's7', dayKey: '2026-11-06', driverId: 'dr2', lineId: 'L2', turnus: 'odpolední', status: 'confirmed' },
+  { id: 's8', dayKey: '2026-11-05', driverId: 'dr4', lineId: 'L3', turnus: 'odpolední', status: 'confirmed' },
+  { id: 's9', dayKey: '2026-11-06', driverId: 'dr6', lineId: 'L4', turnus: 'ranní', status: 'planned' },
+  { id: 's10', dayKey: '2026-11-07', driverId: 'dr9', lineId: 'L6', turnus: 'celodenní', status: 'planned' },
+].map((s) => { const l = linesData.find((x) => x.id === s.lineId) || linesData[0]; const [start, end] = SHIFT_TURNUS[s.turnus]; return { ...s, busId: l.busId, start, end, depot: 'Vozovna České Budějovice, Žižkova tř.' } })
+const SHIFT_STATUS = { planned: { label: 'Čeká na potvrzení', color: '#B45309', bg: 'var(--amber-soft)' }, confirmed: { label: 'Převzato řidičem', color: 'var(--green)', bg: 'var(--green-soft)' } }
 // CZ mzdové odvody (orientační, 2026). Zaměstnanec vs OSVČ.
 function buildPayroll(d, mode) {
   const gross = 36000 + (_hash(d.id + 'mzda') % 13) * 850 // hrubá mzda / fakturace základ
@@ -858,7 +877,7 @@ const DRV_DOC_STATUS = {
   missing: { label: 'Chybí', color: 'var(--star)', bg: 'var(--star-soft)' },
   uploaded: { label: 'Nahráno · čeká na ověření', color: 'var(--blue-ink)', bg: 'var(--blue-soft)' },
 }
-const DRIVER_NAV = [['dashboard', 'Domů', 'home'], ['drv-volno', 'Volno', 'calendar'], ['drv-zpravy', 'Zprávy', 'send'], ['drv-podnety', 'Podněty', 'sparkle'], ['drv-doklady', 'Moje doklady', 'file'], ['drv-mzda', 'Mzda', 'banknote']]
+const DRIVER_NAV = [['dashboard', 'Domů', 'home'], ['drv-smeny', 'Můj kalendář', 'calendar'], ['drv-volno', 'Volno', 'clock'], ['drv-zpravy', 'Zprávy', 'send'], ['drv-podnety', 'Podněty', 'sparkle'], ['drv-doklady', 'Moje doklady', 'file'], ['drv-mzda', 'Mzda', 'banknote']]
 
 export default function FleetPortal() {
   const [state, setStateRaw] = useState(() => ({
@@ -876,6 +895,7 @@ export default function FleetPortal() {
     hrMode: {}, timeOff: SEED_TIMEOFF, driverReports: SEED_DRIVER_REPORTS, reportModal: null, timeOffModal: null, reportForm: {}, timeOffForm: {}, optiRun: false,
     ucTab: 'prehled', accVersion: 0, ucInvFilter: 'vse', ucInvDetail: null, ucNew: null, ucAskCredit: false, ucReason: '', ucExpFilter: 'vse', ucExpDetail: null, ucExpNote: '', ucAcc: 'csob', ucBank: 'vse', ucMonth: null, ucNotes: {},
     drvMsgs: SEED_DRV_MSGS, drvMsgTo: 'dispecink', drvMsgText: '', drvIdeas: SEED_DRV_IDEAS, drvIdeaText: '', drvIdeaCat: 'Provoz', drvDocs: SEED_DRV_DOCS,
+    shifts: SEED_SHIFTS, shiftForm: { dayKey: SHIFT_DAYS[1].key, driverId: 'dr1', lineId: linesData[0].id, busId: linesData[0].busId, turnus: 'ranní' },
     claimWizard: false, claimStep: 1, claimData: {},
     rowMenu: null, toast: null,
     unsub: null, unsubDone: false, unsubReason: 'Prodej vozidla', unsubDate: '1. 7. 2026',
@@ -911,7 +931,7 @@ export default function FleetPortal() {
 
   // ---------- ACTIONS ----------
   const navigate = (route, patch) => setState({ route, ...(patch || {}), search: false, notif: false, companyMenu: false, sidebar: false, roleMenu: false, ai: false })
-  const setRole = (id) => setState({ role: id, roleMenu: false, route: 'dashboard', search: false, notif: false })
+  const setRole = (id) => setState({ role: id, roleMenu: false, route: id === 'ucetni' ? 'ucetnictvi' : 'dashboard', ucTab: 'prehled', search: false, notif: false })
   const toggleRoleMenu = () => setState((s) => ({ roleMenu: !s.roleMenu, notif: false, companyMenu: false }))
   const openFleet = (id) => navigate('fleet-detail', { fleetId: id, fleetTab: 'overview' })
   // Vozové parky: když je jen jeden, přeskoč dlaždice a jdi rovnou na jeho detail.
@@ -935,6 +955,12 @@ export default function FleetPortal() {
   const addIdea = () => { const t = (state.drvIdeaText || '').trim(); if (!t) return; setState((s) => ({ drvIdeas: [{ id: 'i' + Date.now(), driverId: 'dr1', cat: s.drvIdeaCat || 'Provoz', text: t, date: '5. 11. 2026', status: 'Nové', votes: 1 }, ...s.drvIdeas], drvIdeaText: '' })); showToast('Podnět odeslán vedení. Děkujeme!') }
   const voteIdea = (id) => setState((s) => ({ drvIdeas: s.drvIdeas.map((i) => i.id === id ? { ...i, votes: i.votes + 1 } : i) }))
   const uploadDrvDoc = (id, file) => { if (!file) return; setState((s) => ({ drvDocs: s.drvDocs.map((x) => x.id === id ? { ...x, status: 'uploaded', file: file.name, uploadedAt: '5. 11. 2026' } : x) })); showToast(`Doklad ${file.name} nahrán, personalistika ho ověří.`) }
+  // Plánování směn: dispečer/správce předá řidiči jízdní řád, řidič potvrdí převzetí
+  const setShiftForm = (k, v) => setState((s) => ({ shiftForm: { ...s.shiftForm, [k]: v, ...(k === 'lineId' ? { busId: (linesData.find((l) => l.id === v) || {}).busId || s.shiftForm.busId } : {}) } }))
+  const assignShift = () => { const f = state.shiftForm; const [start, end] = SHIFT_TURNUS[f.turnus] || SHIFT_TURNUS['ranní']; const entry = { id: 's' + Date.now(), dayKey: f.dayKey, driverId: f.driverId, lineId: f.lineId, busId: f.busId, turnus: f.turnus, start, end, depot: 'Vozovna České Budějovice, Žižkova tř.', status: 'planned' }; setState((s) => ({ shifts: [...s.shifts.filter((x) => !(x.dayKey === entry.dayKey && x.driverId === entry.driverId)), entry] })); const dn = (driversData.find((x) => x.id === f.driverId) || {}).name; const ln = (linesData.find((l) => l.id === f.lineId) || {}).no; showToast(`Směna přidělena: ${dn}, linka ${ln}, ${f.turnus}. Řidič ji uvidí v kalendáři a potvrdí převzetí.`) }
+  const removeShift = (id) => setState((s) => ({ shifts: s.shifts.filter((x) => x.id !== id) }))
+  const confirmShift = (id) => { setState((s) => ({ shifts: s.shifts.map((x) => x.id === id ? { ...x, status: 'confirmed' } : x) })); showToast('Jízdní řád převzat, dispečink dostal potvrzení.') }
+  const shiftRow = (s) => { const l = linesData.find((x) => x.id === s.lineId) || linesData[0]; const b = vehiclesData.find((v) => v.id === s.busId); const d = driversData.find((x) => x.id === s.driverId); const day = SHIFT_DAYS.find((x) => x.key === s.dayKey); return { ...s, lineNo: l.no, lineName: l.name, lineId: l.id, from: l.stops[0] ? l.stops[0].n : '', to: l.stops.length ? l.stops[l.stops.length - 1].n : '', departures: l.departures.slice(0, 8), tripsDay: l.tripsDay, bus: b ? `${b.brand} ${b.model}`.trim() : '—', plate: b ? b.plate : '—', driverName: d ? d.name : '—', driverInitials: d ? d.initials : '', dayLabel: day ? day.label : s.dayKey, dateStr: day ? day.dateStr : s.dayKey, meta: SHIFT_STATUS[s.status], openLine: () => openLine(l.id), remove: () => removeShift(s.id), confirm: () => confirmShift(s.id) } }
   const openClaim = (id) => navigate('claim-detail', { claimId: id })
   const openLine = (id) => navigate('linky-detail', { lineId: id })
   const openStazka = (lineId) => navigate('stazka', { stazkaLine: lineId })
@@ -1206,8 +1232,11 @@ export default function FleetPortal() {
       ['settings', 'Nastavení', 'settings', null],
     ]
     const activeRoute = r === 'fleet-detail' ? 'fleets' : r === 'vehicle-detail' ? 'vehicles' : r === 'driver-detail' ? 'drivers' : r === 'bonifikace-detail' ? 'bonifikace' : r === 'documents-detail' ? 'documents' : r === 'claim-detail' ? 'claims' : r === 'linky-detail' ? 'linky' : r === 'stazka' ? 'dispatch' : r === 'anomaly-detail' ? 'anomalies' : r
-    const drvBadge = { 'drv-volno': state.timeOff.filter((t) => t.driverId === 'dr1' && t.status === 'pending').length, 'drv-zpravy': 1, 'drv-doklady': state.drvDocs.filter((x) => x.driverId === 'dr1' && (x.status === 'missing' || x.status === 'expiring')).length }
-    const navSrc = state.role === 'ridic' ? DRIVER_NAV.map(([id, label, icon]) => [id, label, icon, drvBadge[id] ? String(drvBadge[id]) : null]) : navItems
+    const drvBadge = { 'drv-smeny': state.shifts.filter((s) => s.driverId === 'dr1' && s.status === 'planned').length, 'drv-volno': state.timeOff.filter((t) => t.driverId === 'dr1' && t.status === 'pending').length, 'drv-zpravy': 1, 'drv-doklady': state.drvDocs.filter((x) => x.driverId === 'dr1' && (x.status === 'missing' || x.status === 'expiring')).length }
+    const ucBadge = String(ACC.alerts().filter((a) => a.level !== 'info').length) || null
+    const navSrc = state.role === 'ridic' ? DRIVER_NAV.map(([id, label, icon]) => [id, label, icon, drvBadge[id] ? String(drvBadge[id]) : null])
+      : state.role === 'ucetni' ? ACCOUNTANT_NAV.map(([id, label, icon]) => [id, label, icon, id === 'ucetnictvi' ? ucBadge : null])
+      : navItems.filter(([id]) => id !== 'ucetnictvi' || state.role === 'majitel')
     const nav = navSrc.map(([id, label, icon, badge]) => {
       const on = activeRoute === id
       return {
@@ -1248,6 +1277,7 @@ export default function FleetPortal() {
       'drv-podnety': ['Podněty', 'Nápady na zlepšení provozu, vozidel a zázemí'],
       'drv-doklady': ['Moje doklady', 'Průkazy, potvrzení a chybějící podklady'],
       'drv-mzda': ['Moje mzda', 'Výplatnice, odvody a docházka'],
+      'drv-smeny': ['Můj kalendář', 'Přidělené směny: kdy, na které lince, na kterém autobuse a kde být'],
       settings: ['Nastavení', 'Profil a předvolby portálu'],
     }
     let title, sub
@@ -2875,6 +2905,7 @@ export default function FleetPortal() {
       podnety: { items: state.drvIdeas.map((i) => ({ ...i, mine: i.driverId === d.id, who: (driversData.find((x) => x.id === i.driverId) || {}).name || '—', meta: ideaMeta(i.status), vote: () => voteIdea(i.id) })), cats: ['Provoz', 'Vozidla', 'Zázemí', 'Jízdní řády', 'Jiné'], cat: state.drvIdeaCat, setCat: (c) => setState({ drvIdeaCat: c }), text: state.drvIdeaText, setText: (e) => setState({ drvIdeaText: e.target.value }), submit: addIdea, canSend: !!(state.drvIdeaText && state.drvIdeaText.trim()) },
       doklady: { items: docs, missing: docs.filter((x) => x.status === 'missing' || x.status === 'expiring').length },
       report: (cat) => openReportModal(d.id, cat),
+      smeny: { days: SHIFT_DAYS.map((day) => ({ ...day, shift: state.shifts.filter((s) => s.driverId === d.id && s.dayKey === day.key).map(shiftRow)[0] || null })), planned: state.shifts.filter((s) => s.driverId === d.id && s.status === 'planned').length, total: state.shifts.filter((s) => s.driverId === d.id).length },
     } }
   }
 
@@ -2910,7 +2941,18 @@ export default function FleetPortal() {
       { value: _durLabel(Math.round(circ.reduce((a, c) => a + c.span, 0) / circ.length)), label: 'Ø délka oběhu', icon: 'calendar', note: 'výjezd–zátah' },
       { value: String(anoms.length), label: 'Anomálie směn', icon: 'alert', note: 'doba řízení / přestávky', trendColor: anoms.length ? 'var(--star)' : 'var(--green)' },
     ]
-    return { dispatch: { rows, ticks, duties, kpis, anoms, day: DISPATCH_DAY_LABEL } }
+    // plánování směn (předání jízdních řádů řidičům)
+    const f = state.shiftForm
+    const busDrvs = driversData.filter((x) => ['linka', 'mhd', 'dalkova'].includes(x.kind) && x.status === 'active')
+    const planRows = state.shifts.map(shiftRow)
+    const busOpts = [...new Set([...linesData.map((l) => l.busId), ...vehiclesData.filter((v) => vehicleTypeCat(v.druh) === 'Autobusy').slice(0, 24).map((v) => v.id)])].map((id) => vehiclesData.find((v) => v.id === id)).filter(Boolean).map((v) => ({ id: v.id, label: `${v.brand} ${v.model}`.trim() + ' · ' + v.plate }))
+    const plan = {
+      days: SHIFT_DAYS.map((d) => ({ ...d, items: planRows.filter((r) => r.dayKey === d.key) })),
+      form: f, dates: SHIFT_DAYS.map((d) => ({ id: d.key, label: `${d.label} ${d.today ? '(dnes)' : ''}` })), drivers: busDrvs.map((x) => ({ id: x.id, label: x.name })), lines: linesData.map((l) => ({ id: l.id, label: `Linka ${l.no} · ${l.name}` })), buses: busOpts, turnusy: Object.keys(SHIFT_TURNUS).map((t) => ({ id: t, label: `${t} (${SHIFT_TURNUS[t][0]}–${SHIFT_TURNUS[t][1]})` })),
+      set: setShiftForm, assign: assignShift,
+      stats: { total: planRows.length, planned: planRows.filter((r) => r.status === 'planned').length, drivers: new Set(planRows.map((r) => r.driverId)).size },
+    }
+    return { dispatch: { rows, ticks, duties, kpis, anoms, day: DISPATCH_DAY_LABEL, plan } }
   }
 
   // ---- Elektronická stazka: deník spojů vybraného oběhu ----
@@ -3080,7 +3122,10 @@ export default function FleetPortal() {
       { value: String(hr.vacLeft), unit: 'dní', label: 'Zbývá dovolené', icon: 'calendar', note: `z ${hr.vacTotal} dní / rok` },
       { value: hr.netF, label: hr.netLabel, icon: 'banknote', note: hr.modeLabel },
     ]
-    const shift = { line: myLine.no, name: myLine.name, bus: bus ? `${bus.brand} ${bus.model}` : '', plate: bus ? bus.plate : '', first: myLine.firstDep, last: myLine.lastDep, trips: myLine.tripsDay, onClick: () => openLine(myLine.id) }
+    const todayShift = state.shifts.filter((s) => s.driverId === d.id && s.dayKey === SHIFT_DAYS[0].key).map(shiftRow)[0]
+    const shift = todayShift
+      ? { line: todayShift.lineNo, name: todayShift.lineName, bus: todayShift.bus, plate: todayShift.plate, first: todayShift.start, last: todayShift.end, trips: todayShift.tripsDay, onClick: todayShift.openLine, assigned: true, status: todayShift.meta, depot: todayShift.depot, confirm: todayShift.status === 'planned' ? todayShift.confirm : null }
+      : { line: myLine.no, name: myLine.name, bus: bus ? `${bus.brand} ${bus.model}` : '', plate: bus ? bus.plate : '', first: myLine.firstDep, last: myLine.lastDep, trips: myLine.tripsDay, onClick: () => openLine(myLine.id) }
     return { driverSelf: { d, name: d.name, initials: d.initials, position: d.position, kpis, hr, shift,
       links: DRIVER_NAV.slice(1).map(([id, label, icon]) => ({ id, label, icon, onClick: () => navigate(id) })),
       reportCats: [['vozidlo', 'Závada na vozidle', 'wrench'], ['trasa', 'Problém na trase', 'pin'], ['jine', 'Jiné hlášení', 'info']].map((c) => ({ cat: c[0], label: c[1], icon: c[2], onClick: () => openReportModal(d.id, c[0]) })),
