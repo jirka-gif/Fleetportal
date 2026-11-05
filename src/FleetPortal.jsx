@@ -2785,14 +2785,22 @@ export default function FleetPortal() {
   const tripItems = (t, p, kind) => kind === 'zalohova'
     ? [{ text: `Záloha 50 % na zájezd ${t.id}: ${t.from} → ${t.to}, ${fmtIsoDate(t.dateFrom)}`, qty: 1, unit: 'ks', unitPrice: Math.round(p.base / 2), vatRate: 12, amount: Math.round(p.base / 2) }]
     : p.lines.map((l) => ({ text: `${l.label} (zájezd ${t.id}, ${t.from} → ${t.to})`, qty: 1, unit: 'ks', unitPrice: l.amount, vatRate: 12, amount: l.amount }))
+  const linkDocToTrip = (id, kind, r) => {
+    const label = ACC.DOC_TYPES[kind].short
+    updTrip(id, (x) => tripLog({ ...x, status: kind === 'faktura' ? 'vyuctovano' : x.status, docs: [...(x.docs || []), { id: r.id, number: r.number, kind, label, total: r.total }] }, `${label} ${r.number} vystavena v Účetnictví`, null, `${czk(r.total)}, splatnost ${ACC.fmtDate(r.due)}, VS ${r.vs}, ${sentTo(x)}`))
+  }
   const tripToInvoicing = (id, kind) => {
     const t = state.zajTrips.find((x) => x.id === id); if (!t) return
     const p = computeTripPrice(t); const cust = ACC.CUSTOMERS.find((x) => x.id === t.custId)
     const r = ACC.issueDocument({ docType: kind, clientId: cust ? cust.id : undefined, customer: t.custName, ico: cust ? cust.ico : undefined, dic: cust ? `CZ${cust.ico}` : undefined, address: cust ? cust.address : undefined, items: tripItems(t, p, kind), dueDays: kind === 'faktura' ? 14 : 7, note: `Zájezd ${t.id}: ${t.from} → ${t.to}, ${fmtIsoDate(t.dateFrom)}${t.contact ? ', kontakt ' + t.contact : ''}`, by: zajUser() })
-    const label = ACC.DOC_TYPES[kind].short
-    updTrip(id, (x) => tripLog({ ...x, status: kind === 'faktura' ? 'vyuctovano' : x.status, docs: [...(x.docs || []), { id: r.id, number: r.number, kind, label, total: r.total }] }, `${label} ${r.number} vystavena v Účetnictví`, null, `${czk(r.total)}, splatnost ${ACC.fmtDate(r.due)}, VS ${r.vs}, ${sentTo(x)}`))
+    linkDocToTrip(id, kind, r)
     setState((s) => ({ accVersion: (s.accVersion || 0) + 1 }))
-    showToast(`${label} ${r.number} vystavena v Účetnictví (${czk(r.total)})`)
+    showToast(`${ACC.DOC_TYPES[kind].short} ${r.number} vystavena v Účetnictví (${czk(r.total)})`)
+  }
+  /** Otevře modal nového dokladu (stejný jako v Účetnictví) předvyplněný ze zájezdu. */
+  const openTripDoc = (t, kind) => {
+    const p = computeTripPrice(t); const today = isoKey(new Date())
+    setState({ ucNew: { docType: kind, tripId: t.id, custId: t.custId || '', custName: t.custId ? '' : t.custName, custIco: '', custAddr: '', issued: today, duzp: kind === 'faktura' ? t.dateFrom || today : today, dueDays: kind === 'faktura' ? 14 : 7, method: 'Bankovní převod', withVat: false, rows: tripItems(t, p, kind).map((i) => ({ text: i.text, qty: '1', unit: 'ks', price: String(i.amount), vat: 12 })), note: `Zájezd ${t.id}: ${t.from} → ${t.to}, ${fmtIsoDate(t.dateFrom)}${t.contact ? ', kontakt ' + t.contact : ''}`, related: '', paidOn: '' } })
   }
   const calcToInvoicing = () => { const id = saveQuote({ silent: true, issue: true }); if (id) tripToInvoicing(id, 'proforma') }
   const openTrip = (id) => { const t = state.zajTrips.find((x) => x.id === id); navigate('zajezd-detail', { zajDetailId: id, zajPickEdit: false, zajPick: t ? { busIdx: t.busIdx, driverIds: [...t.driverIds] } : null }) }
@@ -2879,7 +2887,7 @@ export default function FleetPortal() {
       { kind: 'proforma', label: 'Proforma faktura', desc: 'Celá cena předem, není daňový doklad', amount: p.total, minStep: 1, gate: 'po odeslání nabídky' },
       { kind: 'zalohova', label: 'Zálohová faktura 50 %', desc: 'Záloha po schválení, daňový doklad vznikne po úhradě', amount: Math.round(p.base / 2) + Math.round(Math.round(p.base / 2) * 12 / 100), minStep: 2, gate: 'po schválení klientem' },
       { kind: 'faktura', label: 'Konečná faktura', desc: 'Daňový doklad s DPH 12 %, uzavře vyúčtování zájezdu', amount: p.total, minStep: 4, gate: 'po realizaci zájezdu' },
-    ].map((a) => { const doc = docs.find((d) => d.kind === a.kind); return { ...a, doc, amountF: czk(a.amount), enabled: !doc && stepIdx >= a.minStep, locked: !doc && stepIdx < a.minStep, onClick: () => tripToInvoicing(t.id, a.kind) } })
+    ].map((a) => { const doc = docs.find((d) => d.kind === a.kind); return { ...a, doc, amountF: czk(a.amount), enabled: !doc && stepIdx >= a.minStep, locked: !doc && stepIdx < a.minStep, onClick: () => openTripDoc(t, a.kind) } })
     const lastEvent = t.timeline[t.timeline.length - 1]
     return { zajezd: {
       ...row, chip: st, lastEvent, steps: TRIP_STEPS.map((s, i) => ({ label: s, done: i <= stepIdx, current: i === stepIdx, when: facts[i] && facts[i].done ? facts[i].val.split(' · ')[0].split(' ').slice(0, 3).join(' ') : null })), cost: czk(cost), margin: Math.round((p.base - cost) / p.base * 100), baseF: czk(p.base), vatF: czk(p.vat), totalF: czk(p.total), perPaxF: czk(p.perPax),
@@ -2887,9 +2895,11 @@ export default function FleetPortal() {
       pick, editing, assigned, canAssign, changed, closed: ['realizovano', 'vyuctovano'].includes(t.status), daysLabel: days.length === 1 ? fmtIsoDate(days[0]) : `${fmtIsoDate(days[0])} až ${fmtIsoDate(days[days.length - 1])}`,
       busOptions: zajBuses.map((b, i) => ({ idx: i, label: `${b.brand}${b.model ? ' ' + b.model : ''} · ${b.plate} · r. v. ${b.year}`, busy: busBusy(b) })), drvOptions,
       setBus: (e) => setPick({ busIdx: e.target.value === '' || e.target.value == null ? null : Number(e.target.value) }), toggleDrv: (id) => setPick({ driverIds: pick.driverIds.includes(id) ? pick.driverIds.filter((x) => x !== id) : [...pick.driverIds, id] }),
+      setDrvSlot: (i) => (e) => { const v = e.target.value; const ids = [...pick.driverIds]; if (!v) ids.splice(i, 1); else ids[i] = v; setPick({ driverIds: ids.filter(Boolean) }) },
+      drvSlots: Math.max(needDrv, pick.driverIds.length, state.zajDrvExtra && state.zajDrvExtra === t.id ? 2 : 0), addDrvSlot: () => setState({ zajDrvExtra: t.id }),
       startEdit: () => setState({ zajPickEdit: true, zajPick: { busIdx: t.busIdx, driverIds: [...t.driverIds] } }), cancelEdit: () => setState({ zajPickEdit: false, zajPick: { busIdx: t.busIdx, driverIds: [...t.driverIds] } }), assign: () => assignTrip(t.id),
       assignLabel: t.status === 'schvaleno' ? 'Potvrdit přiřazení a zablokovat termín' : assigned ? 'Potvrdit změnu přiřazení' : 'Potvrdit přiřazení (rezervace termínu)',
-      docs, invoiceActions, actions, timeline: [...t.timeline].reverse(),
+      docs, invoiceActions, actions, timeline: [...t.timeline].reverse(), newDoc: state.ucNew && state.ucNew.tripId === t.id ? buildNewDocVM() : null,
       print: () => setState({ execReport: buildTripQuoteHtml(t, p, ACC.COMPANY) }), edit: () => editTripInCalc(t), back: () => navigate('zajezdy'),
       openDriver: (id) => navigate('driver-detail', { driverId: id }),
     } }
@@ -2916,6 +2926,36 @@ export default function FleetPortal() {
     ]
     const plan = buses.filter((b) => b.chargeTo).map((b) => ({ name: b.name, plate: b.plate, to: b.chargeTo, soc: b.soc }))
     return { elektrobusy: { kpis, buses, plan } }
+  }
+
+  const buildNewDocVM = () => {
+    void state.accVersion
+    const inv = ACC.invoices(); const kc = ACC.kc
+    const me = (ROLES.find((x) => x.id === state.role) || ROLES[0]).name
+    const bump = () => setState((s) => ({ accVersion: (s.accVersion || 0) + 1 }))
+    const nd = state.ucNew
+    const setNd = (p) => setState((s) => ({ ucNew: { ...s.ucNew, ...(typeof p === 'function' ? p(s.ucNew) : p) } }))
+    return nd ? (() => {
+      const t = ACC.DOC_TYPES[nd.docType]
+      const cust = nd.custId ? ACC.CUSTOMERS.find((c) => c.id === nd.custId) : null
+      const items = nd.rows.filter((r) => r.text.trim() && Number(r.price) > 0).map((r) => { const qty = Number(r.qty) || 1; const price = Number(r.price); const unitBase = nd.withVat ? Math.round(price / (1 + r.vat / 100)) : price; return { text: r.text.trim(), qty, unit: r.unit, unitPrice: unitBase, vatRate: r.vat, amount: Math.round(unitBase * qty) } })
+      const base = items.reduce((s, i) => s + i.amount, 0), vat = items.reduce((s, i) => s + Math.round(i.amount * i.vatRate / 100), 0)
+      const number = `${t.series}-2026-${String(inv.filter((i) => i.series === t.series).length + 1).padStart(4, '0')}`
+      const relatedOptions = inv.filter((i) => nd.docType === 'opravny' ? i.docType === 'faktura' && i.status === 'Zaplaceno' : (i.docType === 'zalohova' || i.docType === 'vyzva') && i.status === 'Zaplaceno').map((i) => ({ id: i.id, label: `${i.number} · ${i.customer} · ${kc(i.total)}` }))
+      const custName = cust ? cust.name : nd.custName
+      const ok = !!(custName && custName.trim()) && items.length > 0 && (nd.docType !== 'opravny' || nd.related)
+      return {
+        ...nd, title: t.label, desc: t.desc, tax: t.tax, number, baseF: kc(base), vatF: kc(vat), totalF: kc(base + vat), ok, relatedOptions, needsRelated: nd.docType === 'opravny' || nd.docType === 'danovy',
+        customers: ACC.CUSTOMERS.map((c) => ({ id: c.id, label: `${c.name} · IČO ${c.ico}` })), custLabel: cust ? `${cust.name} · IČO ${cust.ico} · ${cust.address}` : null,
+        methods: ACC.PAYMENT_METHODS, units: ['ks', 'km', 'hod', 'měs', 'den', 'os'],
+        setCust: (e) => setNd({ custId: e.target.value, custName: '' }), setCustName: (e) => setNd({ custName: e.target.value, custId: '' }), setCustIco: (e) => setNd({ custIco: e.target.value }), setCustAddr: (e) => setNd({ custAddr: e.target.value }),
+        setIssued: (e) => setNd({ issued: e.target.value, duzp: e.target.value }), setDuzp: (e) => setNd({ duzp: e.target.value }), setDueDays: (e) => setNd({ dueDays: Number(e.target.value) || 0 }), setMethod: (e) => setNd({ method: e.target.value }), setWithVat: (e) => setNd({ withVat: e.target.value === 's' }), setNote: (e) => setNd({ note: e.target.value }), setPaidOn: (e) => setNd({ paidOn: e.target.value }),
+        setRelated: (e) => { const o = inv.find((i) => i.id === e.target.value); setNd({ related: e.target.value, custId: o && o.clientId ? o.clientId : '', custName: o && !o.clientId ? o.customer : '', rows: o ? o.items.map((i) => ({ text: i.text, qty: String(i.qty), unit: i.unit, price: String(nd.docType === 'opravny' ? -i.unitPrice : i.unitPrice), vat: i.vatRate })) : nd.rows }) },
+        updRow: (i, patch) => setNd((n) => ({ rows: n.rows.map((r, j) => j === i ? { ...r, ...patch } : r) })), addRow: () => setNd((n) => ({ rows: [...n.rows, { text: '', qty: '1', unit: 'ks', price: '', vat: n.rows[n.rows.length - 1] ? n.rows[n.rows.length - 1].vat : 21 }] })), delRow: (i) => setNd((n) => ({ rows: n.rows.length > 1 ? n.rows.filter((_, j) => j !== i) : [{ text: '', qty: '1', unit: 'ks', price: '', vat: 21 }] })),
+        submit: () => { if (!ok) return; const ico = cust ? cust.ico : nd.custIco; const r = ACC.issueDocument({ docType: nd.docType, clientId: cust ? cust.id : undefined, customer: custName.trim(), ico, dic: ico ? `CZ${ico}` : undefined, address: cust ? cust.address : nd.custAddr, items, issued: new Date(nd.issued), duzp: new Date(nd.duzp), dueDays: nd.dueDays, paymentMethod: nd.method, relatedId: nd.related || undefined, note: nd.note.trim() || undefined, paidAt: nd.paidOn ? new Date(nd.paidOn) : undefined, by: me }); bump(); if (nd.tripId) linkDocToTrip(nd.tripId, nd.docType, r); showToast(`Vystaven doklad ${r.number} na ${kc(r.total)}${nd.tripId ? ', založen v Účetnictví a připsán k zájezdu' : ''}`); setState({ ucNew: null }) },
+        close: () => setState({ ucNew: null }), stop,
+      }
+    })() : null
   }
 
   // ---- Účetnictví (převzato z Frenkee CRM, data dopravce) ----
@@ -2987,29 +3027,7 @@ export default function FleetPortal() {
         close: () => setState({ ucInvDetail: null }), stop,
       }
     })() : null
-    const nd = state.ucNew
-    const setNd = (p) => setState((s) => ({ ucNew: { ...s.ucNew, ...(typeof p === 'function' ? p(s.ucNew) : p) } }))
-    const newDoc = nd ? (() => {
-      const t = ACC.DOC_TYPES[nd.docType]
-      const cust = nd.custId ? ACC.CUSTOMERS.find((c) => c.id === nd.custId) : null
-      const items = nd.rows.filter((r) => r.text.trim() && Number(r.price) > 0).map((r) => { const qty = Number(r.qty) || 1; const price = Number(r.price); const unitBase = nd.withVat ? Math.round(price / (1 + r.vat / 100)) : price; return { text: r.text.trim(), qty, unit: r.unit, unitPrice: unitBase, vatRate: r.vat, amount: Math.round(unitBase * qty) } })
-      const base = items.reduce((s, i) => s + i.amount, 0), vat = items.reduce((s, i) => s + Math.round(i.amount * i.vatRate / 100), 0)
-      const number = `${t.series}-2026-${String(inv.filter((i) => i.series === t.series).length + 1).padStart(4, '0')}`
-      const relatedOptions = inv.filter((i) => nd.docType === 'opravny' ? i.docType === 'faktura' && i.status === 'Zaplaceno' : (i.docType === 'zalohova' || i.docType === 'vyzva') && i.status === 'Zaplaceno').map((i) => ({ id: i.id, label: `${i.number} · ${i.customer} · ${kc(i.total)}` }))
-      const custName = cust ? cust.name : nd.custName
-      const ok = !!(custName && custName.trim()) && items.length > 0 && (nd.docType !== 'opravny' || nd.related)
-      return {
-        ...nd, title: t.label, desc: t.desc, tax: t.tax, number, baseF: kc(base), vatF: kc(vat), totalF: kc(base + vat), ok, relatedOptions, needsRelated: nd.docType === 'opravny' || nd.docType === 'danovy',
-        customers: ACC.CUSTOMERS.map((c) => ({ id: c.id, label: `${c.name} · IČO ${c.ico}` })), custLabel: cust ? `${cust.name} · IČO ${cust.ico} · ${cust.address}` : null,
-        methods: ACC.PAYMENT_METHODS, units: ['ks', 'km', 'hod', 'měs', 'den', 'os'],
-        setCust: (e) => setNd({ custId: e.target.value, custName: '' }), setCustName: (e) => setNd({ custName: e.target.value, custId: '' }), setCustIco: (e) => setNd({ custIco: e.target.value }), setCustAddr: (e) => setNd({ custAddr: e.target.value }),
-        setIssued: (e) => setNd({ issued: e.target.value, duzp: e.target.value }), setDuzp: (e) => setNd({ duzp: e.target.value }), setDueDays: (e) => setNd({ dueDays: Number(e.target.value) || 0 }), setMethod: (e) => setNd({ method: e.target.value }), setWithVat: (e) => setNd({ withVat: e.target.value === 's' }), setNote: (e) => setNd({ note: e.target.value }), setPaidOn: (e) => setNd({ paidOn: e.target.value }),
-        setRelated: (e) => { const o = inv.find((i) => i.id === e.target.value); setNd({ related: e.target.value, custId: o && o.clientId ? o.clientId : '', custName: o && !o.clientId ? o.customer : '', rows: o ? o.items.map((i) => ({ text: i.text, qty: String(i.qty), unit: i.unit, price: String(nd.docType === 'opravny' ? -i.unitPrice : i.unitPrice), vat: i.vatRate })) : nd.rows }) },
-        updRow: (i, patch) => setNd((n) => ({ rows: n.rows.map((r, j) => j === i ? { ...r, ...patch } : r) })), addRow: () => setNd((n) => ({ rows: [...n.rows, { text: '', qty: '1', unit: 'ks', price: '', vat: n.rows[n.rows.length - 1] ? n.rows[n.rows.length - 1].vat : 21 }] })), delRow: (i) => setNd((n) => ({ rows: n.rows.length > 1 ? n.rows.filter((_, j) => j !== i) : [{ text: '', qty: '1', unit: 'ks', price: '', vat: 21 }] })),
-        submit: () => { if (!ok) return; const ico = cust ? cust.ico : nd.custIco; const r = ACC.issueDocument({ docType: nd.docType, clientId: cust ? cust.id : undefined, customer: custName.trim(), ico, dic: ico ? `CZ${ico}` : undefined, address: cust ? cust.address : nd.custAddr, items, issued: new Date(nd.issued), duzp: new Date(nd.duzp), dueDays: nd.dueDays, paymentMethod: nd.method, relatedId: nd.related || undefined, note: nd.note.trim() || undefined, paidAt: nd.paidOn ? new Date(nd.paidOn) : undefined, by: me }); bump(); showToast(`Vystaven doklad ${r.number} na ${kc(r.total)}`); setState({ ucNew: null }) },
-        close: () => setState({ ucNew: null }), stop,
-      }
-    })() : null
+    const newDoc = buildNewDocVM()
     const ef = state.ucExpFilter || 'vse'
     const exList = ex.filter((e) => ef === 'vse' ? true : ef === 'k' ? e.status !== 'Zaúčtováno' : e.kind === ef)
     const exMonth = ex.filter((e) => ACC.inMonth(e.received, ACC.CURRENT))

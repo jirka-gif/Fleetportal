@@ -2618,15 +2618,18 @@ function ZajezdDetail({ vm }) {
                 <div style={S(UC_LBL)}>Autobus</div>
                 <Select value={t.pick.busIdx == null ? null : t.pick.busIdx} onChange={t.setBus} height={38} size={13} placeholder="Vyberte vůz…" options={t.busOptions.filter((b) => !b.busy || b.idx === t.pick.busIdx).map((b) => ({ value: b.idx, label: b.label }))} />
                 {t.busOptions.some((b) => b.busy) && <div style={S('font-size:11px;color:var(--ink3);margin-top:5px')}>V termínu obsazeno: {t.busOptions.filter((b) => b.busy).map((b) => `${b.label.split(' · ')[1]} (${b.busy})`).join(', ')}</div>}
-                <div style={S(`${UC_LBL};margin-top:12px`)}>Řidiči ({t.pick.driverIds.length} / {t.needDrv})</div>
-                <div style={S('display:flex;flex-direction:column;gap:6px;max-height:280px;overflow:auto')}>
-                  {t.drvOptions.map((o) => (
-                    <label key={o.id} style={S(`display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid ${o.on ? 'var(--blue)' : 'var(--border)'};border-radius:10px;font-size:12.5px;font-weight:600;cursor:${o.busy && !o.on ? 'not-allowed' : 'pointer'};background:${o.on ? 'var(--blue-soft)' : o.busy ? '#FAFAFC' : '#fff'};opacity:${o.busy && !o.on ? .6 : 1}`)}>
-                      <input type="checkbox" checked={o.on} disabled={!!o.busy && !o.on} onChange={() => t.toggleDrv(o.id)} style={S('width:15px;height:15px')} />
-                      <span style={S('flex:1;min-width:0')}>{o.label}{o.busy && <span style={S('display:block;font-size:11px;font-weight:500;color:#B45309')}>V termínu: {o.busy}</span>}</span>
-                    </label>
-                  ))}
-                </div>
+                {Array.from({ length: t.drvSlots }).map((_, i) => {
+                  const cur = t.pick.driverIds[i] || null
+                  const opts = t.drvOptions.filter((o) => (!o.busy && !t.pick.driverIds.includes(o.id)) || o.id === cur).map((o) => ({ value: o.id, label: o.label }))
+                  return (
+                    <div key={i} style={S('margin-top:12px')}>
+                      <div style={S(UC_LBL)}>{i === 0 ? 'Řidič' : 'Druhý řidič'}{i === 1 && t.needDrv === 2 ? ' (povinný dle AETR)' : ''}</div>
+                      <Select value={cur} onChange={t.setDrvSlot(i)} height={38} size={13} placeholder={i === 0 ? 'Vyberte řidiče…' : 'Vyberte druhého řidiče…'} options={[...(cur && i >= t.needDrv ? [{ value: '', label: 'Bez druhého řidiče' }] : []), ...opts]} />
+                    </div>
+                  )
+                })}
+                {t.drvSlots < 2 && <Hov onClick={t.addDrvSlot} base="display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:12.5px;font-weight:600;color:var(--blue-ink);cursor:pointer" hover="text-decoration:underline">{ic('plus', 14)}Přidat druhého řidiče</Hov>}
+                {t.drvOptions.some((o) => o.busy) && <div style={S('font-size:11px;color:var(--ink3);margin-top:10px')}>V termínu nedostupní: {t.drvOptions.filter((o) => o.busy).map((o) => `${o.label.split(' (')[0]} (${o.busy})`).join(', ')}</div>}
                 <div style={S('display:flex;gap:8px;flex-wrap:wrap;margin-top:12px')}>
                   <UcBtn primary disabled={!t.canAssign} onClick={t.assign}>{ic('check', 15)}{t.assignLabel}</UcBtn>
                   {t.assigned && <UcBtn onClick={t.cancelEdit}>Zrušit</UcBtn>}
@@ -2666,7 +2669,7 @@ function ZajezdDetail({ vm }) {
                     {a.doc
                       ? <span style={S('font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap')}>{a.doc.totalF}</span>
                       : a.enabled
-                        ? <UcBtn primary onClick={a.onClick}>{ic('send', 14)}Vystavit {a.amountF}</UcBtn>
+                        ? <UcBtn primary onClick={a.onClick}>{ic('plus', 14)}Vystavit doklad · {a.amountF}</UcBtn>
                         : <span style={S('font-size:12.5px;font-weight:600;color:var(--ink3);font-variant-numeric:tabular-nums;white-space:nowrap')}>{a.amountF}</span>}
                   </>
                 )
@@ -2678,6 +2681,7 @@ function ZajezdDetail({ vm }) {
           </Box>
         </div>
       </div>
+      {t.newDoc && <UcNewDocument n={t.newDoc} mob={mob} />}
     </div>
   )
 }
