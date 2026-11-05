@@ -278,6 +278,31 @@ export function buildExecReportHtml(d) {
   return html
 }
 
+// Výplatnice / doklad o příjmu řidiče (A4 HTML, tisk do PDF).
+export function buildPayslipHtml(d, pr) {
+  const czf = (n) => (n < 0 ? '−' : '') + Math.abs(Math.round(n)).toLocaleString('cs-CZ') + ' Kč'
+  const row = (r) => `<tr><td style="padding:7px 0;${r[2] === 'info' ? 'color:#6b7280' : ''}">${escHtml(r[0])}</td><td style="padding:7px 0;text-align:right;font-weight:${r[2] === 'minus' ? 600 : 700};color:${r[2] === 'minus' ? '#c0392b' : r[2] === 'info' ? '#6b7280' : '#18181B'};white-space:nowrap">${czf(r[1])}</td></tr>`
+  const empRows = (pr.employer || []).map((e) => `<tr><td style="padding:6px 0;color:#6b7280">${escHtml(e[0])}</td><td style="padding:6px 0;text-align:right;color:#6b7280;white-space:nowrap">${czf(e[1])}</td></tr>`).join('')
+  const html = `<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>Výplatnice — ${escHtml(d.name)}</title><style>
+    *{box-sizing:border-box}body{font-family:-apple-system,system-ui,'Segoe UI',sans-serif;color:#1b1f2a;margin:0;padding:40px 46px;font-size:13px;line-height:1.5}
+    h1{font-size:21px;margin:0;letter-spacing:-.4px}h2{font-size:13px;margin:22px 0 6px;color:#4B3FC4;text-transform:uppercase;letter-spacing:.4px}
+    .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #6D5EF6;padding-bottom:16px}
+    .brand{font-weight:800;color:#6D5EF6;font-size:13px;letter-spacing:.3px}.muted{color:#6b7280}
+    table{width:100%;border-collapse:collapse}.net{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding:16px 18px;background:#F1ECFF;border:1px solid rgba(109,94,246,.25);border-radius:12px}
+    .net b{font-size:24px;letter-spacing:-.6px}.cost{display:flex;justify-content:space-between;margin-top:10px;padding:11px 16px;background:#faf9ff;border:1px solid #e7e9f2;border-radius:10px;font-weight:700}
+    .foot{margin-top:26px;border-top:1px solid #e7e9f2;padding-top:12px;color:#9AA3B2;font-size:10.5px}
+    @media print{@page{size:A4;margin:16mm}body{padding:0}}</style></head><body>
+    <div class="top"><div><div class="brand">FLEETPORTAL · MZDY</div><h1>Výplatnice</h1><div class="muted" style="margin-top:3px">${escHtml(d.name)} · ${escHtml(d.position || '')}</div></div>
+      <div style="text-align:right" class="muted"><div><b>Období:</b> říjen 2026</div><div><b>Režim:</b> ${escHtml(pr.modeLabel)}</div><div>ČSAD AUTOBUSY České Budějovice a.s.</div></div></div>
+    <h2>Rozpis</h2><table>${pr.rows.map(row).join('')}</table>
+    <div class="net"><span style="font-weight:600">${escHtml(pr.netLabel)}</span><b>${czf(pr.net)}</b></div>
+    ${empRows ? `<h2>Odvody zaměstnavatele</h2><table>${empRows}</table>` : ''}
+    <div class="cost"><span>${escHtml(pr.employerLabel)}</span><span>${czf(pr.employerCost)}</span></div>
+    <div class="foot">${escHtml(pr.note)}<br>Vygenerováno z Fleet Portalu · doklad pro interní potřebu.</div>
+  </body></html>`
+  return html
+}
+
 export function exportData(format, { filename, title, columns, rows }) {
   if (!rows || !rows.length) return
   if (format === 'csv') downloadFile(filename + '.csv', '﻿' + toDelimited(columns, rows, ';'), 'text/csv;charset=utf-8')

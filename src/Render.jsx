@@ -389,6 +389,8 @@ export default function Render({ vm }) {
 
       {vm.ai && <AIPanel vm={vm} />}
       {vm.execReportHtml && <ExecReportModal vm={vm} />}
+      {vm.reportModal && <ReportModal vm={vm} />}
+      {vm.timeOffModal && <TimeOffModal vm={vm} />}
       {vm.notif && <Notifications vm={vm} />}
       {vm.search && <SearchModal vm={vm} />}
       {vm.claimWizard && <ClaimWizard vm={vm} />}
@@ -1426,7 +1428,7 @@ function Dashboard({ vm }) {
   const nav = vm.navigate || (() => {})
   const widgets = (vm.dash || []).filter((w) => w.on)
   const role = vm.role
-  const sub = role === 'majitel' ? 'Náklady, stáří a návratnost celé flotily' : role === 'dispecer' ? 'Provoz linek, jízdní řády a vyhodnocení řidičů' : 'Provoz, servis a pojištění vozového parku'
+  const sub = role === 'majitel' ? 'Náklady, stáří a návratnost celé flotily' : role === 'dispecer' ? 'Provoz linek, jízdní řády a vyhodnocení řidičů' : role === 'ridic' ? 'Moje směny, mzda, dovolená a hlášení z provozu' : 'Provoz, servis a pojištění vozového parku'
   return (
     <div>
       {/* TITLE ROW */}
@@ -1446,7 +1448,7 @@ function Dashboard({ vm }) {
       </div>
       </div>
 
-      {role === 'majitel' ? <OwnerDashboard vm={vm} /> : role === 'dispecer' ? <DispatchDashboard vm={vm} /> : (
+      {role === 'ridic' ? <DriverSelf vm={vm} /> : role === 'majitel' ? <OwnerDashboard vm={vm} /> : role === 'dispecer' ? <DispatchDashboard vm={vm} /> : (
         <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:18px;align-items:stretch`)}>
           {widgets.map((w) => (
             <div key={w.id} style={{ gridColumn: (mob || w.w === 'full') ? '1 / -1' : 'auto', minWidth: 0 }}>
@@ -4363,6 +4365,8 @@ function DriverDetail({ vm }) {
 
       {d.perf && <DriverPerformance p={d.perf} mob={mob} />}
 
+      {d.hr && <><div style={S('font-size:15px;font-weight:700;margin-bottom:12px')}>Mzdy, dovolená a hlášení</div><div style={S('margin-bottom:22px')}><HrBlock hr={d.hr} mob={mob} /></div></>}
+
       <div style={S('font-size:15px;font-weight:700;margin-bottom:12px')}>Osobní a pracovní údaje</div>
       <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:16px;margin-bottom:16px`)}>
         <InfoCard title="Osobní údaje" rows={d.personal} />
@@ -4544,6 +4548,193 @@ function DriverPerformance({ p, mob }) {
             ))}
           </div>}
       </div>
+    </div>
+  )
+}
+
+/* ---- Modal: nahlásit problém ---- */
+function ReportModal({ vm }) {
+  const m = vm.reportModal
+  const sevs = [['low', 'Nízká'], ['mid', 'Střední'], ['high', 'Vysoká']]
+  return (
+    <div onClick={m.close} style={S('position:fixed;inset:0;z-index:70;background:rgba(17,20,34,.55);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px')}>
+      <div onClick={m.stop} style={S('width:min(460px,100%);background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 30px 80px -20px rgba(0,0,0,.5)')}>
+        <div style={S('display:flex;align-items:center;gap:11px;padding:16px 20px;border-bottom:1px solid var(--border)')}>
+          <span style={S('width:36px;height:36px;border-radius:11px;background:var(--star-soft);color:var(--star);display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic('alert', 19)}</span>
+          <div style={S('flex:1')}><div style={S('font-size:15px;font-weight:750')}>Nahlásit problém</div><div style={S('font-size:12px;color:var(--ink3)')}>Hlášení půjde rovnou na dispečink</div></div>
+          <Hov onClick={m.close} base="width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink2)" hover="background:var(--canvas)">{ic('close', 17)}</Hov>
+        </div>
+        <div style={S('padding:18px 20px')}>
+          <div style={S('font-size:12px;font-weight:650;color:var(--ink3);margin-bottom:8px')}>Kategorie</div>
+          <div style={S('display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px')}>
+            {m.cats.map((c) => { const on = m.form.cat === c.id; return <Hov key={c.id} onClick={() => m.setCat(c.id)} base={`display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 13px;border-radius:10px;cursor:pointer;font-size:12.5px;font-weight:600;border:1px solid ${on ? 'var(--star)' : 'var(--border2)'};background:${on ? 'var(--star-soft)' : '#fff'};color:${on ? 'var(--star)' : 'var(--ink2)'}`} hover={on ? '' : 'border-color:var(--ink3)'}>{ic(c.icon, 15)}{c.label}</Hov> })}
+          </div>
+          <div style={S('font-size:12px;font-weight:650;color:var(--ink3);margin-bottom:8px')}>Závažnost</div>
+          <div style={S('display:flex;gap:8px;margin-bottom:16px')}>
+            {sevs.map((s) => { const on = m.form.sev === s[0]; return <Hov key={s[0]} onClick={() => m.setSev(s[0])} base={`flex:1;text-align:center;height:36px;line-height:36px;border-radius:10px;cursor:pointer;font-size:12.5px;font-weight:650;border:1px solid ${on ? 'var(--blue)' : 'var(--border2)'};background:${on ? 'var(--blue-soft)' : '#fff'};color:${on ? 'var(--blue-ink)' : 'var(--ink2)'}`} hover={on ? '' : 'border-color:var(--ink3)'}>{s[1]}</Hov> })}
+          </div>
+          <div style={S('font-size:12px;font-weight:650;color:var(--ink3);margin-bottom:8px')}>Popis</div>
+          <textarea value={m.form.text} onChange={m.setText} autoFocus placeholder="Např. svítí kontrolka motoru, ztráta výkonu do kopce…" rows={4} style={S('width:100%;border:1px solid var(--border2);border-radius:11px;padding:11px 13px;font-size:13.5px;font-family:inherit;outline:none;resize:vertical;line-height:1.5')} />
+          <div style={S('display:flex;gap:10px;margin-top:16px')}>
+            <Hov onClick={m.close} base="flex:1;text-align:center;height:42px;line-height:42px;border:1px solid var(--border2);border-radius:11px;cursor:pointer;font-size:13.5px;font-weight:600" hover="background:var(--canvas)">Zrušit</Hov>
+            <Hov onClick={m.canSend ? m.submit : undefined} base={`flex:2;text-align:center;height:42px;line-height:42px;border-radius:11px;font-size:13.5px;font-weight:600;color:#fff;cursor:${m.canSend ? 'pointer' : 'not-allowed'};background:${m.canSend ? 'linear-gradient(135deg,#EF4444,#F97316)' : '#CBD5E1'}`} hover={m.canSend ? 'transform:translateY(-1px)' : ''}>Odeslat hlášení</Hov>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ---- Modal: zažádat o volno ---- */
+function TimeOffModal({ vm }) {
+  const m = vm.timeOffModal
+  return (
+    <div onClick={m.close} style={S('position:fixed;inset:0;z-index:70;background:rgba(17,20,34,.55);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px')}>
+      <div onClick={m.stop} style={S('width:min(460px,100%);background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 30px 80px -20px rgba(0,0,0,.5)')}>
+        <div style={S('display:flex;align-items:center;gap:11px;padding:16px 20px;border-bottom:1px solid var(--border)')}>
+          <span style={S('width:36px;height:36px;border-radius:11px;background:var(--amber-soft);color:#B45309;display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic('calendar', 19)}</span>
+          <div style={S('flex:1')}><div style={S('font-size:15px;font-weight:750')}>Žádost o volno</div><div style={S('font-size:12px;color:var(--ink3)')}>Odešle se ke schválení vedoucímu</div></div>
+          <Hov onClick={m.close} base="width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink2)" hover="background:var(--canvas)">{ic('close', 17)}</Hov>
+        </div>
+        <div style={S('padding:18px 20px')}>
+          <div style={S('font-size:12px;font-weight:650;color:var(--ink3);margin-bottom:8px')}>Typ</div>
+          <div style={S('display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px')}>
+            {m.types.map((t) => { const on = m.form.type === t; return <Hov key={t} onClick={() => m.setType(t)} base={`display:inline-flex;align-items:center;height:36px;padding:0 13px;border-radius:10px;cursor:pointer;font-size:12.5px;font-weight:600;border:1px solid ${on ? 'var(--blue)' : 'var(--border2)'};background:${on ? 'var(--blue-soft)' : '#fff'};color:${on ? 'var(--blue-ink)' : 'var(--ink2)'}`} hover={on ? '' : 'border-color:var(--ink3)'}>{t}</Hov> })}
+          </div>
+          <div style={S('display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px')}>
+            <div><div style={S('font-size:12px;font-weight:650;color:var(--ink3);margin-bottom:6px')}>Od</div><input value={m.form.from} onChange={m.setFrom} placeholder="22. 12. 2026" style={S('width:100%;height:40px;border:1px solid var(--border2);border-radius:10px;padding:0 11px;font-size:13px;font-family:inherit;outline:none')} /></div>
+            <div><div style={S('font-size:12px;font-weight:650;color:var(--ink3);margin-bottom:6px')}>Do</div><input value={m.form.to} onChange={m.setTo} placeholder="31. 12. 2026" style={S('width:100%;height:40px;border:1px solid var(--border2);border-radius:10px;padding:0 11px;font-size:13px;font-family:inherit;outline:none')} /></div>
+            <div><div style={S('font-size:12px;font-weight:650;color:var(--ink3);margin-bottom:6px')}>Dnů</div><input value={m.form.days} onChange={m.setDays} inputMode="numeric" placeholder="6" style={S('width:100%;height:40px;border:1px solid var(--border2);border-radius:10px;padding:0 11px;font-size:13px;font-family:inherit;outline:none;font-variant-numeric:tabular-nums')} /></div>
+          </div>
+          <div style={S('display:flex;gap:10px;margin-top:18px')}>
+            <Hov onClick={m.close} base="flex:1;text-align:center;height:42px;line-height:42px;border:1px solid var(--border2);border-radius:11px;cursor:pointer;font-size:13.5px;font-weight:600" hover="background:var(--canvas)">Zrušit</Hov>
+            <Hov onClick={m.canSend ? m.submit : undefined} base={`flex:2;text-align:center;height:42px;line-height:42px;border-radius:11px;font-size:13.5px;font-weight:600;color:#fff;cursor:${m.canSend ? 'pointer' : 'not-allowed'};background:${m.canSend ? 'linear-gradient(135deg,#5B6BF5,#7A5CF8)' : '#CBD5E1'}`} hover={m.canSend ? 'transform:translateY(-1px)' : ''}>Odeslat žádost</Hov>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ---- HR blok: mzdy, dovolená, hlášení (karta řidiče i pohled řidiče) ---- */
+function HrBlock({ hr, mob, compact }) {
+  const modeBtn = (id, label) => {
+    const on = hr.mode === id
+    return <Hov key={id} onClick={() => hr.setMode(id)} base={`flex:1;text-align:center;height:34px;line-height:34px;border-radius:9px;cursor:pointer;font-size:12.5px;font-weight:650;color:${on ? '#fff' : 'var(--ink2)'};background:${on ? 'var(--blue)' : 'transparent'}`} hover={on ? '' : 'background:#fff'}>{label}</Hov>
+  }
+  return (
+    <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:16px;align-items:start`)}>
+      {/* MZDA */}
+      <div style={S(`${CARD};padding:20px`)}>
+        <div style={S('display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px')}>
+          <CardHead icon="banknote" color="var(--green)" title="Mzda a odvody" sub="Měsíčně · orientační" />
+        </div>
+        <div style={S('display:flex;gap:4px;background:var(--canvas);border-radius:11px;padding:4px;margin-bottom:14px')}>
+          {modeBtn('zamestnanec', 'Zaměstnanec')}{modeBtn('osvc', 'OSVČ')}
+        </div>
+        <div>
+          {hr.payRows.map((r, i) => (
+            <div key={i} style={S(`display:flex;justify-content:space-between;gap:12px;padding:7px 0;font-size:13px${i ? ';border-top:1px solid var(--border)' : ''}`)}>
+              <span style={S(`${r.kind === 'info' ? 'color:var(--ink3)' : 'color:var(--ink2)'}`)}>{r.label}</span>
+              <span style={S(`font-variant-numeric:tabular-nums;font-weight:${r.kind === 'minus' ? 600 : 700};white-space:nowrap;color:${r.kind === 'minus' ? 'var(--star)' : r.kind === 'info' ? 'var(--ink3)' : 'var(--ink)'}`)}>{r.value}</span>
+            </div>
+          ))}
+        </div>
+        <div style={S('display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;padding:13px 15px;background:var(--green-soft);border-radius:12px')}>
+          <span style={S('font-size:13px;font-weight:650')}>{hr.netLabel}</span>
+          <span style={S('font-size:20px;font-weight:800;letter-spacing:-.5px;color:var(--green)')}>{hr.netF}</span>
+        </div>
+        {hr.employerRows.length > 0 && (
+          <div style={S('margin-top:12px')}>
+            {hr.employerRows.map((r, i) => <div key={i} style={S('display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:12px;color:var(--ink3)')}><span>{r.label}</span><span style={S('font-variant-numeric:tabular-nums')}>{r.value}</span></div>)}
+          </div>
+        )}
+        <div style={S('display:flex;justify-content:space-between;gap:12px;margin-top:10px;padding:11px 15px;background:var(--canvas);border-radius:11px;font-weight:700;font-size:13px')}>
+          <span>{hr.employerLabel}</span><span style={S('font-variant-numeric:tabular-nums')}>{hr.employerCostF}</span>
+        </div>
+        <Hov onClick={hr.genPayslip} base="display:flex;align-items:center;justify-content:center;gap:8px;height:40px;margin-top:14px;background:linear-gradient(135deg,#5B6BF5,#7A5CF8);color:#fff;border-radius:11px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 8px 18px -8px rgba(108,94,246,.7)" hover="transform:translateY(-1px)">{ic('doc2', 16)} Generovat výplatnici (PDF)</Hov>
+        <div style={S('font-size:11px;color:var(--ink3);margin-top:9px;line-height:1.5')}>{hr.note}</div>
+      </div>
+
+      {/* DOVOLENÁ + HLÁŠENÍ */}
+      <div style={S('display:flex;flex-direction:column;gap:16px')}>
+        <div style={S(`${CARD};padding:20px`)}>
+          <div style={S('display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px')}>
+            <CardHead icon="calendar" color="#F59E0B" title="Dovolená a volno" sub={`Zbývá ${hr.vacLeft} z ${hr.vacTotal} dní`} />
+            <Hov onClick={hr.addTimeOff} base="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border:1px solid var(--border2);border-radius:9px;cursor:pointer;font-size:12.5px;font-weight:600" hover="border-color:var(--blue);color:var(--blue)">{ic('plus', 15)} Zažádat</Hov>
+          </div>
+          <div style={S('height:8px;border-radius:6px;background:#ECE9F6;overflow:hidden;margin-bottom:14px')}><div style={S(`height:100%;width:${Math.round(hr.vacUsed / hr.vacTotal * 100)}%;background:linear-gradient(90deg,#F59E0B,#F97316)`)}></div></div>
+          {hr.timeOff.length === 0 ? <div style={S('font-size:12.5px;color:var(--ink3)')}>Žádné naplánované volno.</div> : hr.timeOff.map((t, i) => (
+            <div key={t.id} style={S(`display:flex;align-items:center;gap:12px;padding:9px 2px${i ? ';border-top:1px solid var(--border)' : ''}`)}>
+              <span style={S('width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--amber-soft);color:#B45309')}>{ic('calendar', 15)}</span>
+              <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:650')}>{t.type}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{t.from}{t.to && t.to !== t.from ? ' – ' + t.to : ''} · {t.days} {t.days === 1 ? 'den' : t.days < 5 ? 'dny' : 'dní'}</div></div>
+              <span style={S(`font-size:10.5px;font-weight:700;color:${t.statusMeta.color};background:${t.statusMeta.bg};padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0`)}>{t.statusMeta.label}</span>
+            </div>
+          ))}
+        </div>
+
+        <div style={S(`${CARD};padding:20px`)}>
+          <div style={S('display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px')}>
+            <CardHead icon="alert" color="var(--star)" title="Hlášení řidiče" sub="Problémy na trase a na vozidle" />
+            <Hov onClick={hr.addReport} base="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border:1px solid var(--border2);border-radius:9px;cursor:pointer;font-size:12.5px;font-weight:600" hover="border-color:var(--star);color:var(--star)">{ic('plus', 15)} Nahlásit</Hov>
+          </div>
+          {hr.reports.length === 0 ? <div style={S('font-size:12.5px;color:var(--ink3)')}>Žádná hlášení.</div> : hr.reports.map((r, i) => (
+            <div key={r.id} style={S(`display:flex;align-items:flex-start;gap:12px;padding:10px 2px${i ? ';border-top:1px solid var(--border)' : ''}`)}>
+              <span style={S(`width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${r.sevMeta.bg};color:${r.sevMeta.color}`)}>{ic(r.catIcon, 15)}</span>
+              <div style={S('flex:1;min-width:0')}><div style={S('font-size:12.5px;font-weight:650')}>{r.catLabel}</div><div style={S('font-size:12px;color:var(--ink2);line-height:1.4')}>{r.text}</div><div style={S('font-size:11px;color:var(--ink3);margin-top:2px')}>{r.date}</div></div>
+              <span style={S(`font-size:10.5px;font-weight:700;color:${r.statusMeta.color};background:${r.statusMeta.bg};padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0`)}>{r.statusMeta.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ---- Pohled řidiče: osobní portál ---- */
+function DriverSelf({ vm }) {
+  const mob = vm.vp.isMobile
+  const d = vm.driverSelf
+  if (!d) return null
+  return (
+    <div>
+      <div style={S(`${CARD};padding:20px;margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap`)}>
+        <div style={S('width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#4F6FFF,#6D5EF6);color:#fff;font-weight:700;font-size:19px;display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{d.initials}</div>
+        <div style={S('flex:1;min-width:0')}><div style={S('font-size:19px;font-weight:800;letter-spacing:-.4px')}>{d.name}</div><div style={S('font-size:13px;color:var(--ink3)')}>{d.position}</div></div>
+      </div>
+
+      <KpiRow items={d.kpis} mb="16px" featuredFirst />
+
+      {/* dnešní směna + rychlé hlášení */}
+      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1.3fr 1fr'};gap:16px;align-items:start;margin-bottom:16px`)}>
+        <div style={S(`${CARD};padding:20px`)}>
+          <CardHead icon="pin" color="var(--blue)" title="Moje směna dnes" sub="Přiřazená linka a vůz" />
+          <Hov onClick={d.shift.onClick} base="display:flex;align-items:center;gap:13px;padding:12px 10px;border-radius:12px;cursor:pointer;margin-top:4px" hover="background:var(--canvas)">
+            <span style={S('min-width:44px;height:36px;padding:0 10px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#18181B;color:#fff;font-weight:800;font-size:15px')}>{d.shift.line}</span>
+            <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{d.shift.name}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{d.shift.bus} · {d.shift.plate}</div></div>
+            <span style={S('color:var(--ink3);display:flex')}>{ic('arrow', 16)}</span>
+          </Hov>
+          <div style={S('display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;padding-top:12px;border-top:1px solid var(--border)')}>
+            <div><div style={S('font-size:11.5px;color:var(--ink3)')}>První odjezd</div><div style={S('font-size:14px;font-weight:700')}>{d.shift.first}</div></div>
+            <div><div style={S('font-size:11.5px;color:var(--ink3)')}>Poslední odjezd</div><div style={S('font-size:14px;font-weight:700')}>{d.shift.last}</div></div>
+            <div><div style={S('font-size:11.5px;color:var(--ink3)')}>Spojů</div><div style={S('font-size:14px;font-weight:700')}>{d.shift.trips}</div></div>
+          </div>
+        </div>
+        <div style={S(`${CARD};padding:20px`)}>
+          <CardHead icon="alert" color="var(--star)" title="Nahlásit problém" sub="Rychlé hlášení z provozu" />
+          <div style={S('display:flex;flex-direction:column;gap:10px;margin-top:6px')}>
+            {d.reportCats.map((c) => (
+              <Hov key={c.cat} onClick={c.onClick} base="display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid var(--border2);border-radius:12px;cursor:pointer" hover="border-color:var(--star);background:#FFF7F6">
+                <span style={S('width:36px;height:36px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--star-soft);color:var(--star)')}>{ic(c.icon, 18)}</span>
+                <span style={S('flex:1;font-size:13.5px;font-weight:650')}>{c.label}</span>
+                <span style={S('color:var(--ink3);display:flex')}>{ic('arrow', 16)}</span>
+              </Hov>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <HrBlock hr={d.hr} mob={mob} />
     </div>
   )
 }

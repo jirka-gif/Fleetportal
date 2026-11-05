@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { Icon, czk, linePath, useViewport, buildExecReportHtml } from './helpers.jsx'
+import { Icon, czk, linePath, useViewport, buildExecReportHtml, buildPayslipHtml } from './helpers.jsx'
 import Render from './Render.jsx'
 import {
   insurersData, brandsData, fleetsData, vehiclesData, claimsData, greenCards, driversData,
@@ -257,6 +257,16 @@ const ANO_STATUS = {
   new: { label: 'Nové', color: '#B45309', bg: 'var(--amber-soft)' },
   prog: { label: 'V řešení', color: 'var(--blue-ink)', bg: 'var(--blue-soft)' },
   done: { label: 'Vyřešeno', color: 'var(--green)', bg: 'var(--green-soft)' },
+}
+const TIMEOFF_STATUS = {
+  approved: { label: 'Schváleno', color: 'var(--green)', bg: 'var(--green-soft)' },
+  pending: { label: 'Čeká na schválení', color: '#B45309', bg: 'var(--amber-soft)' },
+  rejected: { label: 'Zamítnuto', color: 'var(--star)', bg: 'var(--star-soft)' },
+}
+const REPORT_CAT = {
+  trasa: { label: 'Problém na trase', icon: 'pin' },
+  vozidlo: { label: 'Závada na vozidle', icon: 'wrench' },
+  jine: { label: 'Jiné', icon: 'info' },
 }
 const _anoDateKey = (s) => { const p = String(s).split('. ').map(Number); return p[2] * 10000 + p[1] * 100 + p[0] }
 function buildAnomalies() {
@@ -635,6 +645,18 @@ const SEED_AUDIT = [
   { id: 'a6', when: '24. 6. 2026 13:30', who: 'Tomáš Bartoš', action: 'delete', entity: 'Vozidlo', detail: 'Odebráno vozidlo z parku — Škoda Octavia (prodej)' },
   { id: 'a7', when: '23. 6. 2026 10:15', who: 'Martin Kovář', action: 'update', entity: 'Pojištění', detail: 'Upraveno krytí — doplněno pojištění skel u 6 vozidel' },
 ]
+// ---------- HR: dovolená a hlášení řidičů (seed) ----------
+const SEED_TIMEOFF = [
+  { id: 'to1', driverId: 'dr1', from: '22. 12. 2026', to: '31. 12. 2026', days: 6, type: 'Dovolená', status: 'approved' },
+  { id: 'to2', driverId: 'dr1', from: '9. 2. 2027', to: '13. 2. 2027', days: 5, type: 'Dovolená', status: 'pending' },
+  { id: 'to3', driverId: 'dr2', from: '2. 1. 2027', to: '2. 1. 2027', days: 1, type: 'Náhradní volno', status: 'approved' },
+  { id: 'to4', driverId: 'dr4', from: '15. 11. 2026', to: '15. 11. 2026', days: 1, type: 'Lékař', status: 'approved' },
+]
+const SEED_DRIVER_REPORTS = [
+  { id: 'dr-r1', driverId: 'dr1', cat: 'vozidlo', sev: 'mid', text: 'Při brzdění cítit vibrace na předních kolech, doporučuji kontrolu.', date: '3. 11. 2026', status: 'new' },
+  { id: 'dr-r2', driverId: 'dr1', cat: 'trasa', sev: 'low', text: 'Zastávka Vráto trvale zaparkovaná auta, komplikovaný nájezd.', date: '30. 10. 2026', status: 'prog' },
+  { id: 'dr-r3', driverId: 'dr3', cat: 'vozidlo', sev: 'high', text: 'Svítí kontrolka motoru, ztráta výkonu do kopce.', date: '1. 11. 2026', status: 'new' },
+]
 // ---------- Modelované provozní náklady (odhad na úrovni parku) ----------
 const seedFromId = (id) => { let h = 0; const s = String(id || ''); for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0 } return h }
 const TYPE_ANNUAL_COST = { 'Osobní vozidla': 96000, 'Motocykly': 21000, 'Tahače': 312000, 'Návěsy': 64000, 'Nákladní vozidla': 208000, 'Přívěsy': 26000, 'Traktory a stroje': 138000 }
@@ -707,7 +729,57 @@ const ROLES = [
     desc: 'Provoz, servis, STK, pojištění a škody.', icon: 'wrench' },
   { id: 'dispecer', name: 'Marie Dvořáková', title: 'Vedoucí dopravního dispečinku', initials: 'MD', short: 'Dispečer',
     desc: 'Linky, jízdní řády, řidiči a anomálie provozu.', icon: 'pin' },
+  { id: 'ridic', name: 'Jan Procházka', title: 'Řidič autobusu', initials: 'JP', short: 'Řidič', driverId: 'dr1',
+    desc: 'Moje směny, mzda, dovolená a hlášení z provozu.', icon: 'user1' },
 ]
+// CZ mzdové odvody (orientační, 2026). Zaměstnanec vs OSVČ.
+function buildPayroll(d, mode) {
+  const gross = 36000 + (_hash(d.id + 'mzda') % 13) * 850 // hrubá mzda / fakturace základ
+  const r = (n) => Math.round(n)
+  const sleva = 2570 // měsíční sleva na poplatníka
+  if (mode === 'osvc') {
+    const invoice = r(gross * 1.34)
+    const vydaje = r(invoice * 0.6)
+    const zaklad = invoice - vydaje
+    const soc = r(zaklad * 0.5 * 0.292)
+    const zdrav = r(zaklad * 0.5 * 0.135)
+    const dan = Math.max(0, r(zaklad * 0.15) - sleva)
+    const net = invoice - soc - zdrav - dan
+    return {
+      mode: 'osvc', modeLabel: 'OSVČ / subdodavatel', gross: invoice,
+      rows: [
+        ['Fakturováno (měsíčně)', invoice, 'plus'],
+        ['Výdaje paušálem 60 %', -vydaje, 'info'],
+        ['Základ daně', zaklad, 'info'],
+        ['Sociální pojištění (29,2 % z 50 %)', -soc, 'minus'],
+        ['Zdravotní pojištění (13,5 % z 50 %)', -zdrav, 'minus'],
+        ['Daň 15 % (po slevě na poplatníka)', -dan, 'minus'],
+      ],
+      net, netLabel: 'Čistý příjem OSVČ', employerCost: invoice, employerLabel: 'Náklad firmy (fakturace)',
+      note: 'Orientační výpočet, paušální výdaje 60 %. Skutečná výše dle daňového přiznání a přehledů ČSSZ/ZP.',
+    }
+  }
+  const socEmp = r(gross * 0.071), zdravEmp = r(gross * 0.045)
+  const dan = Math.max(0, r(gross * 0.15) - sleva)
+  const net = gross - socEmp - zdravEmp - dan
+  const socEr = r(gross * 0.248), zdravEr = r(gross * 0.09)
+  return {
+    mode: 'zamestnanec', modeLabel: 'Zaměstnanec (HPP)', gross,
+    rows: [
+      ['Hrubá mzda', gross, 'plus'],
+      ['Sociální pojištění (zaměstnanec 7,1 %)', -socEmp, 'minus'],
+      ['Zdravotní pojištění (zaměstnanec 4,5 %)', -zdravEmp, 'minus'],
+      ['Záloha na daň 15 % (po slevě)', -dan, 'minus'],
+    ],
+    net, netLabel: 'Čistá mzda',
+    employer: [
+      ['Sociální pojištění (zaměstnavatel 24,8 %)', socEr],
+      ['Zdravotní pojištění (zaměstnavatel 9 %)', zdravEr],
+    ],
+    employerCost: gross + socEr + zdravEr, employerLabel: 'Celkový náklad zaměstnavatele',
+    note: 'Orientační výpočet dle sazeb 2026, sleva na poplatníka 2 570 Kč/měs. Bez dalších slev a srážek.',
+  }
+}
 
 export default function FleetPortal() {
   const [state, setStateRaw] = useState(() => ({
@@ -722,6 +794,7 @@ export default function FleetPortal() {
     serviceModal: null, tireModal: null, fineModal: null,
     audit: SEED_AUDIT,
     search: false, notif: false, ai: false, companyMenu: false, sidebar: false, execReport: null,
+    hrMode: {}, timeOff: SEED_TIMEOFF, driverReports: SEED_DRIVER_REPORTS, reportModal: null, timeOffModal: null, reportForm: {}, timeOffForm: {},
     claimWizard: false, claimStep: 1, claimData: {},
     rowMenu: null, toast: null,
     unsub: null, unsubDone: false, unsubReason: 'Prodej vozidla', unsubDate: '1. 7. 2026',
@@ -764,6 +837,16 @@ export default function FleetPortal() {
   const goParks = () => allFleets.length === 1 ? openFleet(allFleets[0].id) : navigate('fleets')
   const openVehicle = (id) => navigate('vehicle-detail', { vehicleId: id, vehicleTab: 'overview' })
   const openDriver = (id) => navigate('driver-detail', { driverId: id })
+  // HR: mzdy, výplatnice, dovolená, hlášení řidičů
+  const hrModeOf = (d) => state.hrMode[d.id] || (d.employment && d.employment.includes('OSVČ') ? 'osvc' : 'zamestnanec')
+  const setHrMode = (driverId, mode) => setState((s) => ({ hrMode: { ...s.hrMode, [driverId]: mode } }))
+  const genPayslip = (d, mode) => setState({ execReport: buildPayslipHtml(d, buildPayroll(d, mode)) })
+  const openTimeOffModal = (driverId) => setState({ timeOffModal: { driverId }, timeOffForm: { from: '', to: '', days: '', type: 'Dovolená' } })
+  const setTimeOffForm = (k, v) => setState((s) => ({ timeOffForm: { ...s.timeOffForm, [k]: v } }))
+  const submitTimeOff = () => { const f = state.timeOffForm, m = state.timeOffModal; if (!m) return; const entry = { id: 'to' + Date.now(), driverId: m.driverId, from: f.from || '—', to: f.to || f.from || '—', days: parseInt(f.days, 10) || 1, type: f.type || 'Dovolená', status: 'pending' }; setState((s) => ({ timeOff: [entry, ...s.timeOff], timeOffModal: null })); showToast('Žádost o volno odeslána ke schválení.') }
+  const openReportModal = (driverId, cat) => setState({ reportModal: { driverId }, reportForm: { cat: cat || 'vozidlo', sev: 'mid', text: '' } })
+  const setReportForm = (k, v) => setState((s) => ({ reportForm: { ...s.reportForm, [k]: v } }))
+  const submitReport = () => { const f = state.reportForm, m = state.reportModal; if (!m || !f.text) return; const entry = { id: 'dr-r' + Date.now(), driverId: m.driverId, cat: f.cat, sev: f.sev, text: f.text, date: '5. 11. 2026', status: 'new' }; setState((s) => ({ driverReports: [entry, ...s.driverReports], reportModal: null })); showToast('Hlášení odesláno dispečinku.') }
   const openClaim = (id) => navigate('claim-detail', { claimId: id })
   const openLine = (id) => navigate('linky-detail', { lineId: id })
   const openStazka = (lineId) => navigate('stazka', { stazkaLine: lineId })
@@ -1185,6 +1268,16 @@ export default function FleetPortal() {
       onAiKey: (e) => { if (e.key === 'Enter') sendAi() },
       sendAi: () => sendAi(), stop, goVehicles: () => navigate('vehicles'),
       execReportHtml: state.execReport, closeExec: () => setState({ execReport: null }),
+      reportModal: state.reportModal ? {
+        form: state.reportForm, cats: Object.keys(REPORT_CAT).map((k) => ({ id: k, label: REPORT_CAT[k].label, icon: REPORT_CAT[k].icon })),
+        setCat: (c) => setReportForm('cat', c), setSev: (s) => setReportForm('sev', s), setText: (e) => setReportForm('text', e.target.value),
+        canSend: !!(state.reportForm.text && state.reportForm.text.trim()), submit: submitReport, close: () => setState({ reportModal: null }), stop,
+      } : null,
+      timeOffModal: state.timeOffModal ? {
+        form: state.timeOffForm, types: ['Dovolená', 'Náhradní volno', 'Lékař', 'Neplacené volno'],
+        setType: (t) => setTimeOffForm('type', t), setFrom: (e) => setTimeOffForm('from', e.target.value), setTo: (e) => setTimeOffForm('to', e.target.value), setDays: (e) => setTimeOffForm('days', e.target.value),
+        canSend: !!(state.timeOffForm.from && String(state.timeOffForm.from).trim()), submit: submitTimeOff, close: () => setState({ timeOffModal: null }), stop,
+      } : null,
     }
   }
 
@@ -2468,8 +2561,53 @@ export default function FleetPortal() {
     // ---- Výkon a chování řidiče (modelováno pro ukázku, deterministicky dle id) ----
     const perf = buildDriverPerf(d)
     perf.goAnomalies = () => openAnomalies({ anoDriver: d.id })
+    const hr = buildHrVM(d)
 
-    return { dd: { ...d, statusLabel: sm.label, statusC: sm.c, statusBg: sm.bg, vehicles, claims, personal, employment, idDocs, files, perf, goDrivers: () => navigate('drivers') } }
+    return { dd: { ...d, statusLabel: sm.label, statusC: sm.c, statusBg: sm.bg, vehicles, claims, personal, employment, idDocs, files, perf, hr, goDrivers: () => navigate('drivers') } }
+  }
+
+  // Sdílené HR view-modelu (karta řidiče i pohled řidiče)
+  const buildHrVM = (d) => {
+    const czf = (n) => (n < 0 ? '−' : '') + Math.abs(Math.round(n)).toLocaleString('cs-CZ') + ' Kč'
+    const mode = hrModeOf(d)
+    const pr = buildPayroll(d, mode)
+    const to = state.timeOff.filter((t) => t.driverId === d.id)
+    const vacUsed = to.filter((t) => t.status === 'approved' && t.type === 'Dovolená').reduce((a, t) => a + t.days, 0)
+    const vacTotal = 25
+    const reps = state.driverReports.filter((r) => r.driverId === d.id)
+    return {
+      mode, modeLabel: pr.modeLabel, setMode: (m) => setHrMode(d.id, m),
+      grossF: czf(pr.gross), netF: czf(pr.net), netLabel: pr.netLabel, employerCostF: czf(pr.employerCost), employerLabel: pr.employerLabel,
+      payRows: pr.rows.map((r) => ({ label: r[0], value: czf(r[1]), kind: r[2] })),
+      employerRows: (pr.employer || []).map((r) => ({ label: r[0], value: czf(r[1]) })),
+      note: pr.note, genPayslip: () => genPayslip(d, mode),
+      timeOff: to.map((t) => ({ ...t, statusMeta: TIMEOFF_STATUS[t.status] })),
+      vacUsed, vacTotal, vacLeft: vacTotal - vacUsed, addTimeOff: () => openTimeOffModal(d.id),
+      reports: reps.map((r) => ({ ...r, catLabel: REPORT_CAT[r.cat].label, catIcon: REPORT_CAT[r.cat].icon, sevMeta: ANO_SEV[r.sev], statusMeta: ANO_STATUS[r.status], onClick: () => openDriver(d.id) })),
+      addReport: () => openReportModal(d.id),
+    }
+  }
+
+  // Pohled řidiče (role Řidič) — osobní portál
+  const driverSelfVM = () => {
+    if (state.route !== 'dashboard' || state.role !== 'ridic') return {}
+    const roleObj = ROLES.find((x) => x.id === 'ridic')
+    const d = driversData.find((x) => x.id === (roleObj && roleObj.driverId)) || driversData[0]
+    const hr = buildHrVM(d)
+    const perf = buildDriverPerf(d)
+    const line = linesData.find((l) => busDrivers.some((bd) => bd.id === l.driverId)) // demo linka
+    const myLine = linesData[_hash(d.id) % linesData.length]
+    const bus = vehiclesData.find((v) => v.id === myLine.busId)
+    const kpis = [
+      { value: String(perf.score), unit: '/ 100', label: 'Moje eco skóre', icon: 'gauge', note: perf.band.label },
+      { value: `${perf.onTime}`, unit: '%', label: 'Dodržení JŘ', icon: 'clock', note: `${perf.shifts30} směn / 30 dní` },
+      { value: String(hr.vacLeft), unit: 'dní', label: 'Zbývá dovolené', icon: 'calendar', note: `z ${hr.vacTotal} dní / rok` },
+      { value: hr.netF, label: hr.netLabel, icon: 'banknote', note: hr.modeLabel },
+    ]
+    const shift = { line: myLine.no, name: myLine.name, bus: bus ? `${bus.brand} ${bus.model}` : '', plate: bus ? bus.plate : '', first: myLine.firstDep, last: myLine.lastDep, trips: myLine.tripsDay, onClick: () => openLine(myLine.id) }
+    return { driverSelf: { d, name: d.name, initials: d.initials, position: d.position, kpis, hr, shift,
+      reportCats: [['vozidlo', 'Závada na vozidle', 'wrench'], ['trasa', 'Problém na trase', 'pin'], ['jine', 'Jiné hlášení', 'info']].map((c) => ({ cat: c[0], label: c[1], icon: c[2], onClick: () => openReportModal(d.id, c[0]) })),
+    } }
   }
 
   const financingVM = () => {
@@ -2977,7 +3115,7 @@ export default function FleetPortal() {
     tireModal: state.tireModal ? { ...state.tireModal, close: () => setState({ tireModal: null }), stop: (e) => e.stopPropagation(), actions: TIRE_ACTIONS, field: (k) => (e) => setTireField(k, e.target.value), onInvoice: (e) => { const f = e.target.files && e.target.files[0]; if (f) setTireField('invoice', f.name) }, save: saveTire } : null,
     fineModal: state.fineModal ? { ...state.fineModal, close: () => setState({ fineModal: null }), stop: (e) => e.stopPropagation(), types: FINE_TYPES, field: (k) => (e) => setFineField(k, e.target.value), togglePaid: () => setState((s) => ({ fineModal: { ...s.fineModal, paid: !s.fineModal.paid } })), save: saveFine } : null,
     ...shellVM(), ...dashboardVM(), ...fleetsVM(), ...fleetDetailVM(), ...vehiclesVM(), ...vehicleDetailVM(),
-    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...ownerDashVM(), ...dispatchDashVM(), ...attentionVM(), ...anomaliesVM(), ...anomalyDetailVM(), ...mapVM(), ...dispatchVM(), ...stazkaVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(), ...linkyVM(), ...linkyDetailVM(), ...ecoVM(),
+    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...ownerDashVM(), ...dispatchDashVM(), ...driverSelfVM(), ...attentionVM(), ...anomaliesVM(), ...anomalyDetailVM(), ...mapVM(), ...dispatchVM(), ...stazkaVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(), ...linkyVM(), ...linkyDetailVM(), ...ecoVM(),
   }
 
   return <Render vm={vm} />
