@@ -797,6 +797,9 @@ function computeTripPrice(c) {
   return { bt, drivers, lines, base, vat, total: base + vat, perPax: Math.round((base + vat) / pax), pax, km, hod, days, nights, wait, foreign: !!c.foreign, foreignKmCost }
 }
 const fmtIsoDate = (iso) => { if (!iso) return '—'; const [y, m, d] = iso.split('-').map(Number); return `${d}. ${m}. ${y}` }
+const isoKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const tripDayKeys = (t) => { if (!t.dateFrom) return []; const [y, m, d] = t.dateFrom.split('-').map(Number); return Array.from({ length: Math.max(1, Number(t.days) || 1) }).map((_, i) => isoKey(new Date(y, m - 1, d + i))) }
+const czToKey = (cz) => { const [d, m, y] = String(cz).split('.').map((x) => Number(x.trim())); return y ? isoKey(new Date(y, m - 1, d)) : '' }
 const tripStamp = () => { const n = new Date(); return `${n.getDate()}. ${n.getMonth() + 1}. ${n.getFullYear()} ${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}` }
 /** Odhad vlastních nákladů zájezdu (PHM, opotřebení, mzdy řidičů, diety, mýto) pro výpočet marže. */
 function tripCostEstimate(p) {
@@ -973,7 +976,7 @@ export default function FleetPortal() {
     drvMsgs: SEED_DRV_MSGS, drvMsgTo: 'dispecink', drvMsgText: '', drvIdeas: SEED_DRV_IDEAS, drvIdeaText: '', drvIdeaCat: 'Provoz', drvDocs: SEED_DRV_DOCS,
     navOpen: { provoz: true, flotila: true, lide: true, finance: true, firma: false },
     shifts: SEED_SHIFTS, shiftForm: { dayKey: SHIFT_DAYS[1].key, driverId: 'dr1', lineId: linesData[0].id, busId: linesData[0].busId, turnus: 'ranní' },
-    zajTrips: SEED_TRIPS, zajCalc: { ...DEFAULT_TRIP_CALC }, zajCalcOpen: false, zajDetailId: null, zajFilter: 'vse', zajPick: null,
+    zajTrips: SEED_TRIPS, zajCalc: { ...DEFAULT_TRIP_CALC }, zajCalcOpen: false, zajDetailId: null, zajFilter: 'vse', zajPick: null, zajPickEdit: false,
     claimWizard: false, claimStep: 1, claimData: {},
     rowMenu: null, toast: null,
     unsub: null, unsubDone: false, unsubReason: 'Prodej vozidla', unsubDate: '1. 7. 2026',
@@ -1038,7 +1041,12 @@ export default function FleetPortal() {
   const assignShift = () => { const f = state.shiftForm; const [start, end] = SHIFT_TURNUS[f.turnus] || SHIFT_TURNUS['ranní']; const entry = { id: 's' + Date.now(), dayKey: f.dayKey, driverId: f.driverId, lineId: f.lineId, busId: f.busId, turnus: f.turnus, start, end, depot: 'Vozovna České Budějovice, Žižkova tř.', status: 'planned' }; setState((s) => ({ shifts: [...s.shifts.filter((x) => !(x.dayKey === entry.dayKey && x.driverId === entry.driverId)), entry] })); const dn = (driversData.find((x) => x.id === f.driverId) || {}).name; const ln = (linesData.find((l) => l.id === f.lineId) || {}).no; showToast(`Směna přidělena: ${dn}, linka ${ln}, ${f.turnus}. Řidič ji uvidí v kalendáři a potvrdí převzetí.`) }
   const removeShift = (id) => setState((s) => ({ shifts: s.shifts.filter((x) => x.id !== id) }))
   const confirmShift = (id) => { setState((s) => ({ shifts: s.shifts.map((x) => x.id === id ? { ...x, status: 'confirmed' } : x) })); showToast('Jízdní řád převzat, dispečink dostal potvrzení.') }
-  const shiftRow = (s) => { const l = linesData.find((x) => x.id === s.lineId) || linesData[0]; const b = vehiclesData.find((v) => v.id === s.busId); const d = driversData.find((x) => x.id === s.driverId); const day = SHIFT_DAYS.find((x) => x.key === s.dayKey); return { ...s, lineNo: l.no, lineName: l.name, lineId: l.id, from: l.stops[0] ? l.stops[0].n : '', to: l.stops.length ? l.stops[l.stops.length - 1].n : '', departures: l.departures.slice(0, 8), tripsDay: l.tripsDay, bus: b ? `${b.brand} ${b.model}`.trim() : '—', plate: b ? b.plate : '—', driverName: d ? d.name : '—', driverInitials: d ? d.initials : '', dayLabel: day ? day.label : s.dayKey, dateStr: day ? day.dateStr : s.dayKey, meta: SHIFT_STATUS[s.status], openLine: () => openLine(l.id), remove: () => removeShift(s.id), confirm: () => confirmShift(s.id) } }
+  const shiftRow = (s) => {
+    if (s.kind === 'zajezd') {
+      const t = state.zajTrips.find((x) => x.id === s.tripId); const b = vehiclesData.find((v) => v.id === s.busId); const d = driversData.find((x) => x.id === s.driverId); const day = SHIFT_DAYS.find((x) => x.key === s.dayKey)
+      return { ...s, lineNo: 'Z', lineName: t ? `Zájezd: ${t.from} → ${t.to}` : 'Zájezd', lineId: null, from: t ? t.from : '', to: t ? t.to : '', departures: [], tripsDay: 'zájezd', bus: b ? `${b.brand} ${b.model}`.trim() : '—', plate: b ? b.plate : '—', driverName: d ? d.name : '—', driverInitials: d ? d.initials : '', dayLabel: day ? day.label : fmtIsoDate(s.dayKey), dateStr: day ? day.dateStr : fmtIsoDate(s.dayKey), meta: SHIFT_STATUS[s.status], openLine: () => openTrip(s.tripId), remove: () => removeShift(s.id), confirm: () => confirmShift(s.id), tripId: s.tripId, custName: t ? t.custName : '' }
+    }
+    const l = linesData.find((x) => x.id === s.lineId) || linesData[0]; const b = vehiclesData.find((v) => v.id === s.busId); const d = driversData.find((x) => x.id === s.driverId); const day = SHIFT_DAYS.find((x) => x.key === s.dayKey); return { ...s, lineNo: l.no, lineName: l.name, lineId: l.id, from: l.stops[0] ? l.stops[0].n : '', to: l.stops.length ? l.stops[l.stops.length - 1].n : '', departures: l.departures.slice(0, 8), tripsDay: l.tripsDay, bus: b ? `${b.brand} ${b.model}`.trim() : '—', plate: b ? b.plate : '—', driverName: d ? d.name : '—', driverInitials: d ? d.initials : '', dayLabel: day ? day.label : s.dayKey, dateStr: day ? day.dateStr : s.dayKey, meta: SHIFT_STATUS[s.status], openLine: () => openLine(l.id), remove: () => removeShift(s.id), confirm: () => confirmShift(s.id) } }
   const openClaim = (id) => navigate('claim-detail', { claimId: id })
   const openLine = (id) => navigate('linky-detail', { lineId: id })
   const openStazka = (lineId) => navigate('stazka', { stazkaLine: lineId })
@@ -2787,8 +2795,20 @@ export default function FleetPortal() {
     showToast(`${label} ${r.number} vystavena v Účetnictví (${czk(r.total)})`)
   }
   const calcToInvoicing = () => { const id = saveQuote({ silent: true, issue: true }); if (id) tripToInvoicing(id, 'proforma') }
-  const openTrip = (id) => { const t = state.zajTrips.find((x) => x.id === id); navigate('zajezd-detail', { zajDetailId: id, zajPick: t ? { busIdx: t.busIdx, driverIds: [...t.driverIds] } : null }) }
+  const openTrip = (id) => { const t = state.zajTrips.find((x) => x.id === id); navigate('zajezd-detail', { zajDetailId: id, zajPickEdit: false, zajPick: t ? { busIdx: t.busIdx, driverIds: [...t.driverIds] } : null }) }
   const editTripInCalc = (t) => { navigate('zajezdy'); openCalc(t) }
+  /** Potvrzení přiřazení: zablokuje vůz a řidiče na dny zájezdu (směny kind 'zajezd'), řidič to uvidí v kalendáři a profilu. */
+  const assignTrip = (id) => {
+    const t = state.zajTrips.find((x) => x.id === id); const pick = state.zajPick; if (!t || !pick || pick.busIdx == null || !pick.driverIds.length) return
+    const b = zajBuses[pick.busIdx]; const days = tripDayKeys(t); const names = pick.driverIds.map((d) => (driversData.find((x) => x.id === d) || {}).name).join(' + ')
+    const newShifts = pick.driverIds.flatMap((drv) => days.map((dayKey) => ({ id: `z-${id}-${drv}-${dayKey}`, kind: 'zajezd', tripId: id, dayKey, driverId: drv, busId: b.id, turnus: 'zájezd', start: '06:00', end: '22:00', depot: 'Vozovna České Budějovice, Žižkova tř.', status: 'planned' })))
+    setState((s) => ({ shifts: [...s.shifts.filter((x) => x.tripId !== id), ...newShifts], zajPickEdit: false }))
+    const confirmed = t.status === 'schvaleno'
+    const dayTxt = days.length === 1 ? fmtIsoDate(days[0]) : `${fmtIsoDate(days[0])} až ${fmtIsoDate(days[days.length - 1])}`
+    updTrip(id, (x) => tripLog({ ...x, status: confirmed ? 'potvrzeno' : x.status, busIdx: pick.busIdx, driverIds: [...pick.driverIds] }, confirmed ? `Potvrzeno: vůz ${b.plate} a řidič${pick.driverIds.length > 1 ? 'i' : ''} ${names}` : `Rezervován vůz ${b.plate} a řidič${pick.driverIds.length > 1 ? 'i' : ''} ${names}`, null, `${b.brand}${b.model ? ' ' + b.model : ''} ${b.plate} a ${names} zablokováni na ${dayTxt}; jízda zapsána do kalendáře řidiče${confirmed ? `, klientovi odeslána informace (${sentTo(t)})` : ' jako rezervace do potvrzení klientem'}`))
+    showToast(`${b.plate} a ${names}: zablokováno na ${dayTxt}, řidič má jízdu v kalendáři`)
+  }
+  const upcomingTripsFor = (driverId) => state.zajTrips.filter((t) => t.driverIds.includes(driverId) && !['realizovano', 'vyuctovano'].includes(t.status)).map((t) => { const b = t.busIdx != null ? zajBuses[t.busIdx] : null; const p = computeTripPrice(t); return { id: t.id, route: `${t.from} → ${t.to}`, custName: t.custName, dateF: fmtIsoDate(t.dateFrom), days: t.days, km: t.km, status: TRIP_STATUS[t.status], bus: b ? `${b.brand}${b.model ? ' ' + b.model : ''} · ${b.plate}` : 'vůz se upřesní', coDrivers: t.driverIds.filter((d) => d !== driverId).map((d) => (driversData.find((x) => x.id === d) || {}).name).filter(Boolean), pax: p.pax, onClick: () => openTrip(t.id) } }).sort((a, b) => a.dateF.localeCompare(b.dateF))
   const tripRow = (t) => {
     const p = computeTripPrice(t); const st = TRIP_STATUS[t.status]; const bus = t.busIdx != null ? zajBuses[t.busIdx] : null
     const drv = t.driverIds.map((d) => (driversData.find((x) => x.id === d) || {}).name).filter(Boolean)
@@ -2835,7 +2855,15 @@ export default function FleetPortal() {
     const stepIdx = st.step
     const needDrv = p.drivers
     const busOk = pick.busIdx != null, drvOk = pick.driverIds.length >= needDrv
-    const drvOptions = zajDrivers.map((d) => ({ id: d.id, label: `${d.name} (${d.kind === 'dalkova' ? 'dálková a zájezdová' : 'linková'})`, on: pick.driverIds.includes(d.id) }))
+    const days = tripDayKeys(t)
+    const otherTrips = state.zajTrips.filter((x) => x.id !== t.id && !['vyuctovano', 'realizovano'].includes(x.status) && tripDayKeys(x).some((k) => days.includes(k)))
+    const busBusy = (b) => { const o = otherTrips.find((x) => x.busIdx != null && zajBuses[x.busIdx] && zajBuses[x.busIdx].id === b.id); if (o) return `zájezd ${o.id} (${o.from} → ${o.to})`; const sh = state.shifts.find((x) => x.busId === b.id && x.tripId !== t.id && days.includes(x.dayKey)); return sh ? `směna ${shiftRow(sh).lineName}` : null }
+    const drvBusy = (d) => { const o = otherTrips.find((x) => x.driverIds.includes(d.id)); if (o) return `zájezd ${o.id} (${o.from} → ${o.to})`; const sh = state.shifts.find((x) => x.driverId === d.id && x.tripId !== t.id && days.includes(x.dayKey)); if (sh) { const r = shiftRow(sh); return r.kind === 'zajezd' ? r.lineName : `linka ${r.lineNo}, ${sh.turnus} směna` } const to = state.timeOff.find((x) => x.driverId === d.id && x.status === 'approved' && days.some((k) => k >= czToKey(x.from) && k <= czToKey(x.to))); return to ? `${to.type.toLowerCase()} ${to.from} až ${to.to}` : null }
+    const drvOptions = zajDrivers.map((d) => { const busy = drvBusy(d); return { id: d.id, label: `${d.name} (${d.kind === 'dalkova' ? 'dálková a zájezdová' : 'linková'})`, on: pick.driverIds.includes(d.id), busy } })
+    const assigned = t.busIdx != null && t.driverIds.length > 0
+    const editing = !assigned || state.zajPickEdit
+    const changed = pick.busIdx !== t.busIdx || pick.driverIds.length !== t.driverIds.length || pick.driverIds.some((d) => !t.driverIds.includes(d))
+    const canAssign = busOk && drvOk && !['realizovano', 'vyuctovano'].includes(t.status) && (changed || t.status === 'schvaleno')
     const whenBy = (match) => { const e = [...t.timeline].reverse().find((x) => match(x.what)); return e ? `${e.at} · ${e.who}` : null }
     const facts = [
       ['Poptávka přijata', whenBy((w) => /Poptávka/.test(w))], ['Nabídka vystavena', whenBy((w) => /Nabídka vystavena|Kalkulace upravena/.test(w))], ['Schváleno klientem', whenBy((w) => /schválen|Schváleno/i.test(w))],
@@ -2845,19 +2873,22 @@ export default function FleetPortal() {
     if (t.status === 'koncept') actions.push({ label: 'Dokončit kalkulaci', primary: true, icon: 'edit', onClick: () => editTripInCalc(t) })
     if (t.status === 'poptavka') actions.push({ label: 'Vystavit a odeslat nabídku', primary: true, icon: 'file', onClick: () => { updTrip(t.id, (x) => tripLog({ ...x, status: 'nabidka', offerAt: tripStamp().slice(0, -6), offerBy: zajUser() }, 'Nabídka vystavena a odeslána', null, offerDetail(x, p))); showToast(`Nabídka odeslána: ${sentTo(t)}`) } })
     if (t.status === 'nabidka') actions.push({ label: 'Zaznamenat schválení klientem', primary: true, icon: 'check', onClick: () => { updTrip(t.id, (x) => tripLog({ ...x, status: 'schvaleno' }, 'Nabídka schválena klientem', `${t.contact || t.custName} (klient)`, `Souhlas přijat ${t.email ? 'e-mailem z ' + t.email : 'e-mailem'}, zaznamenal(a) ${zajUser()}, cena ${czk(p.base)} bez DPH potvrzena`)); showToast('Schválení klientem zaznamenáno') } })
-    if (t.status === 'schvaleno') actions.push({ label: busOk && drvOk ? 'Potvrdit vůz a řidiče' : `Vyberte vůz a ${needDrv === 2 ? 'dva řidiče' : 'řidiče'}`, primary: true, icon: 'bus', disabled: !(busOk && drvOk), onClick: () => { const names = pick.driverIds.map((d) => (driversData.find((x) => x.id === d) || {}).name).join(' + '); const b = zajBuses[pick.busIdx]; updTrip(t.id, (x) => tripLog({ ...x, status: 'potvrzeno', busIdx: pick.busIdx, driverIds: [...pick.driverIds] }, `Potvrzeno: vůz ${b.plate} a řidič${pick.driverIds.length > 1 ? 'i' : ''} ${names}`, null, `${b.brand}${b.model ? ' ' + b.model : ''} ${b.plate}, termín ${fmtIsoDate(t.dateFrom)}; směna zapsána do kalendáře řidiče, klientovi odeslána informace (${sentTo(t)})`)); showToast('Vůz a řidiči potvrzeni, zájezd je v plánu') } })
+    if (t.status === 'schvaleno') actions.push({ label: busOk && drvOk ? 'Potvrdit vůz a řidiče' : `Vyberte vůz a ${needDrv === 2 ? 'dva řidiče' : 'řidiče'} (karta Vůz a řidiči)`, primary: true, icon: 'bus', disabled: !(busOk && drvOk), onClick: () => assignTrip(t.id) })
     if (t.status === 'potvrzeno') actions.push({ label: 'Označit jako realizováno', primary: true, icon: 'check', onClick: () => { updTrip(t.id, (x) => tripLog({ ...x, status: 'realizovano' }, 'Realizováno', row.drvLabel.split(' + ')[0], `${p.km + (_hash(t.id) % 15)} km dle tachografu, bez závad, stazka uzavřena; připraveno k vyúčtování`)); showToast('Zájezd označen jako realizovaný') } })
     const invoiceActions = [
-      { kind: 'proforma', label: 'Proforma (celá cena)', enabled: stepIdx >= 1 && !hasDoc('proforma') },
-      { kind: 'zalohova', label: 'Zálohová faktura 50 %', enabled: stepIdx >= 2 && !hasDoc('zalohova') },
-      { kind: 'faktura', label: t.status === 'vyuctovano' ? 'Faktura vystavena' : 'Vystavit fakturu (vyúčtovat)', enabled: stepIdx >= 4 && !hasDoc('faktura'), primary: true },
-    ].map((a) => ({ ...a, onClick: () => tripToInvoicing(t.id, a.kind) }))
+      { kind: 'proforma', label: 'Proforma faktura', desc: 'Celá cena předem, není daňový doklad', amount: p.total, minStep: 1, gate: 'po odeslání nabídky' },
+      { kind: 'zalohova', label: 'Zálohová faktura 50 %', desc: 'Záloha po schválení, daňový doklad vznikne po úhradě', amount: Math.round(p.base / 2) + Math.round(Math.round(p.base / 2) * 12 / 100), minStep: 2, gate: 'po schválení klientem' },
+      { kind: 'faktura', label: 'Konečná faktura', desc: 'Daňový doklad s DPH 12 %, uzavře vyúčtování zájezdu', amount: p.total, minStep: 4, gate: 'po realizaci zájezdu' },
+    ].map((a) => { const doc = docs.find((d) => d.kind === a.kind); return { ...a, doc, amountF: czk(a.amount), enabled: !doc && stepIdx >= a.minStep, locked: !doc && stepIdx < a.minStep, onClick: () => tripToInvoicing(t.id, a.kind) } })
     const lastEvent = t.timeline[t.timeline.length - 1]
     return { zajezd: {
       ...row, chip: st, lastEvent, steps: TRIP_STEPS.map((s, i) => ({ label: s, done: i <= stepIdx, current: i === stepIdx, when: facts[i] && facts[i].done ? facts[i].val.split(' · ')[0].split(' ').slice(0, 3).join(' ') : null })), cost: czk(cost), margin: Math.round((p.base - cost) / p.base * 100), baseF: czk(p.base), vatF: czk(p.vat), totalF: czk(p.total), perPaxF: czk(p.perPax),
       bus: t.busIdx != null ? zajBuses[t.busIdx] : null, drivers: t.driverIds.map((d) => driversData.find((x) => x.id === d)).filter(Boolean), needDrv,
-      canPick: t.status === 'schvaleno', pick, busOptions: zajBuses.map((b, i) => ({ idx: i, label: `${b.brand}${b.model ? ' ' + b.model : ''} · ${b.plate} · r. v. ${b.year}` })), drvOptions,
-      setBus: (e) => setPick({ busIdx: e.target.value === '' ? null : Number(e.target.value) }), toggleDrv: (id) => setPick({ driverIds: pick.driverIds.includes(id) ? pick.driverIds.filter((x) => x !== id) : [...pick.driverIds, id] }),
+      pick, editing, assigned, canAssign, changed, closed: ['realizovano', 'vyuctovano'].includes(t.status), daysLabel: days.length === 1 ? fmtIsoDate(days[0]) : `${fmtIsoDate(days[0])} až ${fmtIsoDate(days[days.length - 1])}`,
+      busOptions: zajBuses.map((b, i) => ({ idx: i, label: `${b.brand}${b.model ? ' ' + b.model : ''} · ${b.plate} · r. v. ${b.year}`, busy: busBusy(b) })), drvOptions,
+      setBus: (e) => setPick({ busIdx: e.target.value === '' || e.target.value == null ? null : Number(e.target.value) }), toggleDrv: (id) => setPick({ driverIds: pick.driverIds.includes(id) ? pick.driverIds.filter((x) => x !== id) : [...pick.driverIds, id] }),
+      startEdit: () => setState({ zajPickEdit: true, zajPick: { busIdx: t.busIdx, driverIds: [...t.driverIds] } }), cancelEdit: () => setState({ zajPickEdit: false, zajPick: { busIdx: t.busIdx, driverIds: [...t.driverIds] } }), assign: () => assignTrip(t.id),
+      assignLabel: t.status === 'schvaleno' ? 'Potvrdit přiřazení a zablokovat termín' : assigned ? 'Potvrdit změnu přiřazení' : 'Potvrdit přiřazení (rezervace termínu)',
       docs, invoiceActions, actions, timeline: [...t.timeline].reverse(),
       print: () => setState({ execReport: buildTripQuoteHtml(t, p, ACC.COMPANY) }), edit: () => editTripInCalc(t), back: () => navigate('zajezdy'),
       openDriver: (id) => navigate('driver-detail', { driverId: id }),
@@ -3091,7 +3122,7 @@ export default function FleetPortal() {
       podnety: { items: state.drvIdeas.map((i) => ({ ...i, mine: i.driverId === d.id, who: (driversData.find((x) => x.id === i.driverId) || {}).name || '—', meta: ideaMeta(i.status), vote: () => voteIdea(i.id) })), cats: ['Provoz', 'Vozidla', 'Zázemí', 'Jízdní řády', 'Jiné'], cat: state.drvIdeaCat, setCat: (c) => setState({ drvIdeaCat: c }), text: state.drvIdeaText, setText: (e) => setState({ drvIdeaText: e.target.value }), submit: addIdea, canSend: !!(state.drvIdeaText && state.drvIdeaText.trim()) },
       doklady: { items: docs, missing: docs.filter((x) => x.status === 'missing' || x.status === 'expiring').length },
       report: (cat) => openReportModal(d.id, cat),
-      smeny: { days: SHIFT_DAYS.map((day) => ({ ...day, shift: state.shifts.filter((s) => s.driverId === d.id && s.dayKey === day.key).map(shiftRow)[0] || null })), planned: state.shifts.filter((s) => s.driverId === d.id && s.status === 'planned').length, total: state.shifts.filter((s) => s.driverId === d.id).length },
+      smeny: { days: SHIFT_DAYS.map((day) => ({ ...day, shift: state.shifts.filter((s) => s.driverId === d.id && s.dayKey === day.key).map(shiftRow)[0] || null })), planned: state.shifts.filter((s) => s.driverId === d.id && s.status === 'planned').length, total: state.shifts.filter((s) => s.driverId === d.id && SHIFT_DAYS.some((x) => x.key === s.dayKey)).length, trips: upcomingTripsFor(d.id) },
     } }
   }
 
@@ -3262,7 +3293,7 @@ export default function FleetPortal() {
     perf.goAnomalies = () => openAnomalies({ anoDriver: d.id })
     const hr = buildHrVM(d)
 
-    return { dd: { ...d, statusLabel: sm.label, statusC: sm.c, statusBg: sm.bg, vehicles, claims, personal, employment, idDocs, files, perf, hr, goDrivers: () => navigate('drivers') } }
+    return { dd: { ...d, statusLabel: sm.label, statusC: sm.c, statusBg: sm.bg, vehicles, claims, personal, employment, idDocs, files, perf, hr, trips: upcomingTripsFor(d.id), goDrivers: () => navigate('drivers') } }
   }
 
   // Sdílené HR view-modelu (karta řidiče i pohled řidiče)
@@ -3312,7 +3343,7 @@ export default function FleetPortal() {
     const shift = todayShift
       ? { line: todayShift.lineNo, name: todayShift.lineName, bus: todayShift.bus, plate: todayShift.plate, first: todayShift.start, last: todayShift.end, trips: todayShift.tripsDay, onClick: todayShift.openLine, assigned: true, status: todayShift.meta, depot: todayShift.depot, confirm: todayShift.status === 'planned' ? todayShift.confirm : null }
       : { line: myLine.no, name: myLine.name, bus: bus ? `${bus.brand} ${bus.model}` : '', plate: bus ? bus.plate : '', first: myLine.firstDep, last: myLine.lastDep, trips: myLine.tripsDay, onClick: () => openLine(myLine.id) }
-    return { driverSelf: { d, name: d.name, initials: d.initials, position: d.position, kpis, hr, shift,
+    return { driverSelf: { d, name: d.name, initials: d.initials, position: d.position, kpis, hr, shift, trips: upcomingTripsFor(d.id),
       links: DRIVER_NAV.slice(1).map(([id, label, icon]) => ({ id, label, icon, onClick: () => navigate(id) })),
       reportCats: [['vozidlo', 'Závada na vozidle', 'wrench'], ['trasa', 'Problém na trase', 'pin'], ['jine', 'Jiné hlášení', 'info']].map((c) => ({ cat: c[0], label: c[1], icon: c[2], onClick: () => openReportModal(d.id, c[0]) })),
     } }
