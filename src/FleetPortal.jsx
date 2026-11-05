@@ -780,6 +780,52 @@ function buildPayroll(d, mode) {
     note: 'Orientační výpočet dle sazeb 2026, sleva na poplatníka 2 570 Kč/měs. Bez dalších slev a srážek.',
   }
 }
+// Personalistika: školení a kvalifikace řidičů (platnosti), docházka, režijní zaměstnanci
+const HR_BASE = new Date(2026, 10, 5)
+const _hrDate = (offsetDays) => { const dt = new Date(HR_BASE); dt.setDate(dt.getDate() + offsetDays); return `${dt.getDate()}. ${dt.getMonth() + 1}. ${dt.getFullYear()}` }
+const TRAINING_TYPES = [
+  { key: 'profesni', label: 'Pravidelné školení řidičů (7 h)', law: 'z. 247/2000 Sb.', every: 12, drv: true },
+  { key: 'bozp', label: 'Školení BOZP a PO', law: 'zák. práce § 103', every: 24 },
+  { key: 'prvni', label: 'První pomoc', law: 'interní směrnice', every: 24 },
+  { key: 'tacho', label: 'Digitální tachograf a sociální předpisy', law: 'nař. EU 561/2006', every: 36, drv: true },
+  { key: 'referent', label: 'Školení řidičů referentů', law: 'zák. práce § 103', every: 24, ref: true },
+]
+function buildTraining(d) {
+  const isDrv = ['linka', 'mhd', 'dalkova'].includes(d.kind)
+  return TRAINING_TYPES.filter((t) => (t.drv ? isDrv : t.ref ? !isDrv : true)).map((t, i) => {
+    const off = (_hash(d.id + t.key) % 420) - 25 // −25 až +395 dní
+    return { ...t, validTo: _hrDate(off), done: _hrDate(off - t.every * 30), offDays: off }
+  })
+}
+function buildAttendance(d) {
+  const R = _rng(_hash('att-' + d.id))
+  const vac = new Set(), sick = new Set()
+  const vacStart = 1 + Math.floor(R() * 20); if (R() < 0.45) for (let k = 0; k < 1 + Math.floor(R() * 4); k++) vac.add(vacStart + k)
+  if (R() < 0.3) { const s = 1 + Math.floor(R() * 26); sick.add(s); sick.add(s + 1) }
+  const days = []
+  let worked = 0, hours = 0, overtime = 0, night = 0, weekend = 0
+  for (let day = 1; day <= 31; day++) {
+    const dow = new Date(2026, 9, day).getDay() // říjen 2026
+    const isWe = dow === 0 || dow === 6
+    let code = 'V'
+    if (vac.has(day)) code = 'D'
+    else if (sick.has(day)) code = 'N'
+    else if (!isWe || R() < 0.3) { code = 'S'; worked++; const h = 7.5 + R() * 3; hours += h; if (h > 9) overtime += h - 9; if (R() < 0.25) night += 2 + R() * 3; if (isWe) weekend++ }
+    days.push({ day, code, we: isWe })
+  }
+  return { month: 'říjen 2026', days, worked, hours: Math.round(hours), overtime: Math.round(overtime), night: Math.round(night), weekend, vacation: vac.size, sick: sick.size }
+}
+const SEED_STAFF = [
+  { id: 'st1', name: 'Marie Dvořáková', initials: 'MD', position: 'Vedoucí dopravního dispečinku', dept: 'Dispečink', employment: 'Hlavní pracovní poměr', since: '1. 3. 2012', phone: '+420 602 331 118', email: 'm.dvorakova@csadbus.cz' },
+  { id: 'st2', name: 'Josef Moučka', initials: 'JM', position: 'Vedoucí správy vozového parku', dept: 'Správa parku', employment: 'Hlavní pracovní poměr', since: '15. 6. 2009', phone: '+420 603 445 220', email: 'j.moucka@csadbus.cz' },
+  { id: 'st3', name: 'Karel Dvořák', initials: 'KD', position: 'Vedoucí dopravy', dept: 'Provoz', employment: 'Hlavní pracovní poměr', since: '2. 1. 2015', phone: '+420 604 118 905', email: 'k.dvorak@csadbus.cz' },
+  { id: 'st4', name: 'Jan Vávra', initials: 'JV', position: 'Automechanik', dept: 'Autoopravna', employment: 'Hlavní pracovní poměr', since: '4. 9. 2017', phone: '+420 605 221 740', email: 'j.vavra@csadbus.cz' },
+  { id: 'st5', name: 'Petr Holub', initials: 'PH', position: 'Automechanik', dept: 'Autoopravna', employment: 'Hlavní pracovní poměr', since: '11. 4. 2019', phone: '+420 606 909 332', email: 'p.holub@csadbus.cz' },
+  { id: 'st6', name: 'Tomáš Říha', initials: 'TŘ', position: 'Autoelektrikář', dept: 'Autoopravna', employment: 'Dohoda o pracovní činnosti', since: '1. 10. 2022', phone: '+420 607 660 214', email: 't.riha@csadbus.cz' },
+  { id: 'st7', name: 'Lenka Nováková', initials: 'LN', position: 'Mzdová účetní', dept: 'Ekonomika', employment: 'Hlavní pracovní poměr', since: '1. 2. 2016', phone: '+420 608 332 551', email: 'l.novakova@csadbus.cz' },
+  { id: 'st8', name: 'Ivana Horká', initials: 'IH', position: 'Personalistka', dept: 'Personalistika', employment: 'Zkrácený úvazek (0,6)', since: '1. 9. 2020', phone: '+420 609 118 902', email: 'i.horka@csadbus.cz' },
+  { id: 'st9', name: 'Radek Zeman', initials: 'RZ', position: 'Skladník náhradních dílů', dept: 'Sklad', employment: 'Hlavní pracovní poměr', since: '3. 5. 2021', phone: '+420 610 445 118', email: 'r.zeman@csadbus.cz' },
+]
 
 export default function FleetPortal() {
   const [state, setStateRaw] = useState(() => ({
@@ -2296,9 +2342,14 @@ export default function FleetPortal() {
     // financování
     const fin = financingEnding(90).map(({ v, daysToEnd }) => vehRow(v, { days: daysToEnd, expired: false }, 'Poptat obměnu', 'Poptávka obměny připravena'))
 
+    // školení a kvalifikace
+    const skol = driversData.flatMap((d) => buildTraining(d).map((t) => ({ d, t, due: dueInfo(t.validTo, 60) }))).filter((x) => x.due && x.due.days <= 60).sort((a, b) => a.due.days - b.due.days)
+      .map(({ d, t, due }) => ({ title: d.name, sub: `${t.label} · ${t.law}`, icon: ic('doc2', 17), badge: badge(due), onClick: () => openDriver(d.id), actionLabel: 'Naplánovat školení', action: () => showToast(`Školení naplánováno · ${d.name} (${t.label})`) }))
+
     const defs = [
       { id: 'stk', label: 'Končící STK a emise', icon: 'check2', color: 'var(--amber)', hint: 'Technická prohlídka do 60 dnů nebo po platnosti', items: stk },
       { id: 'lekarska', label: 'Končící lékařské prohlídky', icon: 'shield', color: 'var(--green)', hint: 'Pravidelná prohlídka řidiče (§ 87 z. 361/2000)', items: lek },
+      { id: 'skoleni', label: 'Končící školení řidičů', icon: 'doc2', color: '#6D5EF6', hint: 'Pravidelné školení, BOZP, první pomoc, tachograf', items: skol },
       { id: 'rp', label: 'Končící řidičské průkazy a profesní způsobilost', icon: 'user1', color: 'var(--blue)', hint: 'ŘP nebo profesní způsobilost do 60 dnů', items: rp },
       { id: 'vignette', label: 'Končící dálniční známky', icon: 'doc2', color: '#6D8BFF', hint: 'Roční kupon do 60 dnů nebo po platnosti', items: vig },
       { id: 'claims', label: 'Otevřené škody', icon: 'alert', color: 'var(--star)', hint: 'Pojistné události v likvidaci', items: claims },
@@ -2688,8 +2739,10 @@ export default function FleetPortal() {
       { value: String(driversData.filter((d) => d.status === 'active').length), label: 'Aktivních' },
       { value: String(driversData.filter((d) => d.kind === 'linka' || d.kind === 'mhd' || d.kind === 'dalkova').length), label: 'Řidičů autobusů' },
       { value: String(driversData.filter((d) => d.rp && d.rp.profValidTo).length), label: 'S profesní způsobilostí' },
+      { value: String(SEED_STAFF.length), label: 'Režijních zaměstnanců' },
     ]
-    return { driverRows: rows, drStats }
+    const staffRows = SEED_STAFF.map((s, i) => ({ ...s, grossF: czk(buildPayroll(s, 'zamestnanec').gross), color: DRV_PAL[(i + 3) % DRV_PAL.length] }))
+    return { driverRows: rows, drStats, staffRows }
   }
 
   const driverDetailVM = () => {
@@ -2745,6 +2798,8 @@ export default function FleetPortal() {
       vacUsed, vacTotal, vacLeft: vacTotal - vacUsed, addTimeOff: () => openTimeOffModal(d.id),
       reports: reps.map((r) => ({ ...r, catLabel: REPORT_CAT[r.cat].label, catIcon: REPORT_CAT[r.cat].icon, sevMeta: ANO_SEV[r.sev], statusMeta: ANO_STATUS[r.status], onClick: () => openDriver(d.id) })),
       addReport: () => openReportModal(d.id),
+      training: buildTraining(d).map((t) => { const due = dueInfo(t.validTo, 60); const badge = !due ? null : due.expired ? { label: `propadlé · ${-due.days} dní`, color: 'var(--star)', bg: 'var(--star-soft)', sev: 2 } : due.days <= 60 ? { label: `končí za ${due.days} dní`, color: '#B45309', bg: 'var(--amber-soft)', sev: 1 } : { label: 'platné', color: 'var(--green)', bg: 'var(--green-soft)', sev: 0 }; return { ...t, badge } }),
+      attendance: buildAttendance(d),
     }
   }
 

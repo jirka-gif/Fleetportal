@@ -4573,6 +4573,21 @@ function Drivers({ vm }) {
           ))}
         </HScroll>
       </div>
+
+      {vm.staffRows && (
+        <>
+          <div style={S('display:flex;align-items:center;gap:9px;margin:24px 0 12px')}><span style={S('font-size:15px;font-weight:700')}>Režijní zaměstnanci</span><span style={S('font-size:11.5px;font-weight:700;color:var(--ink2);background:#EEF2F9;padding:2px 8px;border-radius:20px')}>{vm.staffRows.length}</span><span style={S('font-size:12px;color:var(--ink3)')}>· dispečink, autoopravna, sklad, ekonomika</span></div>
+          <div style={S('display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px')}>
+            {vm.staffRows.map((s) => (
+              <div key={s.id} style={S(`${CARD};padding:15px 16px;display:flex;align-items:center;gap:12px`)}>
+                <div style={S(`width:40px;height:40px;border-radius:50%;background:${s.color};color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0`)}>{s.initials}</div>
+                <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:650')}>{s.name}</div><div style={S('font-size:11.5px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{s.position}</div><div style={S('font-size:11px;color:var(--ink3)')}>{s.dept} · {s.employment} · od {s.since}</div></div>
+                <div style={S('text-align:right;flex-shrink:0')}><div style={S('font-size:13px;font-weight:700;font-variant-numeric:tabular-nums')}>{s.grossF}</div><div style={S('font-size:10.5px;color:var(--ink3)')}>hrubá mzda</div></div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -4874,7 +4889,10 @@ function HrBlock({ hr, mob, compact }) {
     const on = hr.mode === id
     return <Hov key={id} onClick={() => hr.setMode(id)} base={`flex:1;text-align:center;height:34px;line-height:34px;border-radius:9px;cursor:pointer;font-size:12.5px;font-weight:650;color:${on ? '#fff' : 'var(--ink2)'};background:${on ? 'var(--blue)' : 'transparent'}`} hover={on ? '' : 'background:#fff'}>{label}</Hov>
   }
+  const att = hr.attendance
+  const codeColor = { S: '#6D5EF6', V: '#ECE9F6', D: '#F59E0B', N: '#EF4444' }
   return (
+    <>
     <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:16px;align-items:start`)}>
       {/* MZDA */}
       <div style={S(`${CARD};padding:20px`)}>
@@ -4940,6 +4958,41 @@ function HrBlock({ hr, mob, compact }) {
         </div>
       </div>
     </div>
+
+    {/* ŠKOLENÍ + DOCHÁZKA */}
+    {hr.training && (
+      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:16px;align-items:start;margin-top:16px`)}>
+        <div style={S(`${CARD};padding:20px`)}>
+          <CardHead icon="doc2" color="var(--blue)" title="Školení a kvalifikace" sub="Platnost povinných školení" />
+          <div style={S('margin-top:4px')}>
+            {hr.training.map((t, i) => (
+              <div key={t.key} style={S(`display:flex;align-items:center;gap:12px;padding:10px 2px${i ? ';border-top:1px solid var(--border)' : ''}`)}>
+                <span style={S(`width:32px;height:32px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${t.badge ? t.badge.bg : '#EEF2F9'};color:${t.badge ? t.badge.color : 'var(--ink3)'}`)}>{ic('doc2', 15)}</span>
+                <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:650')}>{t.label}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{t.law} · absolvováno {t.done} · platí do {t.validTo}</div></div>
+                {t.badge && <span style={S(`font-size:10.5px;font-weight:700;color:${t.badge.color};background:${t.badge.bg};padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0`)}>{t.badge.label}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+        {att && (
+          <div style={S(`${CARD};padding:20px`)}>
+            <CardHead icon="clock" color="#6D5EF6" title="Docházka" sub={`${att.month} · podklad pro mzdu`} />
+            <div style={S('display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:6px 0 14px')}>
+              {[['Odpracováno', `${att.worked} dní · ${att.hours} h`], ['Přesčasy', `${att.overtime} h`], ['Noční', `${att.night} h`], ['Víkendové směny', `${att.weekend}`], ['Dovolená', `${att.vacation} d`], ['Nemoc', `${att.sick} d`]].map((s, i) => (
+                <div key={i} style={S('background:var(--canvas);border-radius:10px;padding:9px 11px')}><div style={S('font-size:10.5px;color:var(--ink3)')}>{s[0]}</div><div style={S('font-size:13px;font-weight:750;margin-top:1px')}>{s[1]}</div></div>
+              ))}
+            </div>
+            <div style={S('display:grid;grid-template-columns:repeat(31,1fr);gap:3px')}>
+              {att.days.map((d) => <div key={d.day} title={`${d.day}. 10. · ${d.code === 'S' ? 'směna' : d.code === 'D' ? 'dovolená' : d.code === 'N' ? 'nemoc' : 'volno'}`} style={S(`height:22px;border-radius:4px;background:${codeColor[d.code]};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:${d.code === 'V' ? 'var(--ink3)' : '#fff'}`)}>{d.day}</div>)}
+            </div>
+            <div style={S('display:flex;gap:12px;flex-wrap:wrap;margin-top:10px')}>
+              {[['S', 'Směna'], ['V', 'Volno'], ['D', 'Dovolená'], ['N', 'Nemoc']].map((l) => <span key={l[0]} style={S('display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--ink3)')}><span style={S(`width:9px;height:9px;border-radius:3px;background:${codeColor[l[0]]}`)}></span>{l[1]}</span>)}
+            </div>
+          </div>
+        )}
+      </div>
+    )}
+    </>
   )
 }
 
