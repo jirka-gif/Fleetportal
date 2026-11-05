@@ -365,6 +365,11 @@ export default function Render({ vm }) {
             {vm.isAnomalies && <Anomalies vm={vm} />}
             {vm.isAnomalyDetail && <AnomalyDetail vm={vm} />}
             {vm.isMap && <FleetMap vm={vm} />}
+            {vm.isVykony && <Vykony vm={vm} />}
+            {vm.isOptimalizace && <Optimalizace vm={vm} />}
+            {vm.isServis && <ServisSklady vm={vm} />}
+            {vm.isZajezdy && <Zajezdy vm={vm} />}
+            {vm.isElektrobusy && <Elektrobusy vm={vm} />}
             {vm.isDispatch && <Dispatch vm={vm} />}
             {vm.isStazka && <Stazka vm={vm} />}
             {vm.isContacts && <Contacts vm={vm} />}
@@ -2185,6 +2190,253 @@ function FleetMap({ vm }) {
         <span style={S('display:flex;flex-shrink:0;margin-top:1px')}>{ic('info', 13)}</span>
         <span>Linky i zastávky jsou reálná veřejná data (CIS JŘ) přes skutečné GPS zastávek. Klikněte na autobus pro detail stroje (vůz, SPZ, řidič, stav jednotky, jízda dne), na červené body pro detail anomálie. Poloha vozidel je pro ukázku modelovaná — po nasazení telematiky ji nahradí skutečná GPS v reálném čase (<span onClick={m.goAnomalies} style={S('color:var(--blue-ink);font-weight:600;cursor:pointer')}>přehled anomálií</span>).</span>
       </div>
+    </div>
+  )
+}
+
+/* ============================ VYÚČTOVÁNÍ VÝKONŮ ============================ */
+function Vykony({ vm }) {
+  const mob = vm.vp.isMobile
+  const d = vm.vykony
+  if (!d) return null
+  return (
+    <div>
+      <div style={S('display:flex;justify-content:flex-end;margin-bottom:14px')}>
+        <Hov onClick={d.genBilling} base="display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;background:linear-gradient(135deg,#5B6BF5,#7A5CF8);color:#fff;border-radius:11px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 8px 18px -8px rgba(108,94,246,.7)" hover="transform:translateY(-1px)">{ic('doc2', 16)} Podklad pro fakturaci (PDF)</Hov>
+      </div>
+      <KpiRow items={d.kpis} mb="18px" featuredFirst />
+      <div style={S(`${CARD};overflow:hidden;margin-bottom:18px`)}>
+        <HScroll minW={880}>
+          <div style={S('display:grid;grid-template-columns:1fr 150px 110px 110px 80px 130px 130px;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--border);background:#F7FAFE;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px')}>
+            <div>Linka / objednatel</div><div>Km plán</div><div style={S('text-align:right')}>Km skut.</div><div style={S('text-align:center')}>Plnění</div><div style={S('text-align:right')}>Sazba</div><div style={S('text-align:right')}>Výkon</div><div style={S('text-align:right')}>Kompenzace</div>
+          </div>
+          {d.rows.map((r) => (
+            <Hov key={r.id} onClick={r.onClick} base="display:grid;grid-template-columns:1fr 150px 110px 110px 80px 130px 130px;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--border);cursor:pointer" hover="background:#F2F6FC">
+              <div style={S('min-width:0')}><div style={S('display:flex;align-items:center;gap:9px')}><span style={S('min-width:34px;height:26px;padding:0 7px;border-radius:7px;background:#18181B;color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center')}>{r.no}</span><span style={S('font-size:11.5px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.objednatel.split(' – ')[0].split(' (')[0]}</span></div></div>
+              <div style={S('font-size:13px;color:var(--ink2);font-variant-numeric:tabular-nums')}>{r.kmPlan.toLocaleString('cs-CZ')}</div>
+              <div style={S('text-align:right;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums')}>{r.kmReal.toLocaleString('cs-CZ')}</div>
+              <div style={S(`text-align:center;font-size:13px;font-weight:700;color:${r.plneni >= 99 ? 'var(--green)' : r.plneni >= 97 ? '#B45309' : 'var(--star)'}`)}>{r.plneni} %</div>
+              <div style={S('text-align:right;font-size:13px;color:var(--ink2);font-variant-numeric:tabular-nums')}>{r.sazba} Kč</div>
+              <div style={S('text-align:right;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap')}>{r.vykonF}</div>
+              <div style={S('text-align:right;font-size:13px;font-weight:700;color:var(--star);font-variant-numeric:tabular-nums;white-space:nowrap')}>{r.kompF}</div>
+            </Hov>
+          ))}
+        </HScroll>
+      </div>
+      <div style={S(`${CARD};padding:22px`)}>
+        <CardHead icon="users" color="var(--blue)" title="Kompenzace podle objednatele" sub="Kdo doplácí prokazatelnou ztrátu" />
+        <BarBreakdown items={d.objednatele} />
+      </div>
+    </div>
+  )
+}
+
+/* ============================ AI OPTIMALIZACE ============================ */
+function Optimalizace({ vm }) {
+  const mob = vm.vp.isMobile
+  const d = vm.optimalizace
+  if (!d) return null
+  return (
+    <div>
+      <div style={S(`${CARD};padding:22px;margin-bottom:18px;background:linear-gradient(135deg,#F1ECFF 0%,#FBFAFF 60%);border:1px solid rgba(109,94,246,.22)`)}>
+        <div style={S('display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap')}>
+          <span style={S('width:46px;height:46px;border-radius:13px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#6D5EF6,#8E79F8);color:#fff;box-shadow:0 8px 18px -6px rgba(109,94,246,.6)')}>{ic('sparkle', 23)}</span>
+          <div style={S('flex:1;min-width:220px')}>
+            <div style={S('font-size:17px;font-weight:800;letter-spacing:-.4px')}>AI návrh oběhů a turnusů</div>
+            <div style={S('font-size:13px;color:var(--ink2);margin-top:3px')}>Výpočet sám navrhne oběhy vozidel a směny řidičů podle zadaných podmínek a ukáže úsporu.</div>
+            <div style={S('display:flex;gap:8px;flex-wrap:wrap;margin-top:12px')}>
+              {d.podminky.map((p, i) => <span key={i} style={S('font-size:11.5px;font-weight:600;color:var(--ink2);background:#fff;border:1px solid var(--border);padding:5px 11px;border-radius:20px')}>{p}</span>)}
+            </div>
+          </div>
+          {!d.run
+            ? <Hov onClick={d.runOpti} base="display:flex;align-items:center;gap:8px;height:44px;padding:0 20px;background:linear-gradient(135deg,#5B6BF5,#7A5CF8);color:#fff;border-radius:12px;font-size:14px;font-weight:650;cursor:pointer;box-shadow:0 10px 22px -8px rgba(108,94,246,.7)" hover="transform:translateY(-1px)">{ic('sparkle', 17)} Spustit optimalizaci</Hov>
+            : <Hov onClick={d.resetOpti} base="display:flex;align-items:center;gap:7px;height:44px;padding:0 16px;border:1px solid var(--border2);border-radius:12px;font-size:13.5px;font-weight:600;cursor:pointer;background:#fff" hover="background:var(--canvas)">{ic('refresh', 16)} Spustit znovu</Hov>}
+        </div>
+      </div>
+
+      {!d.run ? (
+        <div style={S(`${CARD};padding:48px 28px;text-align:center`)}>
+          <div style={S('width:56px;height:56px;border-radius:16px;background:var(--purple-soft);color:var(--purple);display:flex;align-items:center;justify-content:center;margin:0 auto 16px')}>{ic('sparkle', 27)}</div>
+          <div style={S('font-size:16px;font-weight:700')}>Připraveno k výpočtu</div>
+          <div style={S('font-size:13px;color:var(--ink3);margin-top:6px;max-width:420px;margin-left:auto;margin-right:auto')}>Spusťte optimalizaci a AI navrhne úspornější oběhy vozidel a turnusy řidičů při dodržení všech zákonných i provozních podmínek.</div>
+        </div>
+      ) : (
+        <>
+          <div style={S(`${CARD};padding:22px;margin-bottom:18px;border-left:4px solid var(--green)`)}>
+            <div style={S('display:flex;align-items:center;gap:12px')}>
+              <span style={S('width:42px;height:42px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--green-soft);color:var(--green)')}>{ic('check2', 22)}</span>
+              <div><div style={S('font-size:16px;font-weight:800')}>Optimalizace hotová · úspora {d.saveYearF} ročně</div><div style={S('font-size:13px;color:var(--ink2);margin-top:2px')}>Méně o {d.vozUsetri} vozidla a {d.ridiciUsetri} řidiče při zachování všech spojů.</div></div>
+            </div>
+          </div>
+          <div style={S(`display:grid;grid-template-columns:${mob ? '1fr 1fr' : 'repeat(4,1fr)'};gap:14px;margin-bottom:18px`)}>
+            {d.metrics.map((m, i) => (
+              <div key={i} style={S(`${CARD};padding:18px`)}>
+                <div style={S('font-size:12px;color:var(--ink3)')}>{m.label}</div>
+                <div style={S('display:flex;align-items:baseline;gap:8px;margin-top:6px')}>
+                  <span style={S('font-size:15px;color:var(--ink3);text-decoration:line-through;font-variant-numeric:tabular-nums')}>{String(m.from).replace('.', ',')}{m.unit}</span>
+                  <span style={S('color:var(--green);display:flex')}>{ic('arrow', 15)}</span>
+                  <span style={S('font-size:22px;font-weight:800;letter-spacing:-.5px;color:var(--green);font-variant-numeric:tabular-nums')}>{String(m.to).replace('.', ',')}{m.unit}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={S(`${CARD};padding:22px`)}>
+            <CardHead icon="sparkle" color="var(--purple)" title="Navržené změny" sub="Konkrétní úpravy oběhů a turnusů" />
+            <div>
+              {d.changes.map((c, i) => (
+                <div key={i} style={S(`display:flex;align-items:center;gap:13px;padding:12px 4px${i ? ';border-top:1px solid var(--border)' : ''}`)}>
+                  <span style={S('width:34px;height:34px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--purple-soft);color:var(--purple)')}>{ic(c.icon, 17)}</span>
+                  <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:650')}>{c.title}</div><div style={S('font-size:12px;color:var(--ink3)')}>{c.sub}</div></div>
+                  <span style={S('font-size:11.5px;font-weight:700;color:var(--green);background:var(--green-soft);padding:3px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0')}>úspora</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+/* ============================ SERVIS A SKLADY ============================ */
+function ServisSklady({ vm }) {
+  const mob = vm.vp.isMobile
+  const d = vm.servis
+  if (!d) return null
+  return (
+    <div>
+      <KpiRow items={d.kpis} mb="18px" featuredFirst />
+      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1.3fr 1fr'};gap:16px;align-items:start;margin-bottom:16px`)}>
+        <div style={S(`${CARD};padding:22px`)}>
+          <CardHead icon="wrench" color="var(--star)" title="Servisní zakázky" sub="Autoopravna ČSAD" />
+          <div>
+            {d.zakazky.map((z, i) => (
+              <Hov key={z.id} onClick={z.onClick} base={`display:flex;align-items:center;gap:12px;padding:11px 6px;border-radius:11px;cursor:pointer${i ? ';border-top:1px solid var(--border)' : ''}`} hover="background:var(--canvas)">
+                <span style={S('width:34px;height:34px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#F1F1F3;color:var(--ink2)')}>{ic('wrench', 16)}</span>
+                <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{z.type} · {z.vehicle}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{z.plate} · {z.mech} · {z.id}</div></div>
+                <span style={S('font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap')}>{z.priceF}</span>
+                <span style={S(`font-size:10.5px;font-weight:700;color:${z.color};background:${z.bg};padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0`)}>{z.statusLabel}</span>
+              </Hov>
+            ))}
+          </div>
+        </div>
+        <div style={S(`${CARD};padding:22px`)}>
+          <CardHead icon="banknote" color="#6D5EF6" title="Náklady na PHM" sub="Spotřeba paliva / rok" />
+          <BarBreakdown items={d.phm} />
+          <div style={S('margin-top:16px')}><CardHead icon="calendar" color="#F59E0B" title="Plán údržby" sub="Nejbližší termíny" /></div>
+          <div style={S('margin-top:8px')}>
+            {d.udrzba.map((u, i) => (
+              <Hov key={i} onClick={u.onClick} base={`display:flex;align-items:center;gap:11px;padding:9px 4px;border-radius:10px;cursor:pointer${i ? ';border-top:1px solid var(--border)' : ''}`} hover="background:var(--canvas)">
+                <span style={S('width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--amber-soft);color:#B45309')}>{ic('calendar', 15)}</span>
+                <div style={S('flex:1;min-width:0')}><div style={S('font-size:12.5px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{u.task} · {u.vehicle}</div><div style={S('font-size:11px;color:var(--ink3)')}>{u.plate}</div></div>
+                <span style={S('font-size:11.5px;font-weight:700;color:#B45309;white-space:nowrap')}>{u.due}</span>
+              </Hov>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div style={S(`${CARD};padding:22px`)}>
+        <div style={S('display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px')}>
+          <CardHead icon="fleets" color="var(--blue)" title="Sklad náhradních dílů" sub="Stav zásob" />
+          {d.lowCount > 0 && <span style={S('font-size:11.5px;font-weight:700;color:var(--star);background:var(--star-soft);padding:4px 11px;border-radius:20px')}>{d.lowCount} položek pod minimem</span>}
+        </div>
+        {d.parts.map((p, i) => (
+          <div key={i} style={S(`padding:11px 2px${i ? ';border-top:1px solid var(--border)' : ''}`)}>
+            <div style={S('display:flex;align-items:center;gap:11px;margin-bottom:7px')}>
+              <span style={S(`width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${p.low ? 'var(--star-soft)' : '#EEF2F9'};color:${p.low ? 'var(--star)' : 'var(--ink2)'}`)}>{ic(p.low ? 'alert' : 'check', 15)}</span>
+              <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{p.name}</div><div style={S('font-size:11px;color:var(--ink3)')}>{p.sku} · {p.priceF} / {p.unit}</div></div>
+              <span style={S(`font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;color:${p.low ? 'var(--star)' : 'var(--ink)'}`)}>{p.stock} {p.unit}<span style={S('font-size:11px;color:var(--ink3);font-weight:600')}> / min {p.min}</span></span>
+            </div>
+            <div style={S('height:6px;border-radius:5px;background:#ECE9F6;overflow:hidden')}><div style={S(`height:100%;width:${Math.max(p.pct, 3)}%;background:${p.low ? 'var(--star)' : 'var(--green)'}`)}></div></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ============================ ZÁJEZDY ============================ */
+function Zajezdy({ vm }) {
+  const mob = vm.vp.isMobile
+  const d = vm.zajezdy
+  if (!d) return null
+  const c = d.calc
+  return (
+    <div>
+      <KpiRow items={d.kpis} mb="18px" featuredFirst />
+      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1.5fr 1fr'};gap:16px;align-items:start`)}>
+        <div style={S(`${CARD};overflow:hidden`)}>
+          <div style={S('padding:18px 20px 4px')}><CardHead icon="calendar" color="var(--blue)" title="Objednávky a smlouvy" sub="Zakázková a smluvní doprava" /></div>
+          <HScroll minW={560}>
+            <div style={S('display:grid;grid-template-columns:1fr 100px 70px 110px 110px;align-items:center;gap:12px;padding:10px 20px;border-bottom:1px solid var(--border);background:#F7FAFE;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px')}>
+              <div>Klient / trasa</div><div>Datum</div><div style={S('text-align:right')}>Km</div><div style={S('text-align:right')}>Cena</div><div style={S('text-align:center')}>Stav</div>
+            </div>
+            {d.orders.map((o) => (
+              <div key={o.id} style={S('display:grid;grid-template-columns:1fr 100px 70px 110px 110px;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--border)')}>
+                <div style={S('min-width:0')}><div style={S('font-size:13px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{o.klient}</div><div style={S('font-size:11.5px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{o.trasa}</div></div>
+                <div style={S('font-size:12px;color:var(--ink2)')}>{o.date}</div>
+                <div style={S('text-align:right;font-size:13px;font-variant-numeric:tabular-nums')}>{o.km}</div>
+                <div style={S('text-align:right;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap')}>{o.cenaF}</div>
+                <div style={S('text-align:center')}><span style={S(`font-size:10.5px;font-weight:700;color:${o.color};background:${o.bg};padding:3px 9px;border-radius:20px;white-space:nowrap`)}>{o.statusLabel}</span></div>
+              </div>
+            ))}
+          </HScroll>
+        </div>
+        <div style={S(`${CARD};padding:22px`)}>
+          <CardHead icon="banknote" color="var(--green)" title="Kalkulace ceny jízdy" sub="Orientační nabídka" />
+          <div style={S('margin-top:6px')}>
+            {[['Vzdálenost', `${c.km} km × ${c.rateKm} Kč`], ['Doba', `${c.hod} h × ${c.rateHod} Kč`], ['Přistavení / fix', `${c.fix} Kč`]].map((r, i) => (
+              <div key={i} style={S(`display:flex;justify-content:space-between;gap:12px;padding:9px 0;font-size:13px${i ? ';border-top:1px solid var(--border)' : ''}`)}><span style={S('color:var(--ink2)')}>{r[0]}</span><span style={S('font-weight:600;font-variant-numeric:tabular-nums')}>{r[1]}</span></div>
+            ))}
+          </div>
+          <div style={S('display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;padding:14px 16px;background:var(--green-soft);border-radius:12px')}>
+            <span style={S('font-size:13px;font-weight:650')}>Cena celkem</span><span style={S('font-size:20px;font-weight:800;letter-spacing:-.5px;color:var(--green)')}>{c.total}</span>
+          </div>
+          <div style={S('font-size:11px;color:var(--ink3);margin-top:9px')}>Sazby dle ceníku zájezdové dopravy, bez DPH. Finální cena dle konkrétní objednávky.</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ============================ ELEKTROBUSY ============================ */
+function Elektrobusy({ vm }) {
+  const mob = vm.vp.isMobile
+  const d = vm.elektrobusy
+  if (!d) return null
+  const socColor = (s) => s >= 60 ? 'var(--green)' : s >= 35 ? '#F59E0B' : 'var(--star)'
+  return (
+    <div>
+      <KpiRow items={d.kpis} mb="18px" featuredFirst />
+      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : 'repeat(auto-fit,minmax(300px,1fr))'};gap:14px;margin-bottom:16px`)}>
+        {d.buses.map((b, i) => (
+          <div key={i} style={S(`${CARD};padding:18px`)}>
+            <div style={S('display:flex;align-items:center;gap:11px;margin-bottom:13px')}>
+              <span style={S('width:38px;height:38px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--green-soft);color:var(--green)')}>{ic('bus', 19)}</span>
+              <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{b.name}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{b.plate}</div></div>
+              <span style={S(`font-size:10.5px;font-weight:700;color:${b.color};background:${b.bg};padding:3px 9px;border-radius:20px;white-space:nowrap`)}>{b.statusLabel}</span>
+            </div>
+            <div style={S('display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px')}>
+              <span style={S(`font-size:24px;font-weight:800;letter-spacing:-.6px;color:${socColor(b.soc)}`)}>{b.soc} %</span>
+              <span style={S('font-size:12.5px;color:var(--ink2);font-weight:600')}>dojezd {b.dojezd} km</span>
+            </div>
+            <div style={S('height:9px;border-radius:6px;background:#ECE9F6;overflow:hidden')}><div style={S(`height:100%;width:${b.soc}%;background:${socColor(b.soc)}`)}></div></div>
+            {b.chargeTo && <div style={S('font-size:11.5px;color:var(--blue-ink);margin-top:9px;display:flex;align-items:center;gap:6px')}>{ic('fuel', 13)} Nabito do {b.chargeTo}</div>}
+          </div>
+        ))}
+      </div>
+      {d.plan.length > 0 && (
+        <div style={S(`${CARD};padding:22px`)}>
+          <CardHead icon="fuel" color="var(--blue)" title="Plán nabíjení" sub="Vozy právě na vozovně" />
+          {d.plan.map((p, i) => (
+            <div key={i} style={S(`display:flex;align-items:center;gap:12px;padding:10px 4px${i ? ';border-top:1px solid var(--border)' : ''}`)}>
+              <span style={S('width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--blue-soft);color:var(--blue)')}>{ic('fuel', 15)}</span>
+              <div style={S('flex:1;min-width:0')}><div style={S('font-size:13px;font-weight:650')}>{p.name}</div><div style={S('font-size:11.5px;color:var(--ink3)')}>{p.plate} · nyní {p.soc} %</div></div>
+              <span style={S('font-size:12.5px;font-weight:700;color:var(--blue-ink);white-space:nowrap')}>hotovo {p.to}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

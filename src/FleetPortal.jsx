@@ -794,7 +794,7 @@ export default function FleetPortal() {
     serviceModal: null, tireModal: null, fineModal: null,
     audit: SEED_AUDIT,
     search: false, notif: false, ai: false, companyMenu: false, sidebar: false, execReport: null,
-    hrMode: {}, timeOff: SEED_TIMEOFF, driverReports: SEED_DRIVER_REPORTS, reportModal: null, timeOffModal: null, reportForm: {}, timeOffForm: {},
+    hrMode: {}, timeOff: SEED_TIMEOFF, driverReports: SEED_DRIVER_REPORTS, reportModal: null, timeOffModal: null, reportForm: {}, timeOffForm: {}, optiRun: false,
     claimWizard: false, claimStep: 1, claimData: {},
     rowMenu: null, toast: null,
     unsub: null, unsubDone: false, unsubReason: 'Prodej vozidla', unsubDate: '1. 7. 2026',
@@ -1101,10 +1101,15 @@ export default function FleetPortal() {
       ['linky', 'Linky & JŘ', 'pin', String(linesData.length)],
       ['map', 'Živá mapa', 'mapPin', null],
       ['dispatch', 'Dispečink', 'calendar', null],
+      ['optimalizace', 'AI optimalizace', 'sparkle', null],
       ['anomalies', 'Anomálie', 'alert', String(FLEET_ANOMALIES.filter((a) => a.status !== 'done').length) || null],
+      ['servis', 'Servis a sklady', 'wrench', null],
       ['eco', 'Eco-driving', 'gauge', null],
+      ['zajezdy', 'Zájezdy', 'pin', null],
+      ['elektrobusy', 'Elektrobusy', 'fuel', null],
       ['insurance', 'Pojištění', 'shield', null],
       ['financing', 'Financování', 'banknote', String(vehiclesData.filter((v) => v.financing && v.financing.active).length)],
+      ['vykony', 'Vyúčtování výkonů', 'scales', null],
       ['claims', 'Škody', 'umbrella', String(claimsData.filter((c) => c.status !== 'closed').length) || null],
       ['documents', 'Dokumenty', 'file', null],
       ['analytics', 'Reporting', 'trend', null],
@@ -1141,6 +1146,11 @@ export default function FleetPortal() {
       dispatch: ['Dispečink', 'Oběhy vozidel, turnusy řidičů a stazka'],
       anomalies: ['Anomálie', 'Detekce napříč flotilou: linky, trasy, vozidla, řidiči a palivo'],
       map: ['Živá mapa', 'Poloha a stav flotily v reálném čase'],
+      optimalizace: ['AI optimalizace', 'Návrh oběhů vozidel a turnusů řidičů podle zadaných podmínek'],
+      servis: ['Servis a sklady', 'Autoopravna, sklad náhradních dílů, PHM a plán údržby'],
+      zajezdy: ['Zájezdy', 'Nepravidelná doprava: kalkulace, objednávky a vyúčtování jízd'],
+      elektrobusy: ['Elektrobusy', 'Stav baterií, plán nabíjení a dojezd elektrobusů'],
+      vykony: ['Vyúčtování výkonů', 'Ujeté km a spoje, plán vs. skutečnost, podklad pro objednatele'],
       settings: ['Nastavení', 'Profil a předvolby portálu'],
     }
     let title, sub
@@ -1192,7 +1202,7 @@ export default function FleetPortal() {
       isDashboard: r === 'dashboard', isFleets: r === 'fleets', isFleetDetail: r === 'fleet-detail',
       isVehicles: r === 'vehicles', isVehicleDetail: r === 'vehicle-detail',
       isInsurance: r === 'insurance', isInsuranceDetail: r === 'insurance-detail', isClaims: r === 'claims', isDocuments: r === 'documents', isAnalytics: r === 'analytics', isContacts: r === 'contacts', isSettings: r === 'settings', isDrivers: r === 'drivers', isDriverDetail: r === 'driver-detail', isFinancing: r === 'financing',
-      isLinky: r === 'linky', isLinkyDetail: r === 'linky-detail', isEco: r === 'eco', isAttention: r === 'attention', isDispatch: r === 'dispatch', isStazka: r === 'stazka', isAnomalies: r === 'anomalies', isAnomalyDetail: r === 'anomaly-detail', isMap: r === 'map',
+      isLinky: r === 'linky', isLinkyDetail: r === 'linky-detail', isEco: r === 'eco', isAttention: r === 'attention', isDispatch: r === 'dispatch', isStazka: r === 'stazka', isAnomalies: r === 'anomalies', isAnomalyDetail: r === 'anomaly-detail', isMap: r === 'map', isOptimalizace: r === 'optimalizace', isServis: r === 'servis', isZajezdy: r === 'zajezdy', isElektrobusy: r === 'elektrobusy', isVykony: r === 'vykony',
       isDocumentsDetail: r === 'documents-detail',
       openDocCat: (cat) => navigate('documents-detail', { docCat: cat, docOpen: {} }), goDocuments: () => navigate('documents'),
       docPreview: state.docPreview, closeDocPreview: () => setState({ docPreview: null }),
@@ -2409,6 +2419,156 @@ export default function FleetPortal() {
     } }
   }
 
+  // ---- Vyúčtování výkonů dopravce (ujeté km a spoje, plán vs. skutečnost) ----
+  const vykonyVM = () => {
+    if (state.route !== 'vykony') return {}
+    const mil = (n) => (n / 1e6).toFixed(1).replace('.', ',') + ' mil. Kč'
+    const DAYS = 26
+    const objednatelOf = (l) => l.agency && l.agency.includes('Dopravní podnik') ? 'Statutární město České Budějovice (MHD)' : 'JIKORD – Jihočeský kraj'
+    const rows = linesData.map((l, i) => {
+      const sim = simulateLineRun(l)
+      const kmTrip = 6 + (_hash(l.id + 'km') % 18) + (l.no === '300' ? 42 : 0)
+      const kmPlan = Math.round(l.tripsDay * kmTrip * DAYS)
+      const kmReal = Math.round(kmPlan * (0.965 + (sim.onTimePct / 100) * 0.04))
+      const sazba = 41 + (_hash(l.id + 's') % 6) // úhrada za km od objednatele
+      const fare = 11 + (_hash(l.id + 'f') % 7)  // tržby z jízdného na km
+      const vykon = kmReal * sazba
+      const trzby = kmReal * fare
+      const komp = vykon - trzby
+      return { id: l.id, no: l.no, name: l.name, objednatel: objednatelOf(l), kmPlan, kmReal, plneni: Math.round(kmReal / kmPlan * 100), sazba, vykonF: czk(vykon), trzbyF: czk(trzby), kompF: czk(komp), vykon, trzby, komp, onClick: () => openLine(l.id) }
+    })
+    const sum = (k) => rows.reduce((a, r) => a + r[k], 0)
+    const kmTotal = sum('kmReal'), vykonTotal = sum('vykon'), trzbyTotal = sum('trzby'), kompTotal = sum('komp')
+    const kpis = [
+      { value: (kmTotal / 1000).toFixed(0), unit: 'tis. km', label: 'Ujeto / měsíc', icon: 'bus', note: `${rows.length} linek · ${DAYS} prov. dní` },
+      { value: mil(vykonTotal), label: 'Výkon (úhrada za km)', icon: 'banknote', note: 'nárok vůči objednateli' },
+      { value: mil(trzbyTotal), label: 'Tržby z jízdného', icon: 'trend', note: 'vybráno od cestujících' },
+      { value: mil(kompTotal), label: 'Kompenzace (ztráta)', icon: 'scales', note: 'doplatí objednatel' },
+    ]
+    const objMap = {}
+    rows.forEach((r) => { if (!objMap[r.objednatel]) objMap[r.objednatel] = { komp: 0, km: 0, lines: 0 }; objMap[r.objednatel].komp += r.komp; objMap[r.objednatel].km += r.kmReal; objMap[r.objednatel].lines++ })
+    const objednatele = Object.entries(objMap).map(([name, x], i) => ({ label: name, icon: 'users', color: PARK_COLORS[i % PARK_COLORS.length], value: czk(x.komp), pct: Math.round(x.komp / kompTotal * 100), sub: `${x.lines} linek · ${(x.km / 1000).toFixed(0)} tis. km` }))
+    const genBilling = () => {
+      const trs = rows.map((r) => `<tr><td style="padding:6px 0;font-weight:600">Linka ${r.no}</td><td style="padding:6px 0;color:#6b7280">${r.objednatel.split(' – ')[0].split(' (')[0]}</td><td style="padding:6px 0;text-align:right;font-variant-numeric:tabular-nums">${r.kmReal.toLocaleString('cs-CZ')}</td><td style="padding:6px 0;text-align:right">${r.sazba} Kč</td><td style="padding:6px 0;text-align:right;font-weight:700;white-space:nowrap">${r.vykonF}</td><td style="padding:6px 0;text-align:right;white-space:nowrap">${r.kompF}</td></tr>`).join('')
+      const html = `<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>Vyúčtování výkonů</title><style>*{box-sizing:border-box}body{font-family:-apple-system,system-ui,sans-serif;color:#1b1f2a;margin:0;padding:40px 46px;font-size:12px}h1{font-size:21px;margin:0}.top{display:flex;justify-content:space-between;border-bottom:3px solid #6D5EF6;padding-bottom:16px}.brand{font-weight:800;color:#6D5EF6;font-size:13px}.muted{color:#6b7280}table{width:100%;border-collapse:collapse;margin-top:14px}th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;border-bottom:1px solid #e7e9f2;padding-bottom:6px}th.r,td.r{text-align:right}.tot{display:flex;justify-content:space-between;margin-top:14px;padding:14px 16px;background:#F1ECFF;border-radius:12px;font-weight:800;font-size:15px}@media print{@page{size:A4 landscape;margin:14mm}body{padding:0}}</style></head><body>
+        <div class="top"><div><div class="brand">FLEETPORTAL</div><h1>Vyúčtování dopravních výkonů</h1><div class="muted" style="margin-top:3px">ČSAD AUTOBUSY České Budějovice a.s. · období říjen 2026</div></div><div class="muted" style="text-align:right"><div>${rows.length} linek</div><div>${kmTotal.toLocaleString('cs-CZ')} km</div></div></div>
+        <table><thead><tr><th>Linka</th><th>Objednatel</th><th class="r">Ujeté km</th><th class="r">Sazba/km</th><th class="r">Výkon</th><th class="r">Kompenzace</th></tr></thead><tbody>${trs}</tbody></table>
+        <div class="tot"><span>Celkem výkon / kompenzace</span><span>${czk(vykonTotal)} / ${czk(kompTotal)}</span></div>
+        <div class="muted" style="margin-top:22px;font-size:10.5px">Podklad pro fakturaci objednatelům. Modelový výpočet z ujetých km a sazeb, pro interní potřebu.</div></body></html>`
+      setState({ execReport: html })
+    }
+    return { vykony: { kpis, rows, objednatele, genBilling } }
+  }
+
+  // ---- AI optimalizace oběhů vozidel a turnusů řidičů ----
+  const optimalizaceVM = () => {
+    if (state.route !== 'optimalizace') return {}
+    const run = state.optiRun
+    const current = { vozidla: 58, ridici: 71, prazdneKm: 14, nakladRok: 48.9 }
+    const navrh = { vozidla: 54, ridici: 66, prazdneKm: 9, nakladRok: 45.1 }
+    const saveYear = Math.round((current.nakladRok - navrh.nakladRok) * 1e6)
+    const changes = [
+      { title: 'Sloučení ranních oběhů linek 7 a 1', sub: 'Jeden vůz pokryje oba špičkové spoje, ušetří 1 vozidlo.', icon: 'refresh' },
+      { title: 'Přesun turnusu řidiče z linky 11 na 300', sub: 'Vyrovnání doby řízení pod 9 h, méně přesčasů.', icon: 'users' },
+      { title: 'Zkrácení přejezdů naprázdno u linky 13', sub: 'Úprava nástupu z vozovny, −38 km prázdných denně.', icon: 'pin' },
+      { title: 'Vyvážení odpoledních směn MHD', sub: 'Rovnoměrnější vytížení, méně krátkých přestávek.', icon: 'calendar' },
+    ]
+    const podminky = ['Max. doba řízení 9 h', 'Min. přestávka 45 min', 'Dodržet špičky 6–8 a 14–17 h', 'Preferovat domovskou vozovnu']
+    const metrics = [
+      { label: 'Potřeba vozidel', from: current.vozidla, to: navrh.vozidla, unit: '', better: 'down' },
+      { label: 'Potřeba řidičů', from: current.ridici, to: navrh.ridici, unit: '', better: 'down' },
+      { label: 'Jízdy naprázdno', from: current.prazdneKm, to: navrh.prazdneKm, unit: ' %', better: 'down' },
+      { label: 'Provozní náklad', from: current.nakladRok, to: navrh.nakladRok, unit: ' mil. Kč', better: 'down' },
+    ]
+    return { optimalizace: { run, podminky, metrics, changes, saveYearF: czk(saveYear), vozUsetri: current.vozidla - navrh.vozidla, ridiciUsetri: current.ridici - navrh.ridici,
+      runOpti: () => setState({ optiRun: true }), resetOpti: () => setState({ optiRun: false }) } }
+  }
+
+  // ---- Servis a sklady: autoopravna, sklad dílů, PHM, plán údržby ----
+  const servisVM = () => {
+    if (state.route !== 'servis') return {}
+    const buses = vehiclesData.filter((v) => vehicleTypeCat(v.druh) === 'Autobusy')
+    const pick = (k) => buses[_hash(k) % buses.length] || vehiclesData[0]
+    const mech = ['Jan Vávra', 'Petr Holub', 'Tomáš Říha', 'externě – Bosch Car Service']
+    const typy = ['Pravidelný servis', 'Oprava brzd', 'Výměna spojky', 'Diagnostika motoru', 'Oprava dveří', 'Klimatizace']
+    const stavy = [['prog', 'V opravě', 'var(--blue-ink)', 'var(--blue-soft)'], ['wait', 'Čeká na díl', '#B45309', 'var(--amber-soft)'], ['done', 'Dokončeno', 'var(--green)', 'var(--green-soft)']]
+    const zakazky = Array.from({ length: 6 }).map((_, i) => { const v = pick('z' + i); const st = stavy[i % stavy.length]; return { id: 'ZAK-2026-' + (120 + i), vehicle: `${v.brand} ${v.model}`.trim(), plate: v.plate, type: typy[i % typy.length], mech: mech[i % mech.length], priceF: czk(4000 + (_hash('zc' + i) % 60) * 850), statusLabel: st[1], color: st[2], bg: st[3], onClick: () => openVehicle(v.id) } })
+    const parts = [
+      { name: 'Brzdové destičky přední (Iveco Crossway)', sku: 'BRK-IVE-204', stock: 3, min: 6, unit: 'sada', priceF: czk(2380) },
+      { name: 'Olejový filtr (Mercedes Citaro)', sku: 'FLT-MB-118', stock: 14, min: 8, unit: 'ks', priceF: czk(420) },
+      { name: 'Pneumatika 275/70 R22.5', sku: 'TIR-275-225', stock: 5, min: 8, unit: 'ks', priceF: czk(8900) },
+      { name: 'Klínový řemen', sku: 'BLT-SOR-33', stock: 2, min: 5, unit: 'ks', priceF: czk(1240) },
+      { name: 'Žárovka H7 24V', sku: 'LMP-H7-24', stock: 140, min: 40, unit: 'ks', priceF: czk(85) },
+      { name: 'Vzduchový měch (SOR)', sku: 'AIR-SOR-09', stock: 4, min: 4, unit: 'ks', priceF: czk(6700) },
+    ].map((p) => ({ ...p, low: p.stock < p.min, pct: Math.min(100, Math.round(p.stock / (p.min * 2) * 100)) }))
+    const lowCount = parts.filter((p) => p.low).length
+    const udrzba = Array.from({ length: 4 }).map((_, i) => { const v = pick('u' + i); return { vehicle: `${v.brand} ${v.model}`.trim(), plate: v.plate, task: ['Pravidelná prohlídka', 'Výměna oleje', 'STK příprava', 'Seřízení geometrie'][i], due: ['za 4 dny', 'za 9 dní', 'za 12 dní', 'za 18 dní'][i], onClick: () => openVehicle(v.id) } })
+    const kpis = [
+      { value: String(zakazky.filter((z) => z.statusLabel !== 'Dokončeno').length), label: 'Otevřené zakázky', icon: 'wrench', note: 'v autoopravně' },
+      { value: '1,2', unit: 'mil. Kč', label: 'Hodnota skladu', icon: 'fleets', note: 'náhradní díly' },
+      { value: String(lowCount), label: 'Položky pod minimem', icon: 'alert', note: 'doporučeno doobjednat' },
+      { value: String(udrzba.length), label: 'Nejbližší údržby', icon: 'calendar', note: 'do 18 dní' },
+    ]
+    const phm = [
+      { label: 'Nafta', icon: 'fuel', color: '#6D5EF6', value: czk(2184000), pct: 86 },
+      { label: 'AdBlue', icon: 'fuel', color: 'var(--blue)', value: czk(96000), pct: 6 },
+      { label: 'CNG', icon: 'fuel', color: 'var(--green)', value: czk(142000), pct: 8 },
+    ]
+    return { servis: { kpis, zakazky, parts, lowCount, udrzba, phm } }
+  }
+
+  // ---- Zájezdy / nepravidelná doprava ----
+  const zajezdyVM = () => {
+    if (state.route !== 'zajezdy') return {}
+    const stavy = [['new', 'Poptávka', '#B45309', 'var(--amber-soft)'], ['conf', 'Potvrzeno', 'var(--blue-ink)', 'var(--blue-soft)'], ['done', 'Vyúčtováno', 'var(--green)', 'var(--green-soft)']]
+    const orders = [
+      { klient: 'ZŠ Máj České Budějovice', trasa: 'ČB – Praha ZOO – ČB', date: '14. 11. 2026', km: 320, hod: 11 },
+      { klient: 'FK Dynamo ČB', trasa: 'ČB – Plzeň (zápas)', date: '22. 11. 2026', km: 280, hod: 9 },
+      { klient: 'Senioři Hluboká', trasa: 'Hluboká – Český Krumlov – Hluboká', date: '28. 11. 2026', km: 110, hod: 7 },
+      { klient: 'Firma Engel', trasa: 'Kaplice – Linz (transfer)', date: '3. 12. 2026', km: 160, hod: 6 },
+      { klient: 'SŠ obchodní ČB', trasa: 'ČB – Vídeň – ČB', date: '12. 12. 2026', km: 460, hod: 14 },
+    ].map((o, i) => {
+      const rateKm = 38, rateHod = 420, fix = 1500
+      const cena = o.km * rateKm + o.hod * rateHod + fix
+      const naklad = Math.round(cena * (0.68 + (_hash('z' + i) % 10) / 100))
+      const st = stavy[i % stavy.length]
+      return { ...o, id: 'ZAJ-' + (240 + i), cenaF: czk(cena), marze: Math.round((cena - naklad) / cena * 100), statusLabel: st[1], color: st[2], bg: st[3], cena }
+    })
+    const trzby = orders.reduce((a, o) => a + o.cena, 0)
+    const kpis = [
+      { value: String(orders.length), label: 'Objednávky (měsíc)', icon: 'calendar', note: 'zakázková doprava' },
+      { value: (trzby / 1000).toFixed(0), unit: 'tis. Kč', label: 'Tržby zájezdů', icon: 'banknote', note: 'potvrzené + poptávky' },
+      { value: String(Math.round(orders.reduce((a, o) => a + o.marze, 0) / orders.length)), unit: '%', label: 'Průměrná marže', icon: 'trend', note: 'po odečtu nákladů' },
+      { value: '7', label: 'Vozy pro zájezdy', icon: 'bus', note: 'dálkové + zájezdové' },
+    ]
+    const calc = { km: 320, hod: 11, rateKm: 38, rateHod: 420, fix: 1500 }
+    calc.total = czk(calc.km * calc.rateKm + calc.hod * calc.rateHod + calc.fix)
+    return { zajezdy: { kpis, orders, calc } }
+  }
+
+  // ---- Elektrobusy: stav baterií, nabíjení, dojezd ----
+  const elektrobusyVM = () => {
+    if (state.route !== 'elektrobusy') return {}
+    const stavy = [['route', 'Na trase', 'var(--green)', 'var(--green-soft)'], ['charge', 'Nabíjí se', 'var(--blue-ink)', 'var(--blue-soft)'], ['depot', 'Vozovna', 'var(--ink3)', '#EEF2F9']]
+    const models = ['SOR NS 12 electric', 'Škoda 36BB E’City', 'Iveco E-WAY', 'SOR NS 12 electric', 'Mercedes eCitaro']
+    const buses = models.map((m, i) => {
+      const soc = 28 + (_hash('eb' + i) % 68)
+      const cap = 350
+      const st = stavy[i % stavy.length]
+      return { name: m, plate: `EB ${20 + i}-${30 + i}C`, soc, dojezd: Math.round(soc / 100 * 240), cap, statusLabel: st[1], color: st[2], bg: st[3], chargeTo: st[0] === 'charge' ? `${_fmtMin(_hash('c' + i) % 300 + 180)}` : null, low: soc < 35 }
+    })
+    const avgSoc = Math.round(buses.reduce((a, b) => a + b.soc, 0) / buses.length)
+    const charging = buses.filter((b) => b.statusLabel === 'Nabíjí se').length
+    const kpis = [
+      { value: String(buses.length), label: 'Elektrobusů', icon: 'bus', note: 've flotile' },
+      { value: String(avgSoc), unit: '%', label: 'Průměrný stav baterie', icon: 'gauge', note: `${buses.filter((b) => b.low).length} pod 35 %` },
+      { value: String(charging), label: 'Právě se nabíjí', icon: 'fuel', note: 'na vozovně' },
+      { value: '94', unit: 't', label: 'Úspora CO₂ / rok', icon: 'trend', note: 'oproti naftě' },
+    ]
+    const plan = buses.filter((b) => b.chargeTo).map((b) => ({ name: b.name, plate: b.plate, to: b.chargeTo, soc: b.soc }))
+    return { elektrobusy: { kpis, buses, plan } }
+  }
+
   // ---- Dispečink: oběhy vozidel (Gantt) + turnusy řidičů ----
   const dispatchVM = () => {
     if (state.route !== 'dispatch') return {}
@@ -3115,7 +3275,7 @@ export default function FleetPortal() {
     tireModal: state.tireModal ? { ...state.tireModal, close: () => setState({ tireModal: null }), stop: (e) => e.stopPropagation(), actions: TIRE_ACTIONS, field: (k) => (e) => setTireField(k, e.target.value), onInvoice: (e) => { const f = e.target.files && e.target.files[0]; if (f) setTireField('invoice', f.name) }, save: saveTire } : null,
     fineModal: state.fineModal ? { ...state.fineModal, close: () => setState({ fineModal: null }), stop: (e) => e.stopPropagation(), types: FINE_TYPES, field: (k) => (e) => setFineField(k, e.target.value), togglePaid: () => setState((s) => ({ fineModal: { ...s.fineModal, paid: !s.fineModal.paid } })), save: saveFine } : null,
     ...shellVM(), ...dashboardVM(), ...fleetsVM(), ...fleetDetailVM(), ...vehiclesVM(), ...vehicleDetailVM(),
-    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...ownerDashVM(), ...dispatchDashVM(), ...driverSelfVM(), ...attentionVM(), ...anomaliesVM(), ...anomalyDetailVM(), ...mapVM(), ...dispatchVM(), ...stazkaVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(), ...linkyVM(), ...linkyDetailVM(), ...ecoVM(),
+    ...insuranceVM(), ...insuranceDetailVM(), ...claimsVM(), ...claimDetailVM(), ...documentsVM(), ...documentsDetailVM(), ...analyticsVM(), ...ownerDashVM(), ...dispatchDashVM(), ...driverSelfVM(), ...attentionVM(), ...anomaliesVM(), ...anomalyDetailVM(), ...mapVM(), ...vykonyVM(), ...optimalizaceVM(), ...servisVM(), ...zajezdyVM(), ...elektrobusyVM(), ...dispatchVM(), ...stazkaVM(), ...contactsVM(), ...settingsVM(), ...bonifikaceVM(), ...bonifikaceDetailVM(), ...driversVM(), ...driverDetailVM(), ...financingVM(), ...rfqVM(), ...wizardVM(), ...addVehicleVM(), ...linkyVM(), ...linkyDetailVM(), ...ecoVM(),
   }
 
   return <Render vm={vm} />
