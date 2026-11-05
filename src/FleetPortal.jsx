@@ -2781,7 +2781,7 @@ export default function FleetPortal() {
       id: r.line.id, no: r.line.no, name: r.line.name, t: r.t, rate: r.rate, open: r.t.open,
       plneniColor: r.t.plneni >= 99 ? 'var(--green)' : r.t.plneni >= 98 ? '#B45309' : 'var(--star)',
       kompF: czk(r.t.komp), vykonF: czk(r.t.vykon), revF: czk(r.t.revenue), sankceF: czk(r.t.sankce),
-      flags: [r.t.plneni < 98 ? 'plnění pod 98 %' : null, r.t.revenue / r.t.kmReal < 10 ? 'nízké tržby na km' : null, r.t.kmPct > 103 ? 'km nad plán' : null, r.t.kmNeuzn ? `${r.t.kmNeuzn.toLocaleString('cs-CZ')} km neuznáno` : null].filter(Boolean),
+      flags: [r.t.plneni < 98 ? 'plnění pod 98 %' : null, r.t.revenue / r.t.kmReal < 10 ? 'nízké tržby na km' : null, r.t.kmPct > 103 ? 'km nad plán' : null].filter(Boolean),
       onClick: () => vykSet({ lineOpen: r.line.id }),
     }))
     const docsList = [...ACC.invoices().filter((i) => i.kompenzace && i.clientId === custId && i.serviceMonth === month), ...(v.docs[key] || []).map((id) => ACC.invoiceById(id)).filter(Boolean)]

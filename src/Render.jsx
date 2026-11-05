@@ -2248,7 +2248,9 @@ function Vykony({ vm }) {
   const n = (x) => Math.round(x || 0).toLocaleString('cs-CZ')
   const Box = ({ icon, color, title, sub, children, right }) => <div style={S(`${CARD};padding:20px`)}><div style={S('display:flex;align-items:flex-start;gap:10px')}><div style={S('flex:1;min-width:0')}><CardHead icon={icon} color={color} title={title} sub={sub} /></div>{right}</div>{children}</div>
   const Row = ({ l, v, strong, color }) => <div style={S('display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--border);font-size:12.5px')}><span style={S('color:var(--ink2)')}>{l}</span><span style={S(`font-weight:${strong ? 750 : 600};text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;color:${color || 'var(--ink)'}`)}>{v}</span></div>
-  const cols = mob ? '1fr' : 'minmax(0,1.5fr) 100px 200px 125px'
+  const cols = mob ? '1fr' : 'minmax(0,2fr) 130px 130px 140px minmax(170px,1fr)'
+  const sub = 'font-size:11.5px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px'
+  const pct = (x) => x.toFixed(1).replace('.', ',')
   return (
     <div>
       <div style={S('display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px')}>
@@ -2259,7 +2261,7 @@ function Vykony({ vm }) {
       </div>
       <KpiRow items={d.kpis} mb="18px" featuredFirst />
 
-      <div style={S(`display:grid;grid-template-columns:${narrow ? '1fr' : 'minmax(0,1.7fr) minmax(0,1fr)'};gap:16px;align-items:start`)}>
+      <div style={S(`display:grid;grid-template-columns:${narrow ? '1fr' : 'minmax(0,1.25fr) minmax(0,1fr)'};gap:16px;align-items:start`)}>
         <div style={S('display:flex;flex-direction:column;gap:16px')}>
           <div style={S(`${CARD};padding:20px 22px`)}>
             <div style={S('display:flex;align-items:center;gap:10px;flex-wrap:wrap')}>
@@ -2284,52 +2286,6 @@ function Vykony({ vm }) {
               )}
             </div>
           </div>
-
-          <div style={S(`${CARD};overflow:hidden`)}>
-            <div style={S('padding:18px 20px 6px')}><CardHead icon="bus" color="var(--blue)" title="Linky v měsíci" sub="Klikněte na linku pro rozpad po dnech a spojích" /></div>
-            {!mob && <div style={S(`display:grid;grid-template-columns:${cols};align-items:center;gap:12px;padding:10px 20px;border-bottom:1px solid var(--border);background:#F7FAFE;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px`)}>
-              <div>Linka</div><div style={S('text-align:right')}>Spoje</div><div style={S('text-align:right')}>Km uznatelné / plán · výkon</div><div style={S('text-align:right')}>Kompenzace</div>
-            </div>}
-            {d.rows.map((r) => (
-              <Hov key={r.id} onClick={r.onClick} base={`display:grid;grid-template-columns:${cols};align-items:center;gap:${mob ? '6px' : '12px'};padding:12px 20px;border-bottom:1px solid var(--border);cursor:pointer`} hover="background:var(--canvas)">
-                <div style={S('min-width:0')}>
-                  <div style={S('display:flex;align-items:center;gap:9px;min-width:0')}><span style={S('min-width:34px;height:26px;padding:0 7px;border-radius:7px;background:#18181B;color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{r.no}</span><span style={S('font-size:13px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.name}</span></div>
-                  <div style={S('font-size:11.5px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink3)')}>
-                    {r.open > 0 ? <span style={S('color:#B45309;font-weight:700')}>{r.open} ke kontrole</span> : <span style={S('color:var(--green);font-weight:650')}>zkontrolováno</span>}{r.flags.length ? ` · ${r.flags.join(' · ')}` : ''}
-                  </div>
-                </div>
-                <div style={S(`text-align:${mob ? 'left' : 'right'}`)}><div style={S('font-size:13px;font-weight:600;font-variant-numeric:tabular-nums')}>{n(r.t.tripsRun)} / {n(r.t.tripsPlan)}</div><div style={S(`font-size:11.5px;font-weight:700;color:${r.plneniColor}`)}>{r.t.plneni.toFixed(1)} %{r.t.missed ? ` · ${r.t.missed} nejeto` : ''}</div></div>
-                <div style={S(`text-align:${mob ? 'left' : 'right'}`)}><div style={S('font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap')}>{n(r.t.kmUzn)} / {n(r.t.kmPlan)} km · {r.vykonF}</div><div style={S('font-size:11.5px;color:var(--ink3);white-space:nowrap')}>{r.rate} Kč/km · tržby {r.revF}{r.t.sankce ? ` · sankce ${r.sankceF}` : ''}{r.t.kmNeuzn ? ` · ${n(r.t.kmNeuzn)} km neuznáno` : ''}</div></div>
-                <div style={S(`text-align:${mob ? 'left' : 'right'};font-size:13.5px;font-weight:750;color:var(--star);font-variant-numeric:tabular-nums;white-space:nowrap`)}>{r.kompF}</div>
-              </Hov>
-            ))}
-            <div style={S(`display:grid;grid-template-columns:${cols};gap:12px;padding:12px 20px;background:#F7FAFE;font-size:13px;font-weight:750;font-variant-numeric:tabular-nums`)}>
-              <div>Celkem</div>{!mob && <><div style={S('text-align:right')}>{n(d.tot.tripsRun)} / {n(d.tot.tripsPlan)}</div><div style={S('text-align:right;white-space:nowrap')}>{n(d.tot.kmUzn)} / {n(d.tot.kmPlan)} km · {czk(d.tot.vykon)}</div></>}<div style={S(`text-align:${mob ? 'left' : 'right'};color:var(--star)`)}>{d.kompF}</div>
-            </div>
-          </div>
-        </div>
-
-        <div style={S('display:flex;flex-direction:column;gap:16px')}>
-          <Box icon="alert" color="var(--star)" title="Kontrola měsíce" sub={d.openCount ? `${d.openCount} událostí čeká na rozhodnutí, ${d.issuesTotal - d.openCount} vyřešeno` : `Vše vyřešeno (${d.issuesTotal} událostí)`} right={d.canResolve ? <UcBtn onClick={d.resolveAll}>{ic('sparkle', 14)}Podle smlouvy</UcBtn> : null}>
-            <div style={S('display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px')}>
-              {d.issueGroups.map((g) => <span key={g.type} style={UC_CHIP(g)}>{g.label}: {g.open ? `${g.open} / ` : ''}{g.total}</span>)}
-            </div>
-            <div style={S('display:flex;flex-direction:column;gap:8px')}>
-              {d.issues.map((i) => (
-                <div key={i.id} style={S(`padding:10px 12px;border:1px solid ${i.resolved ? 'var(--border)' : 'var(--border2)'};border-radius:12px;background:${i.resolved ? '#FAFAFC' : '#fff'}`)}>
-                  <div style={S('display:flex;align-items:center;gap:8px')}>
-                    <span style={S('min-width:28px;height:22px;padding:0 6px;border-radius:6px;background:#18181B;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center')}>{i.lineNo}</span>
-                    <div style={S('flex:1;min-width:0')}><div style={S('font-size:12.5px;font-weight:700')}>{i.dateLabel} · {i.label}</div><div style={S('font-size:11.5px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{i.detail} · {i.impact}</div></div>
-                    <span style={UC_CHIP(i.meta)}>{i.meta.label}</span>
-                  </div>
-                  {i.resolved
-                    ? <div style={S('font-size:11.5px;color:var(--green);font-weight:650;margin-top:6px;display:flex;align-items:center;gap:5px')}>{ic('check', 13)}{i.resolvedLabel}{i.resolved.who ? ` · ${i.resolved.who}${i.resolved.at ? ', ' + i.resolved.at : ''}` : ''}</div>
-                    : <div style={S('display:flex;gap:6px;flex-wrap:wrap;margin-top:8px')}>{i.actions.map((a, k) => <UcBtn key={a.label} primary={k === 0} onClick={a.onClick}>{a.label}</UcBtn>)}</div>}
-                </div>
-              ))}
-              {d.issuesTotal > 8 && <Hov onClick={d.toggleAll} base="align-self:flex-start;font-size:12.5px;font-weight:600;color:var(--blue-ink);cursor:pointer;padding:4px 0" hover="text-decoration:underline">{d.showAll ? 'Zobrazit méně' : `Zobrazit všech ${d.issuesTotal} událostí`}</Hov>}
-            </div>
-          </Box>
 
           <Box icon="banknote" color="var(--green)" title="Zálohy a doplatek" sub="Měsíční záloha objednatele proti skutečnému nároku">
             <div style={S('margin-top:4px')}>
@@ -2362,7 +2318,55 @@ function Vykony({ vm }) {
             <div style={S('display:flex;gap:8px;flex-wrap:wrap;margin-top:12px')}><UcBtn onClick={d.vykazPdf}>{ic('file', 15)}Výkaz výkonů PDF</UcBtn></div>
           </Box>
         </div>
+
+        <div style={S('display:flex;flex-direction:column;gap:16px')}>
+          <Box icon="alert" color="var(--star)" title="Kontrola měsíce" sub={d.openCount ? `${d.openCount} událostí čeká na rozhodnutí, ${d.issuesTotal - d.openCount} vyřešeno` : `Vše vyřešeno (${d.issuesTotal} událostí)`} right={d.canResolve ? <UcBtn onClick={d.resolveAll}>{ic('sparkle', 14)}Podle smlouvy</UcBtn> : null}>
+            <div style={S('display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px')}>
+              {d.issueGroups.map((g) => <span key={g.type} style={UC_CHIP(g)}>{g.label}: {g.open ? `${g.open} / ` : ''}{g.total}</span>)}
+            </div>
+            <div style={S('display:flex;flex-direction:column;gap:8px')}>
+              {d.issues.map((i) => (
+                <div key={i.id} style={S(`padding:10px 12px;border:1px solid ${i.resolved ? 'var(--border)' : 'var(--border2)'};border-radius:12px;background:${i.resolved ? '#FAFAFC' : '#fff'}`)}>
+                  <div style={S('display:flex;align-items:center;gap:8px')}>
+                    <span style={S('min-width:28px;height:22px;padding:0 6px;border-radius:6px;background:#18181B;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center')}>{i.lineNo}</span>
+                    <div style={S('flex:1;min-width:0')}><div style={S('font-size:12.5px;font-weight:700')}>{i.dateLabel} · {i.label}</div><div style={S('font-size:11.5px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{i.detail} · {i.impact}</div></div>
+                    <span style={UC_CHIP(i.meta)}>{i.meta.label}</span>
+                  </div>
+                  {i.resolved
+                    ? <div style={S('font-size:11.5px;color:var(--green);font-weight:650;margin-top:6px;display:flex;align-items:center;gap:5px')}>{ic('check', 13)}{i.resolvedLabel}{i.resolved.who ? ` · ${i.resolved.who}${i.resolved.at ? ', ' + i.resolved.at : ''}` : ''}</div>
+                    : <div style={S('display:flex;gap:6px;flex-wrap:wrap;margin-top:8px')}>{i.actions.map((a, k) => <UcBtn key={a.label} primary={k === 0} onClick={a.onClick}>{a.label}</UcBtn>)}</div>}
+                </div>
+              ))}
+              {d.issuesTotal > 8 && <Hov onClick={d.toggleAll} base="align-self:flex-start;font-size:12.5px;font-weight:600;color:var(--blue-ink);cursor:pointer;padding:4px 0" hover="text-decoration:underline">{d.showAll ? 'Zobrazit méně' : `Zobrazit všech ${d.issuesTotal} událostí`}</Hov>}
+            </div>
+          </Box>
+
+        </div>
       </div>
+      <div style={S(`${CARD};overflow:hidden;margin-top:16px`)}>
+            <div style={S('padding:18px 20px 6px')}><CardHead icon="bus" color="var(--blue)" title="Linky v měsíci" sub="Klikněte na linku pro rozpad po dnech a spojích" /></div>
+            {!mob && <div style={S(`display:grid;grid-template-columns:${cols};align-items:center;gap:12px;padding:10px 20px;border-bottom:1px solid var(--border);background:#F7FAFE;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px`)}>
+              <div>Linka</div><div style={S('text-align:right')}>Spoje</div><div style={S('text-align:right')}>Km uznatelné</div><div style={S('text-align:right')}>Výkon</div><div style={S('text-align:right')}>Kompenzace</div>
+            </div>}
+            {d.rows.map((r) => (
+              <Hov key={r.id} onClick={r.onClick} base={`display:grid;grid-template-columns:${cols};align-items:center;gap:${mob ? '6px' : '12px'};padding:13px 20px;border-bottom:1px solid var(--border);cursor:pointer`} hover="background:var(--canvas)">
+                <div style={S('min-width:0;display:flex;align-items:flex-start;gap:10px')}>
+                  <span style={S('min-width:34px;height:26px;padding:0 7px;border-radius:7px;background:#18181B;color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px')}>{r.no}</span>
+                  <div style={S('min-width:0;flex:1')}>
+                    <div style={S('font-size:13px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.name}</div>
+                    <div style={S(sub)}>{r.open > 0 ? <span style={S('color:#B45309;font-weight:700')}>{r.open} ke kontrole</span> : <span style={S('color:var(--green);font-weight:650')}>zkontrolováno</span>}{r.t.kmNeuzn ? ` · ${n(r.t.kmNeuzn)} km neuznáno` : ''}{r.flags.length ? ` · ${r.flags.join(' · ')}` : ''}</div>
+                  </div>
+                </div>
+                <div style={S(`min-width:0;text-align:${mob ? 'left' : 'right'}`)}><div style={S('font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap')}>{n(r.t.tripsRun)} / {n(r.t.tripsPlan)}</div><div style={S(`${sub};font-weight:700;color:${r.plneniColor}`)}>{pct(r.t.plneni)} %{r.t.missed ? ` · ${r.t.missed} nejeto` : ''}</div></div>
+                <div style={S(`min-width:0;text-align:${mob ? 'left' : 'right'}`)}><div style={S('font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap')}>{n(r.t.kmUzn)}</div><div style={S(sub)}>plán {n(r.t.kmPlan)}</div></div>
+                <div style={S(`min-width:0;text-align:${mob ? 'left' : 'right'}`)}><div style={S('font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap')}>{r.vykonF}</div><div style={S(sub)}>{r.rate} Kč/km</div></div>
+                <div style={S(`min-width:0;text-align:${mob ? 'left' : 'right'}`)}><div style={S('font-size:13.5px;font-weight:750;color:var(--star);font-variant-numeric:tabular-nums;white-space:nowrap')}>{r.kompF}</div><div style={S(sub)}>tržby {r.revF}{r.t.sankce ? ` · sankce ${r.sankceF}` : ''}</div></div>
+              </Hov>
+            ))}
+            <div style={S(`display:grid;grid-template-columns:${cols};gap:12px;padding:12px 20px;background:#F7FAFE;font-size:13px;font-weight:750;font-variant-numeric:tabular-nums`)}>
+              <div>Celkem</div>{!mob && <><div style={S('text-align:right;white-space:nowrap')}>{n(d.tot.tripsRun)} / {n(d.tot.tripsPlan)}</div><div style={S('text-align:right')}>{n(d.tot.kmUzn)}</div><div style={S('text-align:right;white-space:nowrap')}>{czk(d.tot.vykon)}</div></>}<div style={S(`text-align:${mob ? 'left' : 'right'};color:var(--star);white-space:nowrap`)}>{d.kompF}</div>
+            </div>
+          </div>
 
       {d.lineDetail && (() => { const L = d.lineDetail; const dc = mob ? '1fr' : '90px 110px 150px 110px 90px minmax(0,1fr)'; return (
         <UcModal wide title={`Linka ${L.no} · ${L.name}`} sub={`${d.monthLabel} · ${d.cust.short} · ${L.kmTrip} km na spoj · sazba ${L.rate} Kč/km`} onClose={L.close} stop={L.stop}>
