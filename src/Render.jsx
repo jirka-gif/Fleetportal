@@ -6877,21 +6877,58 @@ function HeroSearch({ o, mob }) {
   )
 }
 
+// Radar v hlavičce analýzy: šest zdrojů na kružnici se rozsvěcí podle kroků, paprsek krouží dokud analýza běží
+function AnalysisRadar({ items, done }) {
+  const n = items.length || 6
+  const nodes = items.map((it, i) => {
+    const a = (-90 + i * (360 / n)) * Math.PI / 180
+    return { x: 60 + Math.cos(a) * 42, y: 60 + Math.sin(a) * 42, st: it.status }
+  })
+  return (
+    <svg width="104" height="104" viewBox="0 0 120 120" aria-hidden="true" style={{ flexShrink: 0, overflow: 'visible' }}>
+      <defs>
+        <linearGradient id="anSweep" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#B9A9FF" stopOpacity="0" /><stop offset="1" stopColor="#B9A9FF" stopOpacity=".6" /></linearGradient>
+        <radialGradient id="anCore"><stop offset="0" stopColor="#fff" stopOpacity=".9" /><stop offset="1" stopColor="#8E79F8" stopOpacity=".2" /></radialGradient>
+      </defs>
+      {[18, 34, 50].map((r) => <circle key={r} cx="60" cy="60" r={r} fill="none" stroke="rgba(255,255,255,.22)" strokeWidth="1" strokeDasharray={r === 50 ? '2 4' : undefined} />)}
+      <line x1="60" y1="10" x2="60" y2="110" stroke="rgba(255,255,255,.08)" /><line x1="10" y1="60" x2="110" y2="60" stroke="rgba(255,255,255,.08)" />
+      {!done && <g style={{ transformOrigin: '60px 60px', animation: 'aresSpin 2.4s linear infinite' }}>
+        <path d="M60,60 L60,8 A52,52 0 0 1 105,34 Z" fill="url(#anSweep)" />
+        <line x1="60" y1="60" x2="105" y2="34" stroke="#D6CCFF" strokeWidth="1.5" strokeLinecap="round" />
+      </g>}
+      {nodes.map((p, i) => (
+        <g key={i}>
+          {p.st !== 'wait' && <circle cx={p.x} cy={p.y} r="9" fill={p.st === 'done' ? 'rgba(185,169,255,.22)' : 'rgba(255,255,255,.18)'} style={p.st === 'running' ? { animation: 'pulse 1s ease infinite' } : undefined} />}
+          <circle cx={p.x} cy={p.y} r={p.st === 'wait' ? 3 : 4.5} fill={p.st === 'done' ? '#C9BEFF' : p.st === 'running' ? '#fff' : 'rgba(255,255,255,.3)'} />
+        </g>
+      ))}
+      <circle cx="60" cy="60" r={done ? 13 : 7} fill={done ? '#1FC46A' : 'url(#anCore)'} style={{ transition: 'r .3s ease' }} />
+      {done && <path d="M53.5,60.5 L58.2,65 L67,55.5" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />}
+    </svg>
+  )
+}
+
 // Modal s průběhem analýzy trAIce: běží hned po načtení firmy
-function AnalysisModal({ o }) {
+function AnalysisModal({ o, mob }) {
   const done = o.anDone
   const doneCount = o.analysis.filter((x) => x.status === 'done').length
   return (
     <div onClick={done ? o.anContinue : undefined} style={S('position:fixed;inset:0;z-index:1200;background:rgba(15,13,40,.55);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeUp .2s ease')}>
-      <div onClick={(e) => e.stopPropagation()} style={S('width:min(680px,100%);background:#fff;border-radius:24px;box-shadow:0 40px 100px -20px rgba(15,13,40,.6);overflow:hidden;position:relative')}>
-        <div style={S('position:relative;padding:26px 28px 22px;background:linear-gradient(145deg,#241B4C 0%,#3A2A78 55%,#4C2F93 100%);color:#fff;overflow:hidden')}>
-          <img src="/hero-buses.png" alt="" aria-hidden="true" style={{ position: 'absolute', right: -40, top: -30, width: 300, opacity: 0.55, pointerEvents: 'none' }} />
-          <div style={S('position:relative;display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:rgba(255,255,255,.65)')}>{ic('sparkle', 14)} trAIce · hloubková analýza firmy</div>
-          <div style={S('position:relative;font-size:22px;font-weight:800;letter-spacing:-.6px;margin-top:8px;line-height:1.15;max-width:380px')}>{o.firmName}</div>
-          <div style={S('position:relative;font-size:12.5px;color:rgba(255,255,255,.72);margin-top:6px')}>{done ? 'Hotovo. Víme, co firmu živí, co má v registru a co z toho navrhnout.' : `Procházím veřejné zdroje… ${doneCount} z ${o.analysis.length}`}</div>
-          <div style={S('position:relative;margin-top:14px;height:6px;border-radius:6px;background:rgba(255,255,255,.18);overflow:hidden')}><div style={S(`height:100%;border-radius:6px;background:linear-gradient(90deg,#8E79F8,#B9A9FF);width:${Math.round(doneCount / o.analysis.length * 100)}%;transition:width .5s ease`)}></div></div>
+      <div onClick={(e) => e.stopPropagation()} style={S('width:min(680px,100%);max-height:calc(100dvh - 40px);display:flex;flex-direction:column;background:#fff;border-radius:24px;box-shadow:0 40px 100px -20px rgba(15,13,40,.6);overflow:hidden;position:relative')}>
+        <div style={S('position:relative;padding:24px 28px 20px;background:linear-gradient(135deg,#1E1745 0%,#2E2266 55%,#3F2A86 100%);color:#fff;overflow:hidden')}>
+          <div aria-hidden="true" style={S('position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.16) 1px,transparent 1.2px);background-size:18px 18px;mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.55) 55%,#000 100%);-webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.55) 55%,#000 100%);pointer-events:none')}></div>
+          <div aria-hidden="true" style={S('position:absolute;right:-60px;top:-90px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(142,121,248,.45) 0%,rgba(142,121,248,0) 65%);pointer-events:none')}></div>
+          <div style={S('position:relative;display:flex;align-items:center;gap:22px')}>
+            <div style={S('flex:1;min-width:0')}>
+              <div style={S('display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:rgba(255,255,255,.65)')}>{ic('sparkle', 14)} trAIce · hloubková analýza firmy</div>
+              <div style={S('font-size:22px;font-weight:800;letter-spacing:-.6px;margin-top:8px;line-height:1.15')}>{o.firmName}</div>
+              <div style={S('font-size:12.5px;color:rgba(255,255,255,.72);margin-top:6px;min-height:18px')}>{done ? 'Hotovo. Víme, co firmu živí, co má v registru a co z toho navrhnout.' : `Procházím veřejné zdroje… ${doneCount} z ${o.analysis.length}`}</div>
+            </div>
+            <AnalysisRadar items={o.analysis} done={done} />
+          </div>
+          <div style={S('position:relative;margin-top:14px;height:6px;border-radius:6px;background:rgba(255,255,255,.16);overflow:hidden')}><div style={S(`height:100%;border-radius:6px;background:linear-gradient(90deg,#8E79F8,#B9A9FF);width:${Math.round(doneCount / o.analysis.length * 100)}%;transition:width .5s ease`)}></div></div>
         </div>
-        <div style={S('padding:10px 28px 8px')}>
+        <div style={S('padding:10px 28px 8px;overflow-y:auto;flex:1;min-height:0')}>
           {o.analysis.map((it, i) => (
             <div key={it.title} style={S(`display:flex;gap:13px;padding:11px 0;${i ? 'border-top:1px solid var(--border)' : ''};opacity:${it.status === 'wait' ? '.4' : '1'};transition:opacity .3s`)}>
               <span style={S(`width:26px;height:26px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px;${it.status === 'done' ? 'background:var(--green);color:#fff' : it.status === 'running' ? 'background:var(--blue-soft);color:var(--blue);animation:pulse 1s ease infinite' : 'background:#F1F1F3;color:var(--ink3)'}`)}>{it.status === 'done' ? ic('check', 14) : it.status === 'running' ? ic('refresh', 14) : <span style={S('font-size:11px;font-weight:700')}>{i + 1}</span>}</span>
@@ -6904,7 +6941,7 @@ function AnalysisModal({ o }) {
           ))}
         </div>
         <div style={S('display:flex;align-items:center;gap:10px;padding:14px 28px 20px;border-top:1px solid var(--border)')}>
-          <span style={S('font-size:11.5px;color:var(--ink3);flex:1')}>{done ? 'Výsledky si projdete na další obrazovce.' : 'Zdroje: ARES, Sbírka listin, registr vozidel, registr smluv.'}</span>
+          <span style={S('font-size:11.5px;color:var(--ink3);flex:1')}>{mob ? '' : done ? 'Výsledky si projdete na další obrazovce.' : 'Zdroje: ARES, Sbírka listin, registr vozidel, registr smluv.'}</span>
           <UcBtn onClick={o.anClose}>Zavřít</UcBtn>
           <UcBtn primary disabled={!done} onClick={o.anContinue}>Pokračovat {ic('arrow', 14)}</UcBtn>
         </div>
@@ -7169,7 +7206,7 @@ function Onboarding({ vm }) {
           </div>
         )}
       </main>
-      {o.anOpen && <AnalysisModal o={o} />}
+      {o.anOpen && <AnalysisModal o={o} mob={mob} />}
     </div>
   )
 }
