@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, Suspense } from 'react'
 import { css as S, Hov, Icon, InsurerLogo, exportData, czk } from './helpers.jsx'
 import CzMap from './CzMap.jsx'
 import { vehiclesData, vehicleTypeCat } from './data.js'
+import { TELEMATICS, CUSTOMER_OPTS, PLATFORM_OPTS, EXTRA_OPTS, PRIORITY_OPTS } from './profiles.js'
 
 // Mapa škod (Leaflet) je těžká a jen na dashboardu → lazy-load do vlastního chunku.
 const ClaimsMap = React.lazy(() => import('./ClaimsMap.jsx'))
@@ -226,6 +227,12 @@ const ROOT_STYLE =
 
 export default function Render({ vm }) {
   const mob = vm.vp.isMobile
+  if (vm.isOnboarding) return (
+    <div style={S(ROOT_STYLE)}>
+      <Onboarding vm={vm} />
+      {vm.toast && <div style={S('position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:90;display:flex;align-items:center;gap:11px;background:#18181B;color:#fff;padding:13px 18px;border-radius:12px;box-shadow:0 16px 44px rgba(0,0,0,.3);font-size:13.5px;font-weight:500;max-width:520px;animation:fadeUp .22s ease')}><span style={S('width:22px;height:22px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff')}>{ic('check', 16)}</span><span>{vm.toast}</span></div>}
+    </div>
+  )
   const asideStyle = mob
     ? `width:min(86vw,300px);flex-shrink:0;background:var(--side-bg);border-right:1px solid var(--side-border);display:flex;flex-direction:column;height:100%;position:fixed;top:0;left:0;z-index:100;transform:translateX(${vm.sidebarOpen ? '0' : '-100%'});transition:transform .25s ease;box-shadow:${vm.sidebarOpen ? '0 24px 60px rgba(0,0,0,.5)' : 'none'}`
     : 'width:264px;flex-shrink:0;background:var(--side-bg);border-right:1px solid var(--side-border);display:flex;flex-direction:column;height:100%'
@@ -279,7 +286,7 @@ export default function Render({ vm }) {
           )}
           {!mob && (
             <div style={S('display:flex;align-items:center;gap:10px;min-width:0;flex-shrink:0')}>
-              <Hov onClick={() => vm.navigate && vm.navigate('dashboard')} base="display:flex;align-items:center;gap:8px;height:42px;padding:0 14px;background:var(--blue-soft);border-radius:13px;white-space:nowrap;cursor:pointer" hover="background:var(--blue-soft);box-shadow:0 0 0 2px rgba(79,111,255,.18)"><span style={S('display:flex;color:var(--blue)')}>{ic('pin', 15)}</span><span style={S('font-size:13px;font-weight:600;color:var(--blue-ink)')}>ČSAD AUTOBUSY České Budějovice · {vm.companyVehicles} vozidel</span></Hov>
+              <Hov onClick={() => vm.navigate && vm.navigate('dashboard')} base="display:flex;align-items:center;gap:8px;height:42px;padding:0 14px;background:var(--blue-soft);border-radius:13px;white-space:nowrap;cursor:pointer" hover="background:var(--blue-soft);box-shadow:0 0 0 2px rgba(79,111,255,.18)"><span style={S('display:flex;color:var(--blue)')}>{ic('pin', 15)}</span><span style={S('font-size:13px;font-weight:600;color:var(--blue-ink)')}>{vm.tenant.name} · {vm.tenant.vehicles} vozidel</span></Hov>
             </div>
           )}
           <div style={{ flex: 1 }}></div>
@@ -335,11 +342,27 @@ export default function Render({ vm }) {
                       </Hov>
                     )
                   })}
+                  <Hov onClick={vm.startOnboarding} base="display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;border-top:1px solid var(--border);background:#FAFAFF" hover="background:var(--canvas)">
+                    <span style={S('width:38px;height:38px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#4F6FFF,#6D5EF6);color:#fff')}>{ic('plus', 18)}</span>
+                    <div style={S('min-width:0;flex:1')}>
+                      <div style={S('font-size:13.5px;font-weight:700')}>Nový zákazník</div>
+                      <div style={S('font-size:11.5px;color:var(--ink3);margin-top:2px;line-height:1.4')}>Onboarding podle IČO: ARES, trAIce analýza a portál na míru.</div>
+                    </div>
+                    <span style={S('display:flex;color:var(--ink3)')}>{ic('arrow', 16)}</span>
+                  </Hov>
                 </div>
               </>
             )}
           </div>
         </header>
+        {vm.tenant.preview && (
+          <div style={S('flex-shrink:0;display:flex;align-items:center;gap:12px;padding:9px 26px;background:linear-gradient(90deg,#FEF3E2,#FFF7ED);border-bottom:1px solid rgba(180,83,9,.18);font-size:12.5px;color:#7C2D12;flex-wrap:wrap')}>
+            <span style={S('display:flex;color:#B45309')}>{ic('info', 16)}</span>
+            <span><b>Náhled nastavení pro {vm.tenant.name}</b> · provozy: {vm.tenant.provozy.join(', ')} · menu a moduly jsou podle návrhu, data v obrazovkách jsou ukázková (ČSAD).</span>
+            <span style={{ flex: 1 }}></span>
+            <Hov onClick={vm.exitPreview} base="display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:9px;border:1px solid rgba(180,83,9,.3);background:#fff;font-size:12px;font-weight:600;color:#7C2D12;cursor:pointer" hover="background:#FEF3E2">{ic('close', 13)} Ukončit náhled</Hov>
+          </div>
+        )}
 
         {/* CONTENT */}
         <main style={S('flex:1;overflow-y:auto;background:var(--canvas)')}>
@@ -388,6 +411,7 @@ export default function Render({ vm }) {
             {vm.isStazka && <Stazka vm={vm} />}
             {vm.isContacts && <Contacts vm={vm} />}
             {vm.isSettings && <Settings vm={vm} />}
+            {vm.isSoon && <SoonModule vm={vm} />}
 
           </div>
         </main>
@@ -6390,6 +6414,12 @@ function Settings({ vm }) {
       <DashEditor vm={vm} />
 
       <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:18px 22px;margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap')}>
+        <div style={S('width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#4F6FFF,#6D5EF6);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic('sparkle', 20)}</div>
+        <div style={S('flex:1;min-width:200px')}><div style={S('font-size:13.5px;font-weight:700')}>Onboarding nového zákazníka</div><div style={S('font-size:12.5px;color:var(--ink3);margin-top:1px')}>Zadáte IČO, trAIce projde ARES, registr vozidel, smlouvy a ekonomiku a navrhne provozy a moduly na míru. Jde spustit i přes odkaz s #onboarding.</div></div>
+        <UcBtn primary onClick={vm.startOnboarding}>{ic('plus', 14)} Spustit onboarding</UcBtn>
+      </div>
+
+      <div style={S('background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shc);padding:18px 22px;margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap')}>
         <div style={S('width:40px;height:40px;border-radius:11px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic('shield', 20)}</div>
         <div style={S('flex:1;min-width:160px')}><div style={S('font-size:13.5px;font-weight:700')}>Moduly a menu</div><div style={S('font-size:12.5px;color:var(--ink3);margin-top:1px')}>Rozsah portálu (Řidiči, Financování, Bonifikace…) spravuje váš makléř přes Draive Core CRM. Potřebujete něco zapnout? Ozvěte se.</div></div>
         <span style={S('display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--ink2);background:#EEF2F9;padding:5px 11px;border-radius:20px;white-space:nowrap')}>{ic('lock', 11, 2.4)} Spravuje makléř</span>
@@ -6765,6 +6795,323 @@ function AddVehicleWizard({ vm }) {
           <span onClick={avm.back} style={S(avm.backStyle)}>← Zpět</span>
           <div onClick={avm.next} style={S(avm.nextStyle)}>{avm.nextLabel}</div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------- ONBOARDING NOVÉHO ZÁKAZNÍKA: IČO → ARES → trAIce analýza → doplnění → portál na míru ----------
+const ONB_CARD = `${CARD};padding:22px 24px`
+const OnbChip = ({ on, onClick, children, soft }) => <Hov onClick={onClick} base={`display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 13px;border-radius:20px;font-size:12.5px;font-weight:600;cursor:pointer;border:1px solid ${on ? 'var(--blue)' : 'var(--border2)'};background:${on ? 'var(--blue-soft)' : '#fff'};color:${on ? 'var(--blue-ink)' : soft ? 'var(--ink2)' : 'var(--ink)'};transition:background .14s ease,border-color .14s ease`} hover={on ? '' : 'background:var(--canvas)'}>{on && ic('check', 13)}{children}</Hov>
+const OnbSwitch = ({ on, onClick }) => <div onClick={onClick} style={S(`width:44px;height:26px;border-radius:20px;background:${on ? 'var(--blue)' : '#D4D4D8'};padding:3px;cursor:pointer;transition:background .15s;display:flex;flex-shrink:0`)}><div style={S(`width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .15s;transform:translateX(${on ? '18px' : '0'})`)}></div></div>
+const OnbLabel = ({ children }) => <div style={S('font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--ink3);margin-bottom:10px')}>{children}</div>
+const OnbQ = ({ title, sub, children }) => (
+  <div style={S(ONB_CARD)}>
+    <div style={S('font-size:14.5px;font-weight:700;letter-spacing:-.2px')}>{title}</div>
+    {sub && <div style={S('font-size:12.5px;color:var(--ink3);margin-top:4px;line-height:1.5;margin-bottom:14px')}>{sub}</div>}
+    {children}
+  </div>
+)
+const ONB_LEVEL = { doporuceno: { label: 'Doporučeno', color: 'var(--green)', bg: 'var(--green-soft)' }, zvazte: { label: 'Zvažte', color: '#B45309', bg: 'var(--amber-soft)' }, ne: { label: 'Bez signálu', color: 'var(--ink3)', bg: '#F1F1F3' } }
+
+function Onboarding({ vm }) {
+  const o = vm.onboarding
+  if (!o) return null
+  const mob = vm.vp.isMobile
+  const two = mob ? '1fr' : 'minmax(0,1.15fr) minmax(0,1fr)'
+  const footer = (nextLabel) => (
+    <div style={S('display:flex;align-items:center;gap:10px;margin-top:22px;padding-top:18px;border-top:1px solid var(--border)')}>
+      {o.step > 1 && <UcBtn onClick={o.back}>{ic('arrowLeft', 14)} Zpět</UcBtn>}
+      <span style={{ flex: 1 }}></span>
+      {nextLabel && <UcBtn primary disabled={!o.canNext} onClick={o.next}>{nextLabel} {ic('arrow', 14)}</UcBtn>}
+    </div>
+  )
+  const bar = (n, max, color) => <div style={S('height:8px;border-radius:6px;background:#EEF0F6;overflow:hidden;flex:1')}><div style={S(`height:100%;width:${Math.max(3, Math.round(n / max * 100))}%;background:${color || 'linear-gradient(90deg,#4F6FFF,#6D5EF6)'};border-radius:6px`)}></div></div>
+  return (
+    <div style={S('flex:1;display:flex;flex-direction:column;min-width:0;height:100%;background:var(--canvas)')}>
+      <header style={S(`height:68px;flex-shrink:0;background:rgba(255,255,255,.72);backdrop-filter:blur(14px) saturate(1.4);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;padding:0 ${mob ? '14px' : '26px'}`)}>
+        <FleetLogo markSize={30} dark={false} />
+        <div style={S('width:1px;height:28px;background:var(--border2)')}></div>
+        <div style={S('min-width:0')}>
+          <div style={S('font-size:13.5px;font-weight:700;letter-spacing:-.2px;white-space:nowrap')}>Onboarding nového zákazníka</div>
+          <div style={S('font-size:11.5px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{o.company ? o.company.name : 'IČO → ARES → trAIce analýza → portál na míru'}</div>
+        </div>
+        <span style={{ flex: 1 }}></span>
+        <UcBtn onClick={o.exit}>{ic('close', 14)} Zavřít</UcBtn>
+      </header>
+      <main style={S('flex:1;overflow-y:auto')}>
+        <div style={S(`padding:${mob ? '18px 14px 60px' : '30px 32px 70px'};max-width:1180px;margin:0 auto`)}>
+          <div style={S(`${CARD};padding:18px 28px 12px;margin-bottom:22px`)}><ZjStepper steps={o.steps} /></div>
+
+          {o.step === 1 && (
+            <div style={S(`display:grid;grid-template-columns:${two};gap:18px;align-items:start`)}>
+              <div>
+                <div style={S(ONB_CARD)}>
+                  <div style={S('font-size:22px;font-weight:800;letter-spacing:-.7px;line-height:1.1')}>Začneme IČO</div>
+                  <div style={S('font-size:13.5px;color:var(--ink2);margin-top:8px;line-height:1.55')}>Z IČO zjistíme, co firma dělá, jaká vozidla má v registru, s kým má smlouvy a jak na tom je ekonomicky. Z toho navrhneme, které části Fleet Portalu dávají smysl.</div>
+                  <div style={S('display:flex;gap:10px;margin-top:18px;flex-wrap:wrap')}>
+                    <input value={o.ico} onChange={o.setIco} onKeyDown={(e) => e.key === 'Enter' && o.load()} placeholder="IČO (8 číslic)" inputMode="numeric" style={S(`${UC_INPUT};height:46px;font-size:17px;font-weight:700;letter-spacing:1px;flex:1;min-width:180px;font-variant-numeric:tabular-nums`)} />
+                    <Hov onClick={o.loading ? undefined : o.load} base={`display:inline-flex;align-items:center;gap:8px;height:46px;padding:0 18px;border-radius:12px;font-size:13.5px;font-weight:700;color:#fff;background:${o.loading ? '#CBD5E1' : 'linear-gradient(135deg,#5B6BF5,#7A5CF8)'};cursor:${o.loading ? 'wait' : 'pointer'};white-space:nowrap`} hover={o.loading ? '' : 'transform:translateY(-1px)'}>{ic('search', 16)} {o.loading ? 'Načítám z ARES…' : 'Načíst z ARES'}</Hov>
+                  </div>
+                  {o.error && <div style={S('margin-top:10px;font-size:12.5px;color:var(--star-ink);font-weight:600')}>{o.error}</div>}
+                  <div style={S('margin-top:10px;font-size:11.5px;color:var(--ink3)')}>ARES se volá živě. Registr vozidel, Sbírku listin a registr smluv zpracovává trAIce na serveru, v demu jsou dostupné pro ČSAD a ukázkové firmy.</div>
+                </div>
+                <div style={S(`${ONB_CARD};margin-top:16px`)}>
+                  <OnbLabel>Nebo vyzkoušejte na ukázkové firmě</OnbLabel>
+                  <div style={S('display:grid;gap:8px')}>
+                    {o.demoFirms.map((d) => (
+                      <Hov key={d.id} onClick={d.pick} base={`display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:13px;border:1px solid ${d.on ? 'var(--blue)' : 'var(--border)'};background:${d.on ? 'var(--blue-soft)' : '#fff'};cursor:pointer`} hover={d.on ? '' : 'background:var(--canvas)'}>
+                        <span style={S(`width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:${d.on ? 'linear-gradient(135deg,#4F6FFF,#6D5EF6)' : 'var(--purple-soft)'};color:${d.on ? '#fff' : 'var(--purple)'};flex-shrink:0`)}>{ic(d.id === 'csad' ? 'bus' : d.id === 'translog' ? 'truck' : d.id === 'cityride' ? 'car' : d.id === 'stavby' ? 'fleets' : 'tire', 18)}</span>
+                        <div style={S('flex:1;min-width:0')}><div style={S('font-size:13.5px;font-weight:700')}>{d.label}</div><div style={S('font-size:11.5px;color:var(--ink3);margin-top:1px')}>{d.tag}</div></div>
+                        {d.live ? <span style={UC_CHIP({ color: 'var(--green)', bg: 'var(--green-soft)' })}>živě</span> : <span style={UC_CHIP({ color: 'var(--ink3)', bg: '#F1F1F3' })}>fiktivní</span>}
+                      </Hov>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div>
+                {o.company ? (
+                  <div style={S(ONB_CARD)}>
+                    <div style={S('display:flex;align-items:flex-start;gap:12px')}>
+                      <div style={S('flex:1;min-width:0')}>
+                        <OnbLabel>Firma podle ARES</OnbLabel>
+                        <div style={S('font-size:19px;font-weight:800;letter-spacing:-.5px;line-height:1.15')}>{o.company.name}</div>
+                      </div>
+                      <span style={UC_CHIP(o.company.live ? { color: 'var(--green)', bg: 'var(--green-soft)' } : { color: '#B45309', bg: 'var(--amber-soft)' })}>{o.company.live ? 'živě z ARES' : 'fiktivní firma, data ukázková'}</span>
+                    </div>
+                    <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin-top:16px')}>
+                      {o.company.rows.map(([k, v]) => <div key={k} style={S(k === 'Sídlo' ? 'grid-column:1 / -1' : '')}><div style={S('font-size:11px;color:var(--ink3);font-weight:600')}>{k}</div><div style={S('font-size:13px;font-weight:600;margin-top:2px;overflow-wrap:anywhere')}>{v}</div></div>)}
+                    </div>
+                    <div style={S('margin-top:18px;padding-top:16px;border-top:1px solid var(--border)')}>
+                      <OnbLabel>Co firmu živí (CZ-NACE)</OnbLabel>
+                      <div style={S('display:grid;gap:6px')}>
+                        {o.company.nace.map((n) => (
+                          <div key={n.code} style={S(`display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:10px;background:${n.hit ? 'var(--blue-soft)' : '#F7F7FA'}`)}>
+                            <span style={S(`font-size:11.5px;font-weight:800;font-variant-numeric:tabular-nums;color:${n.hit ? 'var(--blue-ink)' : 'var(--ink3)'};min-width:48px`)}>{n.code}</span>
+                            <span style={S(`font-size:12.5px;font-weight:${n.hit ? 650 : 500};color:${n.hit ? 'var(--ink)' : 'var(--ink2)'}`)}>{n.name}</span>
+                            {n.hit && <span style={S('margin-left:auto;font-size:10px;font-weight:700;color:var(--blue-ink)')}>signál pro profil</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={S(ONB_CARD)}>
+                    <OnbLabel>Jak to proběhne</OnbLabel>
+                    {[['search', 'Firma', 'ARES vrátí název, sídlo, právní formu a činnosti CZ-NACE. Z nich čteme, co firmu živí.'], ['sparkle', 'Analýza trAIce', 'Registr silničních vozidel podle IČO provozovatele, Sbírka listin, registr smluv a platební morálka.'], ['users', 'Doplnění', 'Co z registrů nevidíme: operativní leasing, stroje mimo registr, telematika, objednatelé a platformy.'], ['fleets', 'Návrh portálu', 'Profily provozu s odůvodněním, moduly, role, pojištění a plán prvních 30 dní. Jedním klikem portál spustíte.']].map(([i, t, d], idx) => (
+                      <div key={t} style={S(`display:flex;gap:14px;padding:12px 0;${idx ? 'border-top:1px solid var(--border)' : ''}`)}>
+                        <span style={S('width:38px;height:38px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--purple-soft);color:var(--purple)')}>{ic(i, 18)}</span>
+                        <div><div style={S('font-size:13.5px;font-weight:700')}>{idx + 1}. {t}</div><div style={S('font-size:12.5px;color:var(--ink2);margin-top:3px;line-height:1.5')}>{d}</div></div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {footer('Spustit analýzu trAIce')}
+              </div>
+            </div>
+          )}
+
+          {o.step === 2 && (
+            <div style={S(`display:grid;grid-template-columns:${two};gap:18px;align-items:start`)}>
+              <div>
+                <div style={S(ONB_CARD)}>
+                  <div style={S('display:flex;align-items:center;gap:12px')}>
+                    <span style={S('width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#4F6FFF,#6D5EF6);color:#fff;box-shadow:0 8px 18px -6px rgba(79,111,255,.6)')}>{ic('sparkle', 20)}</span>
+                    <div><div style={S('font-size:17px;font-weight:800;letter-spacing:-.4px')}>Hloubková analýza trAIce</div><div style={S('font-size:12.5px;color:var(--ink3);margin-top:2px')}>{o.company.name}</div></div>
+                  </div>
+                  <div style={S('margin-top:18px')}>
+                    {o.analysis.map((it, i) => (
+                      <div key={it.title} style={S(`display:flex;gap:13px;padding:12px 0;${i ? 'border-top:1px solid var(--border)' : ''};opacity:${it.status === 'wait' ? '.45' : '1'};transition:opacity .3s`)}>
+                        <span style={S(`width:26px;height:26px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px;${it.status === 'done' ? 'background:var(--green);color:#fff' : it.status === 'running' ? 'background:var(--blue-soft);color:var(--blue);animation:pulse 1s ease infinite' : 'background:#F1F1F3;color:var(--ink3)'}`)}>{it.status === 'done' ? ic('check', 14) : it.status === 'running' ? ic('refresh', 14) : <span style={S('font-size:11px;font-weight:700')}>{i + 1}</span>}</span>
+                        <div style={S('min-width:0;flex:1')}>
+                          <div style={S('display:flex;align-items:center;gap:8px;flex-wrap:wrap')}><span style={S('font-size:13.5px;font-weight:700')}>{it.title}</span>{it.status === 'done' && it.live && <span style={UC_CHIP({ color: 'var(--green)', bg: 'var(--green-soft)' })}>živá data</span>}{it.status === 'done' && it.soft && <span style={UC_CHIP({ color: '#B45309', bg: 'var(--amber-soft)' })}>na serveru trAIce</span>}</div>
+                          {it.status === 'done' && <div style={S(`font-size:12.5px;line-height:1.55;margin-top:4px;color:${it.soft ? 'var(--ink3)' : 'var(--ink2)'}`)}>{it.result}</div>}
+                          {it.status === 'running' && <div style={S('font-size:12px;color:var(--ink3);margin-top:4px')}>Probíhá…</div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {footer('Doplnit, co z registrů nevidíme')}
+              </div>
+              <div style={S('display:grid;gap:16px')}>
+                {o.analysis[2].status === 'done' && (
+                  <div style={S(ONB_CARD)}>
+                    <OnbLabel>Registr silničních vozidel</OnbLabel>
+                    {o.register ? (
+                      <>
+                        <div style={S('display:flex;align-items:baseline;gap:8px')}><span style={S('font-size:30px;font-weight:800;letter-spacing:-1.2px')}>{o.register.total}</span><span style={S('font-size:13px;color:var(--ink2);font-weight:600')}>vozidel na IČO · průměrné stáří {o.register.age}</span></div>
+                        <div style={S('display:grid;gap:7px;margin-top:12px')}>
+                          {o.register.kinds.map(([k, n]) => <div key={k} style={S('display:flex;align-items:center;gap:10px')}><span style={S('font-size:12.5px;font-weight:600;width:140px;flex-shrink:0')}>{k}</span>{bar(n, o.register.kinds[0][1])}<span style={S('font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;width:36px;text-align:right')}>{n}</span></div>)}
+                        </div>
+                        <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)')}>
+                          <div><div style={S('font-size:11px;color:var(--ink3);font-weight:600;margin-bottom:6px')}>Značky</div><div style={S('display:flex;flex-wrap:wrap;gap:5px')}>{o.register.brands.map(([b, n]) => <span key={b} style={UC_CHIP({ color: 'var(--ink2)', bg: '#F1F1F3' })}>{b} · {n}</span>)}</div></div>
+                          <div><div style={S('font-size:11px;color:var(--ink3);font-weight:600;margin-bottom:6px')}>Palivo</div><div style={S('display:flex;flex-wrap:wrap;gap:5px')}>{o.register.fuel.map(([f, n]) => <span key={f} style={UC_CHIP(f === 'Elektro' || f === 'Hybrid' || f === 'CNG' || f === 'LNG' ? { color: 'var(--green)', bg: 'var(--green-soft)' } : { color: 'var(--ink2)', bg: '#F1F1F3' })}>{f} · {n}</span>)}</div></div>
+                        </div>
+                        <div style={S('margin-top:12px;font-size:12px;color:var(--ink2)')}><b>Provozovny:</b> {o.register.sites.join(' · ')}</div>
+                      </>
+                    ) : <div style={S('font-size:12.5px;color:var(--ink3);line-height:1.55')}>Dotaz do registru běží na serveru trAIce. Vozidla na operativní leasing v registru nejsou (provozovatelem je leasingová společnost), na ty se zeptáme v dalším kroku.</div>}
+                  </div>
+                )}
+                {o.analysis[3].status === 'done' && (
+                  <div style={S(ONB_CARD)}>
+                    <OnbLabel>Smlouvy a objednatelé</OnbLabel>
+                    <div style={S('display:flex;align-items:baseline;gap:8px')}><span style={S('font-size:30px;font-weight:800;letter-spacing:-1.2px')}>{o.contracts.public === null ? '—' : o.contracts.public}</span><span style={S('font-size:13px;color:var(--ink2);font-weight:600')}>smluv v registru smluv</span></div>
+                    <div style={S('font-size:12.5px;color:var(--ink2);margin-top:8px;line-height:1.55')}>{o.contracts.note}</div>
+                  </div>
+                )}
+                {o.analysis[4].status === 'done' && (
+                  <div style={S(ONB_CARD)}>
+                    <OnbLabel>Ekonomika a platební morálka</OnbLabel>
+                    {o.economy.rows.length > 0 && (
+                      <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:10px 14px')}>
+                        {o.economy.rows.map(([k, v, s]) => <div key={k} style={S('padding:10px 12px;border-radius:11px;background:#F7F7FA')}><div style={S('font-size:11px;color:var(--ink3);font-weight:600')}>{k}</div><div style={S('font-size:17px;font-weight:800;letter-spacing:-.4px;margin-top:2px')}>{v}</div><div style={S('font-size:11px;color:var(--ink3);margin-top:2px')}>{s}</div></div>)}
+                      </div>
+                    )}
+                    <div style={S(`display:flex;gap:10px;margin-top:${o.economy.rows.length ? '12px' : '0'};padding:11px 13px;border-radius:11px;background:var(--purple-soft)`)}><span style={S('display:flex;color:var(--purple);flex-shrink:0')}>{ic('sparkle', 16)}</span><div style={S('font-size:12.5px;color:var(--ink);line-height:1.5')}>{o.economy.signal}</div></div>
+                    <div style={S('margin-top:8px;font-size:11px;color:var(--ink3)')}>Zdroj: {o.economy.source}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {o.step === 3 && (
+            <div>
+              <div style={S(`${CARD};padding:18px 24px;margin-bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap`)}>
+                <span style={S('width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;background:var(--amber-soft);color:#B45309;flex-shrink:0')}>{ic('info', 20)}</span>
+                <div style={S('flex:1;min-width:240px')}><div style={S('font-size:16px;font-weight:800;letter-spacing:-.3px')}>Co z registrů nevidíme</div><div style={S('font-size:12.5px;color:var(--ink2);margin-top:3px;line-height:1.5')}>Registr vozidel ukazuje jen vozidla psaná na vaše IČO. Operativní leasing, stroje bez SPZ, telematika nebo platformy se musí doplnit. Odpovědi upřesní návrh.</div></div>
+              </div>
+              <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : 'repeat(2,minmax(0,1fr))'};gap:16px`)}>
+                <OnbQ title="Vozidla na operativní leasing" sub="V registru je provozovatelem leasingová společnost, takže je na vašem IČO nevidíme. Kolik jich máte a od koho?">
+                  <div style={S('display:grid;grid-template-columns:120px 1fr;gap:10px')}>
+                    <div><div style={S(UC_LBL)}>Počet vozidel</div><input value={o.answers.leasingCount} onChange={o.setAns('leasingCount')} inputMode="numeric" placeholder="0" style={S(UC_INPUT)} /></div>
+                    <div><div style={S(UC_LBL)}>Leasingová společnost</div><Select value={o.answers.leasingCompany} onChange={o.setAns('leasingCompany')} options={o.leasingCompanies} placeholder="Vyberte…" height={38} /></div>
+                  </div>
+                </OnbQ>
+                <OnbQ title="Stroje a technika mimo registr" sub="Nářadí, manipulační technika, nakladače nebo stroje bez SPZ. Vedeme je podle výrobního čísla a motohodin.">
+                  <div style={S('display:flex;gap:8px;align-items:center;flex-wrap:wrap')}>
+                    <OnbChip on={o.answers.machines === 'ne'} onClick={() => o.setAnsV('machines', 'ne')}>Nemáme</OnbChip>
+                    <OnbChip on={o.answers.machines === 'ano'} onClick={() => o.setAnsV('machines', 'ano')}>Máme</OnbChip>
+                    {o.answers.machines === 'ano' && <input value={o.answers.machinesCount} onChange={o.setAns('machinesCount')} inputMode="numeric" placeholder="kolik" style={S(`${UC_INPUT};width:110px;height:34px`)} />}
+                  </div>
+                </OnbQ>
+                <OnbQ title="Telematika" sub="Máte ve vozidlech jednotky? Podle toho víme, odkud vezmeme polohu, spotřebu a styl jízdy.">
+                  <div style={S('display:flex;gap:8px;align-items:center;flex-wrap:wrap')}>
+                    <OnbChip on={o.answers.telematics === 'ne'} onClick={() => o.setAnsV('telematics', 'ne')}>Zatím ne</OnbChip>
+                    <OnbChip on={o.answers.telematics === 'ano'} onClick={() => o.setAnsV('telematics', 'ano')}>Ano</OnbChip>
+                    {o.answers.telematics === 'ano' && <div style={S('flex:1;min-width:200px')}><Select value={o.answers.telematicsBrand} onChange={o.setAns('telematicsBrand')} options={TELEMATICS} placeholder="Jaká…" height={34} /></div>}
+                  </div>
+                </OnbQ>
+                <OnbQ title="Lidé v provozu" sub="Řidiči, obsluha strojů nebo zaměstnanci s přiděleným vozem. Podle počtu připravíme pozvánky a role.">
+                  <input value={o.answers.drivers} onChange={o.setAns('drivers')} inputMode="numeric" placeholder="počet lidí" style={S(`${UC_INPUT};width:160px`)} />
+                </OnbQ>
+                <OnbQ title="Pro koho jezdíte" sub="Objednatelé určují, jestli potřebujete vyúčtování výkonů, zakázky nebo přeúčtování středisek.">
+                  <div style={S('display:flex;gap:8px;flex-wrap:wrap')}>{CUSTOMER_OPTS.map(([v, l]) => <OnbChip key={v} on={o.answers.customers.includes(v)} onClick={() => o.toggleAns('customers', v)}>{l}</OnbChip>)}</div>
+                </OnbQ>
+                <OnbQ title="Platformy" sub="Jen pro osobní přepravu: odkud chodí jízdy a výplaty.">
+                  <div style={S('display:flex;gap:8px;flex-wrap:wrap')}>{PLATFORM_OPTS.map(([v, l]) => <OnbChip key={v} on={o.answers.platforms.includes(v)} onClick={() => o.toggleAns('platforms', v)}>{l}</OnbChip>)}</div>
+                </OnbQ>
+                <OnbQ title="Co ještě děláte" sub="Činnosti, které v NACE nemusí být vidět, ale mění, co portál potřebuje.">
+                  <div style={S('display:flex;gap:8px;flex-wrap:wrap')}>{EXTRA_OPTS.map(([v, l]) => <OnbChip key={v} on={o.answers.extra.includes(v)} onClick={() => o.toggleAns('extra', v)}>{l}</OnbChip>)}</div>
+                </OnbQ>
+                <OnbQ title="Co je pro vás nejdůležitější" sub="Podle priorit seřadíme dashboard a první kroky.">
+                  <div style={S('display:flex;gap:8px;flex-wrap:wrap')}>{PRIORITY_OPTS.map(([v, l]) => <OnbChip key={v} on={o.answers.priorities.includes(v)} onClick={() => o.toggleAns('priorities', v)}>{l}</OnbChip>)}</div>
+                </OnbQ>
+              </div>
+              {footer('Připravit návrh portálu')}
+            </div>
+          )}
+
+          {o.step === 4 && (
+            <div>
+              <div style={S(`${CARD};padding:22px 26px;margin-bottom:18px;background:linear-gradient(140deg,#F1ECFF 0%,#FBFAFF 62%);border:1px solid rgba(109,94,246,.24)`)}>
+                <div style={S('display:flex;align-items:center;gap:14px;flex-wrap:wrap')}>
+                  <span style={S('width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#6D5EF6,#8E79F8);color:#fff;box-shadow:0 8px 18px -6px rgba(109,94,246,.6)')}>{ic('fleets', 22)}</span>
+                  <div style={S('flex:1;min-width:240px')}><div style={S('font-size:21px;font-weight:800;letter-spacing:-.6px')}>Fleet Portal pro {o.company.name}</div><div style={S('font-size:13px;color:var(--ink2);margin-top:3px')}>{o.selCount} {o.selCount === 1 ? 'zapnutý provoz' : o.selCount < 5 ? 'zapnuté provozy' : 'zapnutých provozů'} · moduly, role, pojištění a lhůty podle nich. Profily můžete zapnout nebo vypnout.</div></div>
+                </div>
+              </div>
+              <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : 'minmax(0,1.25fr) minmax(0,.85fr)'};gap:18px;align-items:start`)}>
+                <div style={S('display:grid;gap:12px')}>
+                  {o.recs.map((p) => {
+                    const lv = ONB_LEVEL[p.rec.level]
+                    return (
+                      <div key={p.id} style={S(`${CARD};padding:18px 20px;border:1px solid ${p.on ? 'rgba(79,111,255,.35)' : 'var(--border)'};${p.on ? '' : 'opacity:.78'}`)}>
+                        <div style={S('display:flex;align-items:flex-start;gap:13px')}>
+                          <span style={S(`width:42px;height:42px;border-radius:13px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${p.soft};color:${p.color}`)}>{ic(p.icon, 20)}</span>
+                          <div style={S('flex:1;min-width:0')}>
+                            <div style={S('display:flex;align-items:center;gap:8px;flex-wrap:wrap')}><span style={S('font-size:15px;font-weight:800;letter-spacing:-.3px')}>{p.name}</span><span style={UC_CHIP(lv)}>{lv.label}</span>{!p.ready && <span style={UC_CHIP({ color: 'var(--purple)', bg: 'var(--purple-soft)' })}>připravujeme</span>}</div>
+                            <div style={S('font-size:12.5px;color:var(--ink2);margin-top:3px;line-height:1.5')}>{p.desc}</div>
+                          </div>
+                          <OnbSwitch on={p.on} onClick={p.toggle} />
+                        </div>
+                        {p.rec.why.length > 0 && (
+                          <div style={S('margin-top:12px;display:grid;gap:4px')}>
+                            {p.rec.why.map((w) => <div key={w} style={S('display:flex;gap:8px;font-size:12.5px;color:var(--ink)')}><span style={S('display:flex;color:var(--green);flex-shrink:0;margin-top:2px')}>{ic('check2', 13)}</span><span>{w}</span></div>)}
+                          </div>
+                        )}
+                        <div style={S('display:flex;flex-wrap:wrap;gap:5px;margin-top:12px')}>
+                          {p.modules.map((m) => <span key={m.id} style={S(`display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:650;padding:4px 9px;border-radius:20px;${m.built ? 'background:var(--blue-soft);color:var(--blue-ink)' : 'border:1px dashed var(--border2);color:var(--ink3);background:#fff'}`)}>{m.label}{!m.built && <span style={S('font-size:9.5px;font-weight:700;opacity:.8')}>brzy</span>}</span>)}
+                        </div>
+                        <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:11.5px;color:var(--ink2);line-height:1.5')}>
+                          <div><b style={S('color:var(--ink3);font-weight:700')}>Měří se v:</b> {p.unit}</div>
+                          <div><b style={S('color:var(--ink3);font-weight:700')}>Role:</b> {p.roles.join(', ')}</div>
+                          <div style={S('grid-column:1 / -1')}><b style={S('color:var(--ink3);font-weight:700')}>KPI:</b> {p.kpis.join(' · ')}</div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div style={S('display:grid;gap:16px')}>
+                  <div style={S(ONB_CARD)}>
+                    <OnbLabel>Co připravíme</OnbLabel>
+                    {o.prepare.length ? o.prepare.map((p, i) => (
+                      <div key={i} style={S(`display:flex;gap:11px;padding:9px 0;${i ? 'border-top:1px solid var(--border)' : ''}`)}><span style={S('width:30px;height:30px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--purple-soft);color:var(--purple)')}>{ic(p.icon, 15)}</span><div style={S('font-size:12.5px;color:var(--ink);line-height:1.5')}>{p.text}</div></div>
+                    )) : <div style={S('font-size:12.5px;color:var(--ink3)')}>Zapněte alespoň jeden profil provozu.</div>}
+                  </div>
+                  <div style={S(ONB_CARD)}>
+                    <OnbLabel>Prvních 30 dní</OnbLabel>
+                    {o.plan.map(([t, d], i) => <div key={t} style={S(`display:grid;grid-template-columns:70px 1fr;gap:10px;padding:8px 0;${i ? 'border-top:1px solid var(--border)' : ''}`)}><span style={S('font-size:11.5px;font-weight:800;color:var(--blue-ink)')}>{t}</span><span style={S('font-size:12.5px;color:var(--ink2);line-height:1.5')}>{d}</span></div>)}
+                  </div>
+                  <div style={S(`${CARD};padding:20px 22px;background:linear-gradient(145deg,#241B4C 0%,#3A2A78 55%,#4C2F93 100%);border:1px solid rgba(255,255,255,.1);color:#fff`)}>
+                    <div style={S('font-size:16px;font-weight:800;letter-spacing:-.3px')}>Spustit Fleet Portal</div>
+                    <div style={S('font-size:12.5px;color:rgba(255,255,255,.72);margin-top:5px;line-height:1.5')}>{o.company.demo ? 'Fiktivní firma: portál se otevře v náhledu nastavení. Menu a moduly budou podle návrhu, data v obrazovkách zůstanou ukázková (ČSAD).' : 'Zapne provozy, moduly a menu podle návrhu. Rozsah lze kdykoli upravit v Nastavení.'}</div>
+                    <Hov onClick={o.selCount ? o.apply : undefined} base={`margin-top:14px;display:flex;align-items:center;justify-content:center;gap:8px;height:44px;border-radius:12px;font-size:13.5px;font-weight:700;color:#241B4C;background:${o.selCount ? '#fff' : 'rgba(255,255,255,.4)'};cursor:${o.selCount ? 'pointer' : 'not-allowed'}`} hover={o.selCount ? 'transform:translateY(-1px)' : ''}>{ic('check', 16)} Spustit portál na míru</Hov>
+                  </div>
+                </div>
+              </div>
+              {footer(null)}
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  )
+}
+
+// Modul profilu provozu, který teprve připravujeme (po onboardingu je v menu se štítkem „brzy")
+function SoonModule({ vm }) {
+  const s = vm.soon
+  if (!s) return null
+  return (
+    <div style={S('max-width:860px')}>
+      <div style={S(`${CARD};padding:28px 30px`)}>
+        <div style={S('display:flex;align-items:flex-start;gap:16px')}>
+          <span style={S('width:52px;height:52px;border-radius:15px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--purple-soft);color:var(--purple)')}>{ic(s.icon, 24)}</span>
+          <div style={S('flex:1;min-width:0')}>
+            <div style={S('display:flex;align-items:center;gap:8px;flex-wrap:wrap')}><span style={S('font-size:18px;font-weight:800;letter-spacing:-.4px')}>{s.title}</span><span style={UC_CHIP({ color: 'var(--purple)', bg: 'var(--purple-soft)' })}>připravujeme</span></div>
+            <div style={S('font-size:13.5px;color:var(--ink2);margin-top:6px;line-height:1.6')}>{s.desc}</div>
+            {s.profile && <div style={S('font-size:12.5px;color:var(--ink3);margin-top:10px')}>Součást profilu <b style={S('color:var(--ink)')}>{s.profile}</b>. Jádro portálu (vozidla, lidé, doklady, pojištění, škody, servis, náklady a účetnictví) funguje už teď.</div>}
+          </div>
+        </div>
+        {s.others.length > 0 && (
+          <div style={S('margin-top:20px;padding-top:16px;border-top:1px solid var(--border)')}>
+            <div style={S('font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--ink3);margin-bottom:10px')}>Další moduly profilu</div>
+            <div style={S('display:flex;flex-wrap:wrap;gap:8px')}>
+              {s.others.map((m) => <Hov key={m.id} onClick={m.open} base={`display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 13px;border-radius:20px;font-size:12.5px;font-weight:600;cursor:pointer;${m.built ? 'background:var(--blue-soft);color:var(--blue-ink)' : 'border:1px dashed var(--border2);color:var(--ink2);background:#fff'}`} hover="transform:translateY(-1px)">{m.label}{!m.built && <span style={S('font-size:10px;color:var(--ink3)')}>brzy</span>}</Hov>)}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
