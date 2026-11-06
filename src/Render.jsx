@@ -6817,6 +6817,61 @@ const OnbQ = ({ title, sub, children }) => (
     {children}
   </div>
 )
+// Operativní leasing po společnostech: počet + společnost, volitelně VIN ručně nebo nahraný seznam (CSV/XLSX), dekódovaná značka a rok
+const LEAS_CHIP = 'display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:#fff;color:var(--ink)'
+function LeasingRow({ r, o, mob }) {
+  const cnt = Number(r.count) || 0
+  return (
+    <div style={S('border:1px solid var(--border);border-radius:14px;padding:12px 14px;background:var(--canvas);min-width:0')}>
+      <div style={S(`display:grid;grid-template-columns:${mob ? '84px 1fr 34px' : '110px 1fr 34px'};gap:10px;align-items:end`)}>
+        <div><div style={S(UC_LBL)}>Počet vozidel</div><input value={r.count} onChange={r.setCount} inputMode="numeric" placeholder="0" style={S(UC_INPUT)} /></div>
+        <div><div style={S(UC_LBL)}>Leasingová společnost</div><Select value={r.company} onChange={r.setCompany} options={o.leasingCompanies} placeholder="Vyberte…" height={38} /></div>
+        <Hov onClick={r.remove} title="Odebrat" base="width:34px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:10px;color:var(--ink3);cursor:pointer" hover="background:#fff;color:var(--red)">{ic('trash', 16)}</Hov>
+      </div>
+      {r.company === o.leasingOther && <input value={r.companyOther || ''} onChange={r.setOther} placeholder="Název leasingové společnosti" style={S(`${UC_INPUT};margin-top:8px`)} />}
+      <div style={S('display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px')}>
+        <Hov onClick={r.toggleOpen} base={`${LEAS_CHIP};${r.open ? 'border-color:var(--blue);background:var(--blue-soft);color:var(--blue-ink)' : ''}`} hover={r.open ? '' : 'background:var(--canvas)'}>{ic('edit', 13)} Zadat VIN</Hov>
+        <label style={S(LEAS_CHIP)}>{ic('upload', 13)} Nahrát seznam (CSV, XLSX)<input type="file" accept=".csv,.txt,.tsv,.xlsx,.xlsm" onChange={r.upload} style={{ display: 'none' }} /></label>
+        {r.fileName && <span style={S('display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px 0 12px;border-radius:20px;font-size:12px;font-weight:600;background:var(--green-soft);color:var(--green)')}>{ic('file', 13)} <span style={S('max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.fileName}</span> · {r.fileBusy ? 'čtu…' : `${(r.fileVins || []).length} VIN`}<Hov onClick={r.clearFile} base="display:flex;cursor:pointer;opacity:.7" hover="opacity:1">{ic('close', 13)}</Hov></span>}
+        <span style={S('margin-left:auto;font-size:12px;color:var(--ink3);white-space:nowrap')}>{r.vinCount ? `${r.vinCount} VIN${cnt ? ` z ${cnt}` : ''}` : 'VIN zatím žádný'}</span>
+      </div>
+      {r.fileError && <div style={S('font-size:12px;color:#B45309;margin-top:6px')}>{r.fileError}</div>}
+      {r.open && <textarea value={r.vinText} onChange={r.setVinText} rows={3} placeholder={'Jeden VIN na řádek nebo oddělené čárkou, např. TMBJJ7NX5PY204118'} style={S(`${UC_INPUT};height:auto;padding:9px 11px;margin-top:10px;resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;line-height:1.5`)} />}
+      {r.vins.length > 0 && (
+        <>
+          <div style={S('display:flex;flex-wrap:wrap;gap:6px;margin-top:10px')}>
+            {r.vins.slice(0, 12).map((v) => <span key={v.vin} style={S('display:inline-flex;align-items:center;flex-wrap:wrap;max-width:100%;gap:4px 6px;font-size:11.5px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:4px 9px;font-variant-numeric:tabular-nums')}><b>{v.brand || 'Značka z registru'}</b>{v.year ? <span style={S('color:var(--ink2)')}>· {v.year}</span> : null}<span style={S('color:var(--ink3)')}>{v.vin}</span></span>)}
+            {r.vins.length > 12 && <span style={S('font-size:11.5px;color:var(--ink3);align-self:center')}>+{r.vins.length - 12} dalších</span>}
+          </div>
+          <div style={S('font-size:11.5px;color:var(--ink3);margin-top:7px;line-height:1.5')}>Značku a modelový rok čteme z VIN hned. Model, palivo, SPZ a první registraci dotáhne trAIce z registru vozidel.{r.over ? ' VIN je víc než uvedený počet, počet vozidel upravíme podle VIN.' : r.missing && cnt ? ` Zbylých ${r.missing} doplníme z výpisu leasingu.` : ''}</div>
+        </>
+      )}
+    </div>
+  )
+}
+function LeasingQ({ o, mob }) {
+  const rows = o.leasing
+  const s = o.leasingSum
+  const comp = s.companies === 1 ? '1 společnosti' : `${s.companies} společností`
+  return (
+    <OnbQ title="Vozidla na operativní leasing" sub="V registru je provozovatelem leasingová společnost, takže je na vašem IČO nevidíme. Rozepište je po společnostech. Když doplníte VIN nebo nahrajete seznam z leasingovky, údaje o vozidlech dotáhneme z registru sami.">
+      {rows.length === 0 ? (
+        <div style={S('display:flex;gap:8px;align-items:center;flex-wrap:wrap')}>
+          <OnbChip on>Nemáme</OnbChip>
+          <OnbChip onClick={o.addLeasing}>Máme, doplnit</OnbChip>
+        </div>
+      ) : (
+        <div style={S('display:grid;grid-template-columns:minmax(0,1fr);gap:10px')}>
+          {rows.map((r) => <LeasingRow key={r.id} r={r} o={o} mob={mob} />)}
+          <div style={S('display:flex;gap:12px;align-items:center;flex-wrap:wrap')}>
+            <UcBtn onClick={o.addLeasing}>{ic('plus', 14)} Další leasingová společnost</UcBtn>
+            <span style={S('font-size:12.5px;color:var(--ink2);flex:1;min-width:200px')}>{s.total ? <>Celkem <b>{s.total} vozidel</b> u {comp}{s.vins ? <>, <b>{s.vins} VIN</b> připraveno k dotažení z registru</> : ''}.</> : 'Vyplňte počet vozidel u každé společnosti.'}</span>
+          </div>
+        </div>
+      )}
+    </OnbQ>
+  )
+}
 const ONB_LEVEL = { doporuceno: { label: 'Doporučeno', color: 'var(--green)', bg: 'var(--green-soft)' }, zvazte: { label: 'Zvažte', color: '#B45309', bg: 'var(--amber-soft)' }, ne: { label: 'Bez signálu', color: 'var(--ink3)', bg: '#F1F1F3' } }
 const DEMO_ICON = { csad: 'bus', translog: 'truck', cityride: 'car', stavby: 'fleets', agro: 'tire' }
 
@@ -7101,12 +7156,7 @@ function Onboarding({ vm }) {
                   <div style={S('flex:1;min-width:240px')}><div style={S('font-size:16px;font-weight:800;letter-spacing:-.3px')}>Co z registrů nevidíme</div><div style={S('font-size:12.5px;color:var(--ink2);margin-top:3px;line-height:1.5')}>Registr vozidel ukazuje jen vozidla psaná na vaše IČO. Operativní leasing, stroje bez SPZ, telematika nebo platformy se musí doplnit. Odpovědi upřesní návrh.</div></div>
                 </div>
                 <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : 'repeat(2,minmax(0,1fr))'};gap:16px`)}>
-                  <OnbQ title="Vozidla na operativní leasing" sub="V registru je provozovatelem leasingová společnost, takže je na vašem IČO nevidíme. Kolik jich máte a od koho?">
-                    <div style={S('display:grid;grid-template-columns:120px 1fr;gap:10px')}>
-                      <div><div style={S(UC_LBL)}>Počet vozidel</div><input value={o.answers.leasingCount} onChange={o.setAns('leasingCount')} inputMode="numeric" placeholder="0" style={S(UC_INPUT)} /></div>
-                      <div><div style={S(UC_LBL)}>Leasingová společnost</div><Select value={o.answers.leasingCompany} onChange={o.setAns('leasingCompany')} options={o.leasingCompanies} placeholder="Vyberte…" height={38} /></div>
-                    </div>
-                  </OnbQ>
+                  <div style={{ gridColumn: '1 / -1' }}><LeasingQ o={o} mob={mob} /></div>
                   <OnbQ title="Stroje a technika mimo registr" sub="Nářadí, manipulační technika, nakladače nebo stroje bez SPZ. Vedeme je podle výrobního čísla a motohodin.">
                     <div style={S('display:flex;gap:8px;align-items:center;flex-wrap:wrap')}>
                       <OnbChip on={o.answers.machines === 'ne'} onClick={() => o.setAnsV('machines', 'ne')}>Nemáme</OnbChip>

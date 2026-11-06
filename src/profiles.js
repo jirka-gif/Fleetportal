@@ -94,25 +94,25 @@ export const DEMO_FIRMS = [
     register: { total: 69, kinds: { 'Tahače': 26, 'Návěsy': 31, 'Nákladní vozidla': 6, 'Osobní vozidla': 4, 'Přívěsy': 2 }, brands: [['DAF', 14], ['Scania', 8], ['Volvo', 4], ['Schmitz Cargobull', 19], ['Krone', 12]], fuel: { Diesel: 65, LNG: 2, Benzín: 2 }, age: '4,2 roku', sites: ['České Budějovice (základna)', 'Brno, Slatina'] },
     economy: { rows: [['Tržby 2025', '186 mil. Kč', '+9 % meziročně'], ['EBITDA marže', '7,8 %', 'odvětvový průměr 6 až 9 %'], ['Zadluženost', '61 %', 'soupravy na úvěr a leasing'], ['Splatnost závazků', '38 dní', 'bez evidovaných nedoplatků']], source: 'Účetní závěrka 2025 ve Sbírce listin (XML)', signal: 'Zdravý růst s vyšší zadlužeností. Portál má hlídat splátky souprav a výnos na soupravu.' },
     contracts: { public: 0, note: 'V registru smluv žádné veřejné zakázky, zákazníci jsou soukromé firmy a spedice.' },
-    answers: { leasingCount: '14', leasingCompany: 'ČSOB Leasing', machines: 'ne', machinesCount: '', telematics: 'ano', telematicsBrand: 'Webfleet', customers: ['spedice'], platforms: [], drivers: '34', extra: [], priorities: ['palivo', 'compliance'] } },
+    answers: { leasing: [{ id: 'tl1', company: 'ČSOB Leasing', count: '14', vinText: '', fileVins: [], fileName: '', open: false }], machines: 'ne', machinesCount: '', telematics: 'ano', telematicsBrand: 'Webfleet', customers: ['spedice'], platforms: [], drivers: '34', extra: [], priorities: ['palivo', 'compliance'] } },
   { id: 'cityride', label: 'CityRide Praha s.r.o.', tag: 'Taxi a ride-hailing · fiktivní firma', live: false,
     company: { name: 'CityRide Praha s.r.o.', ico: 'ukázka', dic: 'CZ ukázka', address: 'Kolbenova 882/5a, 190 00 Praha 9', region: 'Hlavní město Praha', legal: 112, founded: '2019-11-02', vat: true, nace: ['49320', '77110'] },
     register: { total: 58, kinds: { 'Osobní vozidla': 58 }, brands: [['Toyota', 31], ['Škoda', 17], ['Volkswagen', 10]], fuel: { Hybrid: 31, Benzín: 17, Elektro: 10 }, age: '2,1 roku', sites: ['Praha 9, Kolbenova (základna a myčka)'] },
     economy: { rows: [['Tržby 2025', '94 mil. Kč', '+21 % meziročně'], ['EBITDA marže', '4,1 %', 'nízká, typické pro ride-hailing'], ['Zadluženost', '78 %', 'vozy na operativní leasing'], ['Splatnost závazků', '24 dní', 'platby platforem týdně']], source: 'Účetní závěrka 2025 ve Sbírce listin (XML)', signal: 'Tenká marže a vysoká zadluženost. Rozhoduje výnos na hodinu online a disciplína řidičů (pokuty, škody).' },
     contracts: { public: 0, note: 'Bez veřejných smluv. Příjmy přes platformy Uber, Bolt a Liftago.' },
-    answers: { leasingCount: '46', leasingCompany: 'Ayvens (ALD Automotive)', machines: 'ne', machinesCount: '', telematics: 'ne', telematicsBrand: '', customers: [], platforms: ['uber', 'bolt', 'liftago'], drivers: '92', extra: ['pronajem'], priorities: ['naklady', 'pojisteni'] } },
+    answers: { leasing: [{ id: 'cr1', company: 'Ayvens (ALD Automotive)', count: '30', vinText: 'TMBJJ7NX5PY204118\nTMBJJ7NX8RY011552\nWVWZZZE1ZPP045817', fileVins: [], fileName: '', open: true }, { id: 'cr2', company: 'Arval CZ', count: '16', vinText: '', fileVins: [], fileName: '', open: false }], machines: 'ne', machinesCount: '', telematics: 'ne', telematicsBrand: '', customers: [], platforms: ['uber', 'bolt', 'liftago'], drivers: '92', extra: ['pronajem'], priorities: ['naklady', 'pojisteni'] } },
   { id: 'stavby', label: 'Stavby Vltava a.s.', tag: 'Firemní mix · fiktivní firma', live: false,
     company: { name: 'Stavby Vltava a.s.', ico: 'ukázka', dic: 'CZ ukázka', address: 'Soběslavská 2140, 390 02 Tábor', region: 'Jihočeský kraj', legal: 121, founded: '1996-06-20', vat: true, nace: ['41200', '42110', '43120', '23610', '49410'] },
     register: { total: 144, kinds: { 'Osobní vozidla': 62, 'Dodávky': 38, 'Nákladní vozidla': 24, 'Přívěsy': 11, 'Traktory a stroje': 9 }, brands: [['Škoda', 48], ['Volkswagen', 27], ['Ford', 16], ['Tatra', 11], ['MAN', 9]], fuel: { Diesel: 118, Benzín: 12, Hybrid: 8, Elektro: 6 }, age: '5,4 roku', sites: ['Tábor (centrála)', 'České Budějovice', 'Písek', 'Jindřichův Hradec', 'Praha', 'Plzeň'] },
     economy: { rows: [['Tržby 2025', '1,24 mld. Kč', '+4 % meziročně'], ['EBITDA marže', '6,1 %', 'stabilní'], ['Zadluženost', '44 %', 'zdravá'], ['Splatnost závazků', '52 dní', 'delší, typické pro stavebnictví']], source: 'Výroční zpráva 2025 ve Sbírce listin (PDF, auditovaná)', signal: 'Flotila je nákladové středisko. Hodnota je v TCO po střediscích, knize jízd a přidělení vozů.' },
     contracts: { public: 37, note: '37 smluv s veřejnými zadavateli v registru smluv (kraj, města, ŘSD).' },
-    answers: { leasingCount: '41', leasingCompany: 'Raiffeisen‑Leasing', machines: 'ano', machinesCount: '26', telematics: 'ano', telematicsBrand: 'Výrobce (Škoda Connect, Ford Pro)', customers: ['verejne'], platforms: [], drivers: '140', extra: [], priorities: ['naklady', 'administrativa'] } },
+    answers: { leasing: [{ id: 'sv1', company: 'UniCredit Leasing', count: '41', vinText: '', fileVins: [], fileName: '', open: false }], machines: 'ano', machinesCount: '26', telematics: 'ano', telematicsBrand: 'Výrobce (Škoda Connect, Ford Pro)', customers: ['verejne'], platforms: [], drivers: '140', extra: [], priorities: ['naklady', 'administrativa'] } },
   { id: 'agro', label: 'Agro Blata a.s.', tag: 'Zemědělství · fiktivní firma', live: false,
     company: { name: 'Agro Blata a.s.', ico: 'ukázka', dic: 'CZ ukázka', address: 'Ševětín 211, 373 63 Ševětín', region: 'Jihočeský kraj', legal: 121, founded: '1993-01-01', vat: true, nace: ['01110', '01410', '01610', '49410', '77310'] },
     register: { total: 57, kinds: { 'Traktory a stroje': 23, 'Přívěsy': 19, 'Osobní vozidla': 7, 'Nákladní vozidla': 5, 'Dodávky': 3 }, brands: [['John Deere', 9], ['Zetor', 5], ['Fendt', 3], ['CLAAS', 4], ['Tatra', 3]], fuel: { Diesel: 55, Benzín: 2 }, age: '7,8 roku', sites: ['Ševětín (středisko mechanizace)', 'Dynín (živočišná výroba)'] },
     economy: { rows: [['Tržby 2025', '212 mil. Kč', 'z toho dotace SZIF 38 mil.'], ['EBITDA marže', '11,2 %', 'sezónně kolísá'], ['Zadluženost', '39 %', 'stroje na úvěr'], ['Obhospodařovaná půda', '1 870 ha', 'z LPIS']], source: 'Účetní závěrka 2025 ve Sbírce listin (XML) a LPIS', signal: 'Kilometry nedávají smysl, počítá se v motohodinách a hektarech. Důležitá je zelená nafta a strojní pojištění.' },
     contracts: { public: 3, note: '3 smlouvy v registru smluv (pacht pozemků od obce a SPÚ).' },
-    answers: { leasingCount: '0', leasingCompany: '', machines: 'ano', machinesCount: '11', telematics: 'ano', telematicsBrand: 'John Deere Operations Center', customers: [], platforms: [], drivers: '18', extra: ['sluzby'], priorities: ['palivo', 'compliance'] } },
+    answers: { leasing: [], machines: 'ano', machinesCount: '11', telematics: 'ano', telematicsBrand: 'John Deere Operations Center', customers: [], platforms: [], drivers: '18', extra: ['sluzby'], priorities: ['palivo', 'compliance'] } },
 ]
 
 // Doporučení profilů ze signálů: NACE, složení registru, odpovědi. Vrací seřazený seznam se zdůvodněním.
@@ -151,7 +151,7 @@ export function recommendProfiles({ nace = [], kinds = {}, answers = {} }) {
       const os = n('Osobní vozidla') + n('Dodávky')
       add(2, os >= 5 && `${n('Osobní vozidla')} osobních vozidel${n('Dodávky') ? ' a ' + n('Dodávky') + ' dodávek' : ''} v registru`)
       add(2, (has('41') || has('42') || has('43')) && naceStr(has('41') ? '41' : has('42') ? '42' : '43'))
-      add(1, Number(a.leasingCount) > 0 && `${a.leasingCount} vozů na operativní leasing (v registru nejsou vidět)`)
+      add(1, leasingTotal(a) > 0 && `${leasingTotal(a)} vozů na operativní leasing (v registru nejsou vidět)`)
       add(1, Number(a.drivers) >= 50 && !has('4932') && `${a.drivers} lidí s přiděleným vozem`)
     }
     if (p.id === 'agro') {
@@ -163,6 +163,65 @@ export function recommendProfiles({ nace = [], kinds = {}, answers = {} }) {
     return { id: p.id, score, why, level }
   })
   return out.sort((x, y) => y.score - x.score)
+}
+
+// ---- Operativní leasing: rozpad po společnostech, VIN a seznamy vozidel ----
+// Řádek: { id, company, count, vinText, fileVins, fileName, open }. VINy se dekódují lokálně (WMI → značka, 10. znak → modelový rok),
+// zbytek údajů o vozidle (model, palivo, první registrace) dotáhne trAIce z registru vozidel na serveru.
+export const LEASING_OTHER = 'Jiná společnost'
+let _leasId = 0
+export const newLeasingRow = (patch) => ({ id: 'l' + (++_leasId) + Date.now().toString(36), company: '', count: '', vinText: '', fileVins: [], fileName: '', open: false, ...(patch || {}) })
+export const leasingRows = (a) => Array.isArray(a && a.leasing) ? a.leasing : []
+export const leasingTotal = (a) => leasingRows(a).reduce((s, r) => s + (Number(r.count) || 0), 0)
+
+const WMI = {
+  TMB: 'Škoda', TMP: 'Škoda', TMA: 'Hyundai', TMK: 'Hyundai', WVW: 'Volkswagen', WVG: 'Volkswagen', WV1: 'Volkswagen užitkové', WV2: 'Volkswagen užitkové', WV3: 'Volkswagen užitkové',
+  WAU: 'Audi', WA1: 'Audi', WBA: 'BMW', WBS: 'BMW', WBY: 'BMW', WMW: 'MINI', WDB: 'Mercedes-Benz', WDC: 'Mercedes-Benz', WDD: 'Mercedes-Benz', WDF: 'Mercedes-Benz užitkové', W1K: 'Mercedes-Benz', W1N: 'Mercedes-Benz', W1V: 'Mercedes-Benz užitkové', W1T: 'Mercedes-Benz Trucks', WEB: 'EvoBus (Mercedes-Benz, Setra)', NMB: 'Mercedes-Benz',
+  WMA: 'MAN', WF0: 'Ford', WFO: 'Ford', W0L: 'Opel', W0V: 'Opel', WP0: 'Porsche', WP1: 'Porsche', VF1: 'Renault', VF6: 'Renault Trucks', UU1: 'Dacia', VF3: 'Peugeot', VF7: 'Citroën', VR1: 'DS', VR3: 'Peugeot', VR7: 'Citroën', VXK: 'Opel',
+  ZFA: 'Fiat', ZFC: 'Fiat Professional', ZCF: 'Iveco', VNE: 'Iveco', XLR: 'DAF', XLE: 'DAF', YS2: 'Scania', YS4: 'Scania', XLB: 'Volvo', YV1: 'Volvo', YV2: 'Volvo Trucks', YV3: 'Volvo Bus', YV4: 'Volvo', VSS: 'SEAT', VSK: 'Nissan', SJN: 'Nissan', VNK: 'Toyota', SB1: 'Toyota', NMT: 'Toyota', JTD: 'Toyota', JTM: 'Toyota', JTE: 'Toyota',
+  KMH: 'Hyundai', KNA: 'Kia', KND: 'Kia', U5Y: 'Kia', U6Y: 'Kia', SAL: 'Land Rover', SAJ: 'Jaguar', '5YJ': 'Tesla', LRW: 'Tesla', XP7: 'Tesla', ZAR: 'Alfa Romeo', ZHW: 'Lamborghini', VSE: 'Suzuki', JSA: 'Suzuki', JMZ: 'Mazda', JHM: 'Honda', SHH: 'Honda', TNA: 'SOR', TK9: 'Přívěsy a návěsy (CZ)', YE2: 'Van Hool', VRU: 'Irisbus / Iveco Bus', '1FT': 'Ford (USA)', '1GC': 'Chevrolet',
+}
+const VIN_YEAR = { A: 2010, B: 2011, C: 2012, D: 2013, E: 2014, F: 2015, G: 2016, H: 2017, J: 2018, K: 2019, L: 2020, M: 2021, N: 2022, P: 2023, R: 2024, S: 2025, T: 2026, V: 2027, W: 2028, X: 2029, Y: 2030, 1: 2001, 2: 2002, 3: 2003, 4: 2004, 5: 2005, 6: 2006, 7: 2007, 8: 2008, 9: 2009 }
+export const decodeVin = (vin) => {
+  const v = String(vin || '').toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/g, '')
+  const valid = v.length === 17 && /[A-Z]/.test(v) && /\d/.test(v)
+  const brand = valid ? (WMI[v.slice(0, 3)] || WMI[v.slice(0, 2) + '0'] || null) : null
+  // modelový rok je v EU nepovinný, bereme ho jen když dává smysl (ne v budoucnosti)
+  const y = valid ? VIN_YEAR[v[9]] || null : null
+  return { vin: v, valid, brand, year: y && y <= new Date().getFullYear() + 1 ? y : null }
+}
+// Najde všechny VIN v libovolném textu (ruční zadání, CSV, text z XLSX)
+export const findVins = (text) => Array.from(new Set((String(text || '').toUpperCase().match(/\b[A-HJ-NPR-Z0-9]{17}\b/g) || []).filter((v) => /[A-Z]/.test(v) && /\d/.test(v))))
+
+// Čtení XLSX v prohlížeči bez knihovny: zip (centrální adresář) + DecompressionStream, vrátí text všech XML částí
+async function xlsxText(buf) {
+  const u8 = new Uint8Array(buf); const dv = new DataView(buf)
+  let eocd = -1
+  for (let i = u8.length - 22; i >= Math.max(0, u8.length - 70000); i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break }
+  if (eocd < 0) throw new Error('not zip')
+  const count = dv.getUint16(eocd + 10, true); let p = dv.getUint32(eocd + 16, true)
+  const dec = new TextDecoder(); const parts = []
+  for (let k = 0; k < count; k++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) break
+    const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true), nlen = dv.getUint16(p + 28, true), elen = dv.getUint16(p + 30, true), clen = dv.getUint16(p + 32, true), off = dv.getUint32(p + 42, true)
+    const name = dec.decode(u8.subarray(p + 46, p + 46 + nlen))
+    p += 46 + nlen + elen + clen
+    if (!/^xl\/(sharedStrings\.xml|worksheets\/sheet\d+\.xml)$/.test(name)) continue
+    const lnlen = dv.getUint16(off + 26, true), lelen = dv.getUint16(off + 28, true)
+    const data = u8.subarray(off + 30 + lnlen + lelen, off + 30 + lnlen + lelen + csize)
+    if (method === 0) parts.push(dec.decode(data))
+    else if (method === 8 && typeof DecompressionStream !== 'undefined') {
+      const ds = new DecompressionStream('deflate-raw'); const w = ds.writable.getWriter(); w.write(data); w.close()
+      parts.push(await new Response(ds.readable).text())
+    }
+  }
+  return parts.join('\n').replace(/<[^>]+>/g, ' ')
+}
+// Soubor od uživatele (CSV, TXT, XLSX): vrátí nalezené VIN; sloupce ani hlavičky neřešíme, VIN má pevný tvar
+export async function vinsFromFile(file) {
+  const name = (file.name || '').toLowerCase()
+  if (/\.xlsx$|\.xlsm$/.test(name)) return findVins(await xlsxText(await file.arrayBuffer()))
+  return findVins(await file.text())
 }
 
 export const TELEMATICS = ['Webfleet', 'Geotab', 'Samsara', 'Výrobce (Scania, Volvo, MAN RIO, Mercedes)', 'Výrobce (Škoda Connect, Ford Pro)', 'John Deere Operations Center', 'CLAAS Telematics', 'Jiná']

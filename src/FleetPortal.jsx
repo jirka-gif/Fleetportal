@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react'
 import { Icon, czk, linePath, useViewport, buildExecReportHtml, buildPayslipHtml } from './helpers.jsx'
 import * as ACC from './accounting.js'
-import { PROFILES, profileById, MODULE_PROFILES, BUILT_MODULES, SOON_MODULES, DEMO_FIRMS, recommendProfiles, naceName, naceFmt, LEGAL_FORMS } from './profiles.js'
+import { PROFILES, profileById, MODULE_PROFILES, BUILT_MODULES, SOON_MODULES, DEMO_FIRMS, recommendProfiles, naceName, naceFmt, LEGAL_FORMS, newLeasingRow, leasingRows, leasingTotal, decodeVin, findVins, vinsFromFile, LEASING_OTHER } from './profiles.js'
 import Render from './Render.jsx'
 import {
   insurersData, brandsData, fleetsData, vehiclesData, claimsData, greenCards, driversData,
@@ -1049,7 +1049,7 @@ const DRV_DOC_STATUS = {
 const DRIVER_NAV = [['dashboard', 'Domů', 'home'], ['drv-smeny', 'Můj kalendář', 'calendar'], ['drv-volno', 'Volno', 'clock'], ['drv-zpravy', 'Zprávy', 'send'], ['drv-podnety', 'Podněty', 'sparkle'], ['drv-doklady', 'Moje doklady', 'file'], ['drv-mzda', 'Mzda', 'banknote']]
 
 // Onboarding nového zákazníka podle IČO: ARES → trAIce analýza → doplňující otázky → návrh portálu na míru
-const ONB_ANSWERS = { leasingCount: '', leasingCompany: '', machines: 'ne', machinesCount: '', telematics: 'ne', telematicsBrand: '', customers: [], platforms: [], drivers: '', extra: [], priorities: [] }
+const ONB_ANSWERS = { leasing: [], machines: 'ne', machinesCount: '', telematics: 'ne', telematicsBrand: '', customers: [], platforms: [], drivers: '', extra: [], priorities: [] }
 const DEFAULT_ONB = { step: 1, ico: '', loading: false, error: null, firm: null, anIdx: -1, anOpen: false, autoIco: null, answers: { ...ONB_ANSWERS }, selected: null, done: false }
 // Zkušební verze: 7 dní se svými daty, pak faktura podle kalkulace z webu, jinak zůstane jen evidence vozidel
 const TRIAL_DAYS = 7
@@ -4128,6 +4128,27 @@ export default function FleetPortal() {
     const set = (patch) => setState((s) => ({ onb: { ...s.onb, ...(typeof patch === 'function' ? patch(s.onb) : patch) } }))
     const setAns = (k, v) => set((x) => ({ answers: { ...x.answers, [k]: v } }))
     const toggleAns = (k, v) => set((x) => { const arr = x.answers[k] || []; return { answers: { ...x.answers, [k]: arr.includes(v) ? arr.filter((y) => y !== v) : [...arr, v] } } })
+    // Operativní leasing: víc společností, u každé počet, volitelně VIN (ručně) nebo nahraný seznam (CSV/XLSX)
+    const setLeasingRows = (fn) => set((x) => ({ answers: { ...x.answers, leasing: fn(leasingRows(x.answers)) } }))
+    const addLeasing = () => setLeasingRows((rows) => [...rows, newLeasingRow()])
+    const patchLeasing = (id, patch) => setLeasingRows((rows) => rows.map((r) => r.id === id ? { ...r, ...patch } : r))
+    const removeLeasing = (id) => setLeasingRows((rows) => rows.filter((r) => r.id !== id))
+    const uploadLeasing = async (id, file) => {
+      if (!file) return
+      patchLeasing(id, { fileName: file.name, fileVins: [], fileBusy: true, fileError: '' })
+      try { const vins = await vinsFromFile(file); patchLeasing(id, { fileVins: vins, fileBusy: false, fileError: vins.length ? '' : 'V souboru není žádný VIN (17 znaků). Zpracuje ho trAIce ručně.' }) } catch (e) { patchLeasing(id, { fileBusy: false, fileError: 'Soubor se nepodařilo přečíst. Zkuste CSV nebo XLSX.' }) }
+    }
+    const leasingView = leasingRows(o.answers).map((r) => {
+      const manual = findVins(r.vinText)
+      const vins = Array.from(new Set([...manual, ...(r.fileVins || [])])).map(decodeVin)
+      const cnt = Number(r.count) || 0
+      return { ...r, vins, vinCount: vins.length, manualCount: manual.length, over: cnt > 0 && vins.length > cnt, missing: Math.max(0, cnt - vins.length),
+        setCount: (e) => patchLeasing(r.id, { count: e.target.value.replace(/[^\d]/g, '') }), setCompany: (e) => patchLeasing(r.id, { company: e.target.value }), setOther: (e) => patchLeasing(r.id, { companyOther: e.target.value }),
+        setVinText: (e) => patchLeasing(r.id, { vinText: e.target.value }), toggleOpen: () => patchLeasing(r.id, { open: !r.open }), upload: (e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; uploadLeasing(r.id, f) },
+        clearFile: () => patchLeasing(r.id, { fileName: '', fileVins: [], fileError: '' }), remove: () => removeLeasing(r.id) }
+    })
+    const leasingSum = { total: leasingTotal(o.answers), companies: leasingView.filter((r) => r.company).length, vins: leasingView.reduce((s, r) => s + r.vinCount, 0) }
+    const leasingName = (r) => r.company === LEASING_OTHER ? (r.companyOther || 'jiná společnost') : r.company
     const firm = o.firm
     const c = firm && firm.company
     const reg = firm && firm.register
@@ -4172,7 +4193,7 @@ export default function FleetPortal() {
     const a = o.answers
     const prepare = selProfiles.length ? [
       reg ? { icon: 'car', text: `Import ${reg.total} vozidel z registru včetně VIN, SPZ, druhu, paliva a data první registrace. Doklady (ORV, STK) dotáhneme k vozidlům.` } : { icon: 'car', text: 'Import vozidel z registru silničních vozidel přes trAIce (podle IČO provozovatele) včetně VIN, SPZ a dokladů.' },
-      Number(a.leasingCount) > 0 ? { icon: 'banknote', text: `${a.leasingCount} vozidel na operativní leasing${a.leasingCompany ? ' od ' + a.leasingCompany : ''} v registru nejsou (provozovatelem je leasingová společnost). Doplníme je z výpisu leasingu a napojíme splátky do financování.` } : { icon: 'banknote', text: 'Bez operativního leasingu: všechna vozidla jsou v registru na vaše IČO, nic se nedoplňuje ručně.' },
+      leasingSum.total > 0 ? { icon: 'banknote', text: `${leasingSum.total} vozidel na operativní leasing (${leasingView.filter((r) => Number(r.count) > 0).map((r) => `${r.count}× ${leasingName(r) || 'společnost nevyplněna'}`).join(', ')}) v registru nejsou, provozovatelem je leasingová společnost. ${leasingSum.vins ? `${leasingSum.vins} VIN už máme, údaje o vozidlech dotáhne trAIce z registru${leasingSum.total > leasingSum.vins ? `, zbylých ${leasingSum.total - leasingSum.vins} doplníme z výpisu leasingu` : ''}.` : 'Doplníme je z výpisu leasingu (VIN lze zadat i teď).'} Splátky napojíme do financování.` } : { icon: 'banknote', text: 'Bez operativního leasingu: všechna vozidla jsou v registru na vaše IČO, nic se nedoplňuje ručně.' },
       a.machines === 'ano' && Number(a.machinesCount) > 0 ? { icon: 'tire', text: `${a.machinesCount} strojů a nářadí mimo registr založíme s výrobním číslem a motohodinami místo SPZ a km.` } : null,
       a.telematics === 'ano' ? { icon: 'gauge', text: `Napojíme telematiku ${a.telematicsBrand || ''}: poloha, spotřeba, styl jízdy a anomálie paliva poběží od prvního dne.` } : { icon: 'gauge', text: 'Bez telematiky: eco-driving a anomálie paliva zatím z palivových karet a tankování, telematiku lze doplnit později.' },
       { icon: 'users', text: `Role: ${uniq(selProfiles.flatMap((p) => p.roles)).join(', ')}${a.drivers ? `. Pozvánky pro ${a.drivers} lidí v provozu.` : '.'}` },
@@ -4187,7 +4208,7 @@ export default function FleetPortal() {
     ]
     const apply = () => {
       if (!c) return
-      const tenant = { name: c.name, ico: c.ico, provozy: selIds, vehicles: reg ? reg.total : vehiclesData.length, preview: firm.id !== 'csad', trial: trialDates(), paid: false, expired: false }
+      const tenant = { name: c.name, ico: c.ico, provozy: selIds, vehicles: (reg ? reg.total : vehiclesData.length) + leasingSum.total, leasing: leasingView.map((r) => ({ company: leasingName(r), count: Number(r.count) || 0, vins: r.vins.map((v) => v.vin) })), preview: firm.id !== 'csad', trial: trialDates(), paid: false, expired: false }
       setState({ tenant, route: 'dashboard', onb: { ...DEFAULT_ONB }, navOpen: { provoz: true, flotila: true, lide: true, finance: true, firma: false } })
       showToast(`Fleet Portal nastaven pro ${c.name}: ${selProfiles.map((p) => p.name).join(', ')}`)
       try { history.replaceState(null, '', location.pathname) } catch (e) { /* bez URL */ }
@@ -4207,7 +4228,7 @@ export default function FleetPortal() {
         economy: firm ? firm.economy : null, contracts: firm ? firm.contracts : null,
         analysis, anDone, startAnalysis,
         answers: a, setAns: (k) => (e) => setAns(k, e.target.value), setAnsV: setAns, toggleAns,
-        leasingCompanies: leasingPartners.map((p) => p.name),
+        leasingCompanies: [...leasingPartners.map((p) => p.name), LEASING_OTHER], leasingOther: LEASING_OTHER, leasing: leasingView, leasingSum, addLeasing,
         recs: PROFILES.map((p) => { const r = recOf(p.id); return { ...p, rec: r, on: !!selected[p.id], toggle: () => set((x) => { const cur = x.selected || Object.fromEntries(recs.filter((q) => q.level === 'doporuceno').map((q) => [q.id, true])); return { selected: { ...cur, [p.id]: !cur[p.id] } } }), modules: p.modules.map(([id, label]) => ({ id, label, built: BUILT_MODULES.has(id) })) } }).sort((x, y) => y.rec.score - x.rec.score),
         selCount: selIds.length, prepare, plan, apply,
         canNext: o.step === 1 ? !!c && anDone : o.step === 2 ? true : o.step === 3 ? true : selIds.length > 0,
