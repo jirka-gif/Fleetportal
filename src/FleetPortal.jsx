@@ -3547,7 +3547,6 @@ export default function FleetPortal() {
       ? { line: todayShift.lineNo, name: todayShift.lineName, bus: todayShift.bus, plate: todayShift.plate, first: todayShift.start, last: todayShift.end, trips: todayShift.tripsDay, onClick: todayShift.openLine, assigned: true, status: todayShift.meta, depot: todayShift.depot, confirm: todayShift.status === 'planned' ? todayShift.confirm : null }
       : { line: myLine.no, name: myLine.name, bus: bus ? `${bus.brand} ${bus.model}` : '', plate: bus ? bus.plate : '', first: myLine.firstDep, last: myLine.lastDep, trips: myLine.tripsDay, onClick: () => openLine(myLine.id) }
     return { driverSelf: { d, name: d.name, initials: d.initials, position: d.position, kpis, hr, shift, trips: upcomingTripsFor(d.id),
-      links: DRIVER_NAV.slice(1).map(([id, label, icon]) => ({ id, label, icon, onClick: () => navigate(id) })),
       reportCats: [['vozidlo', 'Závada na vozidle', 'wrench'], ['trasa', 'Problém na trase', 'pin'], ['jine', 'Jiné hlášení', 'info']].map((c) => ({ cat: c[0], label: c[1], icon: c[2], onClick: () => openReportModal(d.id, c[0]) })),
     } }
   }

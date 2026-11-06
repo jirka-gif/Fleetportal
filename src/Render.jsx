@@ -6024,11 +6024,6 @@ function DriverSelf({ vm }) {
       </div>
 
       {d.trips && d.trips.length > 0 && <div style={S('margin-bottom:16px')}><UpcomingTrips trips={d.trips} title="Čeká vás zájezd" sub="Přidělené jízdy mimo linkový provoz, vůz a termín jsou pro vás zablokované" /></div>}
-      {d.links && (
-        <div style={S(`display:grid;grid-template-columns:repeat(${mob ? 2 : d.links.length},1fr);gap:10px;margin-bottom:16px`)}>
-          {d.links.map((l) => <Hov key={l.id} onClick={l.onClick} base={`${CARD};padding:14px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center`} hover="border:1px solid var(--blue);transform:translateY(-1px)"><span style={S('width:38px;height:38px;border-radius:11px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center')}>{ic(l.icon, 18)}</span><span style={S('font-size:12.5px;font-weight:650')}>{l.label}</span></Hov>)}
-        </div>
-      )}
       <HrBlock hr={d.hr} mob={mob} />
     </div>
   )
