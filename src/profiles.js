@@ -9,7 +9,7 @@ export const NACE_NAMES = {
   '4520': 'Opravy a údržba motorových vozidel', '46': 'Velkoobchod', '4690': 'Nespecializovaný velkoobchod', '47': 'Maloobchod', '4730': 'Maloobchod s pohonnými hmotami',
   '4931': 'Městská a příměstská pozemní osobní doprava', '4932': 'Taxislužba a pronájem osobních vozů s řidičem', '49391': 'Meziměstská pravidelná pozemní osobní doprava', '49393': 'Nepravidelná pozemní osobní doprava (zájezdy)', '4939': 'Ostatní pozemní osobní doprava',
   '4941': 'Silniční nákladní doprava', '4942': 'Stěhovací služby', '5210': 'Skladování', '5221': 'Činnosti související s pozemní dopravou', '5229': 'Ostatní vedlejší činnosti v dopravě (spedice)', '5320': 'Kurýrní činnosti',
-  '6831': 'Zprostředkovatelské činnosti realitních agentur', '74': 'Ostatní profesní, vědecké a technické činnosti', '7711': 'Pronájem a leasing osobních automobilů', '7712': 'Pronájem a leasing nákladních automobilů', '7731': 'Pronájem zemědělských strojů', '791': 'Činnosti cestovních agentur a kanceláří', '95': 'Opravy počítačů a výrobků pro osobní potřebu',
+  '6831': 'Zprostředkovatelské činnosti realitních agentur', '74': 'Ostatní profesní, vědecké a technické činnosti', '7711': 'Pronájem a leasing osobních automobilů', '7712': 'Pronájem a leasing nákladních automobilů', '7731': 'Pronájem zemědělských strojů', '791': 'Činnosti cestovních agentur a kanceláří', '94': 'Činnosti organizací sdružujících osoby', '95': 'Opravy počítačů a výrobků pro osobní potřebu',
 }
 export const naceName = (code) => {
   const c = String(code)
@@ -17,7 +17,7 @@ export const naceName = (code) => {
   return 'Ostatní činnosti'
 }
 export const naceFmt = (code) => { const c = String(code); return c.length <= 2 ? c : c.slice(0, 2) + '.' + c.slice(2) }
-export const LEGAL_FORMS = { 101: 'Fyzická osoba podnikající', 111: 'Veřejná obchodní společnost', 112: 'Společnost s ručením omezeným', 113: 'Komanditní společnost', 121: 'Akciová společnost', 205: 'Družstvo', 301: 'Státní podnik', 801: 'Obec', 804: 'Kraj' }
+export const LEGAL_FORMS = { 101: 'Fyzická osoba podnikající', 111: 'Veřejná obchodní společnost', 112: 'Společnost s ručením omezeným', 113: 'Komanditní společnost', 121: 'Akciová společnost', 141: 'Obecně prospěšná společnost', 161: 'Ústav', 205: 'Družstvo', 301: 'Státní podnik', 331: 'Příspěvková organizace', 421: 'Odštěpný závod zahraniční osoby', 706: 'Spolek', 707: 'Odborová organizace', 736: 'Pobočný spolek', 751: 'Zájmové sdružení právnických osob', 801: 'Obec', 804: 'Kraj', 931: 'Evropská společnost' }
 
 export const PROFILES = [
   { id: 'linkova', name: 'Linková doprava', icon: 'bus', color: 'var(--blue)', soft: 'var(--blue-soft)', ready: true,

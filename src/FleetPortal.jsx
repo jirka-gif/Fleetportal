@@ -1050,7 +1050,11 @@ const DRIVER_NAV = [['dashboard', 'Domů', 'home'], ['drv-smeny', 'Můj kalendá
 
 // Onboarding nového zákazníka podle IČO: ARES → trAIce analýza → doplňující otázky → návrh portálu na míru
 const ONB_ANSWERS = { leasingCount: '', leasingCompany: '', machines: 'ne', machinesCount: '', telematics: 'ne', telematicsBrand: '', customers: [], platforms: [], drivers: '', extra: [], priorities: [] }
-const DEFAULT_ONB = { step: 1, ico: '', loading: false, error: null, firm: null, anIdx: -1, answers: { ...ONB_ANSWERS }, selected: null, done: false }
+const DEFAULT_ONB = { step: 1, ico: '', loading: false, error: null, firm: null, anIdx: -1, anOpen: false, autoIco: null, answers: { ...ONB_ANSWERS }, selected: null, done: false }
+// Zkušební verze: 7 dní se svými daty, pak faktura podle kalkulace z webu, jinak zůstane jen evidence vozidel
+const TRIAL_DAYS = 7
+const TRIAL_ALLOWED = ['vehicles', 'vehicle-detail', 'fleets', 'fleet-detail', 'settings']
+const trialDates = () => { const s = new Date(2026, 10, 6); const e = new Date(2026, 10, 6 + TRIAL_DAYS); const f = (d) => `${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}`; return { started: f(s), ends: f(e) } }
 const ONB_AN_STEPS = ['Registr ekonomických subjektů (ARES)', 'Obchodní rejstřík a Sbírka listin', 'Registr silničních vozidel', 'Registr smluv a veřejné zakázky', 'Ekonomika a platební morálka', 'Mapování na profily provozu']
 const onbAresFirm = (d) => ({
   id: 'ares', live: true,
@@ -1073,8 +1077,8 @@ export default function FleetPortal() {
   const [state, setStateRaw] = useState(() => ({
     dash: loadDash(), kpi: loadKpi(),
     role: 'majitel', roleMenu: false,
-    route: typeof location !== 'undefined' && location.hash === '#onboarding' ? 'onboarding' : 'dashboard', attnCat: null,
-    onb: { ...DEFAULT_ONB }, tenant: null, soonModule: null,
+    route: typeof location !== 'undefined' && location.hash.startsWith('#onboarding') ? 'onboarding' : 'dashboard', attnCat: null,
+    onb: { ...DEFAULT_ONB, autoIco: (typeof location !== 'undefined' && (location.hash.match(/[?&]ico=(\d{8})/) || [])[1]) || null }, tenant: null, soonModule: null, orderModal: false,
     anoView: 'vse', anoType: null, anoDriver: null, anoVehicle: null, anomalyId: null,
     fleetId: 'f1', vehicleId: 'v1',
     fleetTab: 'overview', vehicleTab: 'overview', fleetsView: 'grid', finTab: 'prehled', rfq: null, rfqs: SEED_RFQS,
@@ -1447,14 +1451,16 @@ export default function FleetPortal() {
     const navSrc = state.role === 'ridic' ? DRIVER_NAV.map(([id, label, icon]) => [id, label, icon, drvBadge[id] ? String(drvBadge[id]) : null])
       : state.role === 'ucetni' ? ACCOUNTANT_NAV.map(([id, label, icon]) => [id, label, icon, id === 'ucetnictvi' ? ucBadge : null])
       : tenantNav(navItems.filter(([id]) => id !== 'ucetnictvi' || state.role === 'majitel'))
+    const expired = !!(state.tenant && state.tenant.expired && !state.tenant.paid)
     const nav = navSrc.map(([id, label, icon, badge]) => {
       const on = activeRoute === id
+      const locked = expired && !['vehicles', 'fleets', 'settings'].includes(id)
       return {
-        id, label, icon: ic(icon, 20), iconColor: on ? '#fff' : 'var(--side-fg)',
-        onClick: () => id === 'fleets' ? goParks() : id.startsWith('soon:') ? navigate('soon', { soonModule: id.slice(5) }) : navigate(id),
-        style: `position:relative;display:flex;align-items:center;gap:13px;padding:11px 13px;margin:3px 0;border-radius:14px;font-size:14px;font-weight:${on ? '600' : '500'};cursor:pointer;letter-spacing:-.1px;transition:background .16s ease,color .16s ease,box-shadow .16s ease;color:${on ? '#fff' : 'var(--side-fg)'};background:${on ? 'linear-gradient(135deg,#4F6FFF 0%,#6D5EF6 100%)' : 'transparent'};box-shadow:${on ? '0 10px 24px -8px rgba(79,111,255,.7)' : 'none'}`,
+        id, label, icon: ic(icon, 20), iconColor: on ? '#fff' : 'var(--side-fg)', lock: locked,
+        onClick: () => locked ? setState({ orderModal: true }) : id === 'fleets' ? goParks() : id.startsWith('soon:') ? navigate('soon', { soonModule: id.slice(5) }) : navigate(id),
+        style: `position:relative;display:flex;align-items:center;gap:13px;padding:11px 13px;margin:3px 0;border-radius:14px;font-size:14px;font-weight:${on ? '600' : '500'};cursor:pointer;letter-spacing:-.1px;transition:background .16s ease,color .16s ease,box-shadow .16s ease;color:${on ? '#fff' : 'var(--side-fg)'};background:${on ? 'linear-gradient(135deg,#4F6FFF 0%,#6D5EF6 100%)' : 'transparent'};box-shadow:${on ? '0 10px 24px -8px rgba(79,111,255,.7)' : 'none'};${locked ? 'opacity:.42' : ''}`,
         hover: on ? '' : 'background:var(--side-hover);color:var(--side-strong)',
-        badge, badgeStyle: `font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;color:${on ? '#fff' : 'var(--side-fg)'};background:rgba(255,255,255,${on ? '.22' : '.07'});padding:2px 8px;border-radius:20px`,
+        badge: locked ? null : badge, badgeStyle: `font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;color:${on ? '#fff' : 'var(--side-fg)'};background:rgba(255,255,255,${on ? '.22' : '.07'});padding:2px 8px;border-radius:20px`,
       }
     })
     // skupiny menu podle role: flotilové role mají sekce jako Frenkee CRM, řidič a účetní jednu skupinu
@@ -1508,9 +1514,24 @@ export default function FleetPortal() {
     else if (r === 'zajezd-detail') { const t = state.zajTrips.find((x) => x.id === state.zajDetailId) || state.zajTrips[0]; title = `${t.from} → ${t.to}`; sub = `Zájezd ${t.id} · ${t.custName} · ${fmtIsoDate(t.dateFrom)}` }
     else if (r === 'soon') { const m = SOON_MODULES[state.soonModule] || ['Modul', '']; title = m[0]; sub = 'Modul profilu provozu, který pro vás připravujeme' }
     else { const t = titles[r] || ['', '']; title = t[0]; sub = t[1] }
+    const openOrder = () => setState({ orderModal: true })
     const tenantObj = state.tenant
-      ? { name: state.tenant.name, vehicles: state.tenant.vehicles, preview: !!state.tenant.preview, provozy: state.tenant.provozy.map((p) => profileById(p)).filter(Boolean).map((p) => p.name) }
-      : { name: 'ČSAD AUTOBUSY České Budějovice', vehicles: vehiclesData.length, preview: false, provozy: [] }
+      ? (() => {
+        const t = state.tenant
+        const provNames = t.provozy.map((p) => profileById(p)).filter(Boolean).map((p) => p.name)
+        const banner = t.paid
+          ? { tone: 'green', text: `Fleet Portal je aktivní pro ${t.name}. Faktura vystavena, provozy: ${provNames.join(', ')}.${t.preview ? ' Data v obrazovkách jsou ukázková (ČSAD).' : ''}`, actions: t.preview ? [{ label: 'Ukončit náhled', onClick: () => { setState({ tenant: null, route: 'dashboard' }); showToast('Náhled ukončen, zpět v portálu ČSAD') } }] : [] }
+          : expired
+            ? { tone: 'red', text: `Zkušební doba pro ${t.name} skončila ${t.trial.ends}. Aktivní zůstává jen evidence vozidel a parků. Ostatní moduly se odemknou po uhrazení faktury.`, actions: [{ label: 'Objednat a odemknout', onClick: openOrder, primary: true }, ...(t.preview ? [{ label: 'Ukončit náhled', onClick: () => { setState({ tenant: null, route: 'dashboard' }); showToast('Náhled ukončen, zpět v portálu ČSAD') } }] : [])] }
+            : { tone: 'blue', text: `Zkušební verze pro ${t.name}: ${TRIAL_DAYS} dní zdarma se svými daty, do ${t.trial.ends}. Potom buď faktura podle kalkulace z webu, nebo zůstane jen evidence vozidel.${t.preview ? ' Menu je podle návrhu, data v obrazovkách jsou ukázková (ČSAD).' : ''}`, actions: [{ label: 'Objednat', onClick: openOrder, primary: true }, { label: 'Simulovat konec zkušební doby', onClick: () => { setState((s) => ({ tenant: { ...s.tenant, expired: true }, route: TRIAL_ALLOWED.includes(s.route) ? s.route : 'vehicles', orderModal: false })); showToast('Zkušební doba skončila, aktivní je jen evidence vozidel') } }, ...(t.preview ? [{ label: 'Ukončit náhled', onClick: () => { setState({ tenant: null, route: 'dashboard' }); showToast('Náhled ukončen, zpět v portálu ČSAD') } }] : [])] }
+        return { name: t.name, vehicles: t.vehicles, preview: !!t.preview, provozy: provNames, trial: t.trial, paid: !!t.paid, expired, banner }
+      })()
+      : { name: 'ČSAD AUTOBUSY České Budějovice', vehicles: vehiclesData.length, preview: false, provozy: [], banner: null }
+    const orderModal = state.orderModal && state.tenant ? {
+      tenant: tenantObj, provozy: state.tenant.provozy.map((p) => profileById(p)).filter(Boolean),
+      close: () => setState({ orderModal: false }), stop: (e) => e.stopPropagation(),
+      confirm: () => { setState((s) => ({ tenant: { ...s.tenant, paid: true, expired: false }, orderModal: false })); showToast('Faktura vystavena a odeslána, Fleet Portal je aktivní') },
+    } : null
     const soonObj = r === 'soon' ? (() => { const m = SOON_MODULES[state.soonModule] || ['Modul', '']; const p = PROFILES.find((x) => x.modules.some(([mid]) => mid === state.soonModule)); return { title: m[0], desc: m[1], profile: p ? p.name : '', icon: p ? p.icon : 'info', others: p ? p.modules.filter(([mid]) => mid !== state.soonModule).map(([mid, label]) => ({ id: mid, label, built: BUILT_MODULES.has(mid), open: () => BUILT_MODULES.has(mid) ? navigate(mid) : navigate('soon', { soonModule: mid }) })) : [] } })() : null
 
     const aiMessages = state.aiMessages.map((m) => ({
@@ -1547,7 +1568,7 @@ export default function FleetPortal() {
     return {
       vp, sidebarOpen: state.sidebar, toggleSidebar: () => setState((s) => ({ sidebar: !s.sidebar })), closeSidebar: () => setState({ sidebar: false }),
       nav, navGroups, pageTitle: title, pageSubtitle: sub, route: r, companyVehicles: vehiclesData.length,
-      tenant: tenantObj, soon: soonObj, isOnboarding: r === 'onboarding', isSoon: r === 'soon',
+      tenant: tenantObj, soon: soonObj, orderModal, isOnboarding: r === 'onboarding', isSoon: r === 'soon',
       startOnboarding: () => { setState({ onb: { ...DEFAULT_ONB }, route: 'onboarding', roleMenu: false, search: false, notif: false, ai: false }) },
       exitPreview: () => { setState({ tenant: null, route: 'dashboard' }); showToast('Náhled ukončen, zpět v portálu ČSAD') },
       isDashboard: r === 'dashboard', isFleets: r === 'fleets', isFleetDetail: r === 'fleet-detail',
@@ -4121,14 +4142,16 @@ export default function FleetPortal() {
         let f = onbAresFirm(d)
         if (ico === '26060451') f = { ...f, id: 'csad', ...CSAD_FIRM_EXTRA, register: csadRegister() }
         else f = { ...f, register: null, economy: { rows: [], source: 'Sbírka listin (or.justice.cz)', signal: 'Účetní závěrku, registr vozidel a registr smluv zpracuje trAIce na serveru. V demu jsou živě pro ČSAD a ukázkové firmy.' }, contracts: { public: null, note: 'Registr smluv prohledá trAIce na serveru.' }, answers: { ...ONB_ANSWERS } }
-        set({ loading: false, firm: f, answers: { ...f.answers }, selected: null })
+        beginAnalysis({ loading: false, firm: f, answers: { ...f.answers }, selected: null })
       } catch (e) { set({ loading: false, error: (e && e.message) || 'Načtení se nepodařilo.' }) }
     }
-    const pickDemo = (id) => { const d = DEMO_FIRMS.find((x) => x.id === id); if (!d) return; if (d.live) { load(d.ico); return } set({ ico: '', error: null, firm: { ...d }, answers: { ...d.answers }, selected: null }) }
-    const startAnalysis = () => {
-      set({ step: 2, anIdx: 0 })
-      for (let i = 1; i <= ONB_AN_STEPS.length; i++) setTimeout(() => set({ anIdx: i }), i * 620)
+    const pickDemo = (id) => { const d = DEMO_FIRMS.find((x) => x.id === id); if (!d) return; if (d.live) { load(d.ico); return } beginAnalysis({ ico: '', error: null, firm: { ...d }, answers: { ...d.answers }, selected: null }) }
+    // Analýza běží v modalu hned po načtení firmy; po doběhnutí tlačítko Pokračovat → krok „Co jsme zjistili"
+    const beginAnalysis = (patch) => {
+      set({ ...(patch || {}), step: 1, anOpen: true, anIdx: 0, autoIco: null })
+      for (let i = 1; i <= ONB_AN_STEPS.length; i++) setTimeout(() => set({ anIdx: i }), i * 700)
     }
+    const startAnalysis = () => beginAnalysis()
     const recs = c ? recommendProfiles({ nace: c.nace, kinds: reg ? reg.kinds : {}, answers: o.answers }) : []
     const recOf = (id) => recs.find((r) => r.id === id) || { level: 'ne', why: [], score: 0 }
     const selected = o.selected || Object.fromEntries(recs.filter((r) => r.level === 'doporuceno').map((r) => [r.id, true]))
@@ -4164,7 +4187,7 @@ export default function FleetPortal() {
     ]
     const apply = () => {
       if (!c) return
-      const tenant = { name: c.name, ico: c.ico, provozy: selIds, vehicles: reg ? reg.total : vehiclesData.length, preview: firm.id !== 'csad' }
+      const tenant = { name: c.name, ico: c.ico, provozy: selIds, vehicles: reg ? reg.total : vehiclesData.length, preview: firm.id !== 'csad', trial: trialDates(), paid: false, expired: false }
       setState({ tenant, route: 'dashboard', onb: { ...DEFAULT_ONB }, navOpen: { provoz: true, flotila: true, lide: true, finance: true, firma: false } })
       showToast(`Fleet Portal nastaven pro ${c.name}: ${selProfiles.map((p) => p.name).join(', ')}`)
       try { history.replaceState(null, '', location.pathname) } catch (e) { /* bez URL */ }
@@ -4176,8 +4199,9 @@ export default function FleetPortal() {
     } : null
     return {
       onboarding: {
-        step: o.step, steps: ['Firma', 'Analýza', 'Doplnění', 'Návrh portálu'].map((label, i) => ({ label, done: o.step > i + 1, current: o.step === i + 1 })),
-        ico: o.ico, setIco: (e) => set({ ico: e.target.value, error: null }), load: () => load(), loading: o.loading, error: o.error,
+        step: o.step, steps: ['Firma', 'Co jsme zjistili', 'Doplnění', 'Návrh portálu'].map((label, i) => ({ label, done: o.step > i + 1, current: o.step === i + 1 })),
+        ico: o.ico, setIco: (e) => set({ ico: e.target.value, error: null }), load: () => load(), loadIco: (ico) => load(ico), loading: o.loading, error: o.error, autoIco: o.autoIco,
+        anOpen: o.anOpen, anContinue: () => set({ anOpen: false, step: 2 }), anClose: () => set({ anOpen: false }), firmName: c ? c.name : '', firmDemo: !!(firm && !firm.live), trialDays: TRIAL_DAYS,
         demoFirms: DEMO_FIRMS.map((d) => ({ id: d.id, label: d.label, tag: d.tag, live: d.live, pick: () => pickDemo(d.id), on: firm && firm.id === d.id })),
         company, register: reg ? { total: reg.total, kinds: kindsSorted, brands: reg.brands, fuel: Object.entries(reg.fuel).sort((x, y) => y[1] - x[1]), age: reg.age, sites: reg.sites } : null,
         economy: firm ? firm.economy : null, contracts: firm ? firm.contracts : null,
@@ -4186,8 +4210,8 @@ export default function FleetPortal() {
         leasingCompanies: leasingPartners.map((p) => p.name),
         recs: PROFILES.map((p) => { const r = recOf(p.id); return { ...p, rec: r, on: !!selected[p.id], toggle: () => set((x) => { const cur = x.selected || Object.fromEntries(recs.filter((q) => q.level === 'doporuceno').map((q) => [q.id, true])); return { selected: { ...cur, [p.id]: !cur[p.id] } } }), modules: p.modules.map(([id, label]) => ({ id, label, built: BUILT_MODULES.has(id) })) } }).sort((x, y) => y.rec.score - x.rec.score),
         selCount: selIds.length, prepare, plan, apply,
-        canNext: o.step === 1 ? !!c : o.step === 2 ? anDone : o.step === 3 ? true : selIds.length > 0,
-        next: () => { if (o.step === 1) startAnalysis(); else set({ step: o.step + 1 }) },
+        canNext: o.step === 1 ? !!c && anDone : o.step === 2 ? true : o.step === 3 ? true : selIds.length > 0,
+        next: () => { if (o.step === 1) { if (anDone) set({ anOpen: false, step: 2 }); else startAnalysis() } else set({ step: o.step + 1 }) },
         back: () => set({ step: Math.max(1, o.step - 1) }),
         exit: () => { setState({ route: 'dashboard' }); try { history.replaceState(null, '', location.pathname) } catch (e) { /* bez URL */ } },
       },
