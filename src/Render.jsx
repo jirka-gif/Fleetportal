@@ -2735,7 +2735,7 @@ function Zajezdy({ vm }) {
 function UpcomingTrips({ trips, title = 'Plánované zájezdy', sub = 'Jízdy přidělené dispečinkem, vůz a termín jsou zablokované' }) {
   if (!trips || !trips.length) return null
   return (
-    <div style={S(`${CARD};padding:20px`)}>
+    <div style={S(`${CARD};padding:20px;min-width:0`)}>
       <CardHead icon="pin" color="var(--purple)" title={title} sub={sub} />
       <div style={S('display:flex;flex-direction:column;gap:8px;margin-top:6px')}>
         {trips.map((t) => (
@@ -5995,7 +5995,7 @@ function DriverSelf({ vm }) {
       <KpiRow items={d.kpis} mb="16px" featuredFirst />
 
       {/* dnešní směna + rychlé hlášení */}
-      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : '1fr 1fr'};gap:16px;align-items:stretch;margin-bottom:16px`)}>
+      <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : 'minmax(0,1fr) minmax(0,1fr)'};gap:16px;align-items:stretch;margin-bottom:16px`)}>
         <div style={S(`${CARD};padding:20px;display:flex;flex-direction:column`)}>
           <CardHead icon="pin" color="var(--blue)" title="Moje směna dnes" sub="Přiřazená linka a vůz" />
           <Hov onClick={d.shift.onClick} base="display:flex;align-items:center;gap:13px;padding:13px 14px;border:1px solid var(--border2);border-radius:12px;cursor:pointer;margin-top:6px" hover="border-color:var(--blue);background:var(--blue-soft)">
@@ -6023,8 +6023,22 @@ function DriverSelf({ vm }) {
         </div>
       </div>
 
-      {d.trips && d.trips.length > 0 && <div style={S('margin-bottom:16px')}><UpcomingTrips trips={d.trips} title="Čeká vás zájezd" sub="Přidělené jízdy mimo linkový provoz, vůz a termín jsou pro vás zablokované" /></div>}
-      <HrBlock hr={d.hr} mob={mob} />
+      <div style={S(`display:grid;grid-template-columns:${mob || !(d.trips && d.trips.length) ? '1fr' : 'minmax(0,1fr) minmax(0,1fr)'};gap:16px;align-items:start`)}>
+        <div style={S(`${CARD};padding:20px`)}>
+          <CardHead icon="check" color="var(--green)" title="Vyžaduje vaši pozornost" sub={(() => { const n = d.todo.filter((t) => !t.info).length; return n ? `${n} ${n === 1 ? 'úkol' : n < 5 ? 'úkoly' : 'úkolů'} k vyřízení, podrobnosti najdete v menu portálu` : 'Nic nečeká na vaši akci' })()} />
+          <div style={S('display:flex;flex-direction:column;gap:8px;margin-top:6px')}>
+            {d.todo.length === 0 && <div style={S('display:flex;align-items:center;gap:8px;padding:12px 14px;border-radius:12px;background:var(--green-soft);font-size:13px;font-weight:600;color:var(--green)')}>{ic('check', 16)}Vše vyřízeno, hezkou směnu.</div>}
+            {d.todo.map((t) => (
+              <Hov key={t.id} onClick={t.onOpen} base={`display:flex;align-items:center;gap:12px;padding:11px 14px;border:1px solid var(--border2);border-radius:12px;cursor:pointer;${t.info ? 'background:#FAFAFC' : ''}`} hover="border-color:var(--blue)">
+                <span style={S(`width:36px;height:36px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:${t.bg};color:${t.color}`)}>{ic(t.icon, 17)}</span>
+                <div style={S('flex:1;min-width:0')}><div style={S(`font-size:13px;font-weight:${t.info ? 600 : 700};color:${t.info ? 'var(--ink2)' : 'var(--ink)'}`)}>{t.title}</div><div style={S('font-size:11.5px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{t.sub}</div></div>
+                {t.action ? <span onClick={(e) => { e.stopPropagation(); t.onAction() }}><UcBtn primary>{t.action}</UcBtn></span> : <span style={S('color:var(--ink3);display:flex')}>{ic('arrow', 15)}</span>}
+              </Hov>
+            ))}
+          </div>
+        </div>
+        {d.trips && d.trips.length > 0 && <UpcomingTrips trips={d.trips} title="Čeká vás zájezd" sub="Přidělené jízdy mimo linkový provoz, vůz a termín jsou pro vás zablokované" />}
+      </div>
     </div>
   )
 }
