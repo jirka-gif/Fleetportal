@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react'
 import { Icon, czk, linePath, useViewport, buildExecReportHtml, buildPayslipHtml } from './helpers.jsx'
 import * as ACC from './accounting.js'
-import { PROFILES, profileById, MODULE_PROFILES, BUILT_MODULES, SOON_MODULES, DEMO_FIRMS, recommendProfiles, naceName, naceFmt, LEGAL_FORMS, newLeasingRow, leasingRows, leasingTotal, decodeVin, findVins, vinsFromFile, LEASING_OTHER } from './profiles.js'
+import { PROFILES, profileById, MODULE_PROFILES, BUILT_MODULES, SOON_MODULES, DEMO_FIRMS, recommendProfiles, naceName, naceFmt, naceIsEmpty, LEGAL_FORMS, newLeasingRow, leasingRows, leasingTotal, decodeVin, findVins, vinsFromFile, LEASING_OTHER } from './profiles.js'
 import Render from './Render.jsx'
 import {
   insurersData, brandsData, fleetsData, vehiclesData, claimsData, greenCards, driversData,
@@ -4213,10 +4213,26 @@ export default function FleetPortal() {
       showToast(`Fleet Portal nastaven pro ${c.name}: ${selProfiles.map((p) => p.name).join(', ')}`)
       try { history.replaceState(null, '', location.pathname) } catch (e) { /* bez URL */ }
     }
+    // pořadí = priorita pro „hlavní činnost" (doprava před cestovkou, i když ARES uvádí cestovku dřív)
+    const NACE_HIT = ['4931', '4932', '4939', '4941', '4942', '5229', '5320', '01', '41', '42', '43', '4520', '7711', '7712', '7731', '791']
+    const naceHit = (code) => NACE_HIT.some((p) => String(code).startsWith(p))
+    const naceList = c ? c.nace.filter((code) => !naceIsEmpty(code)) : []
+    const mainNace = NACE_HIT.map((p) => naceList.find((code) => String(code).startsWith(p))).find(Boolean) || naceList[0]
+    const topRecs = recs.filter((r) => r.level !== 'ne').slice(0, 3)
     const company = c ? {
       name: c.name, live: !!firm.live, demo: !firm.live,
-      rows: [['IČO', c.ico], ['DIČ', c.dic], ['Právní forma', LEGAL_FORMS[c.legal] || String(c.legal)], ['Sídlo', c.address], ['Kraj', c.region], ['Vznik', fmtD(c.founded)], ['Plátce DPH', c.vat ? 'Ano' : 'Ne']],
-      nace: c.nace.map((code) => ({ code: naceFmt(code), name: naceName(code), hit: ['4931', '4932', '4939', '4941', '01', '41', '42', '43', '791', '4520', '7711', '7712'].some((p) => String(code).startsWith(p)) })),
+      // krátké fakty do jednoho řádku a detail pod nimi (bez duplicit DIČ × plátce DPH)
+      facts: [LEGAL_FORMS[c.legal] || null, c.founded ? `od roku ${fmtD(c.founded).slice(-4)}` : null, c.region || null, c.vat ? 'plátce DPH' : 'neplátce DPH'].filter(Boolean),
+      details: [['IČO', c.ico], c.vat && c.dic ? ['DIČ', c.dic] : null, ['Sídlo', c.address]].filter(Boolean),
+      nace: naceList.map((code) => ({ code: naceFmt(code), name: naceName(code), hit: naceHit(code) })),
+      // co z toho plyne: 3 až 4 věty, které si člověk odnese, a náhled profilů (potvrdí se až v Návrhu)
+      findings: [
+        mainNace ? { icon: 'grid', text: naceHit(mainNace) ? `Hlavní činnost souvisí s dopravou nebo flotilou: ${naceName(mainNace) || 'CZ-NACE ' + naceFmt(mainNace)}.` : `Hlavní činnost: ${naceName(mainNace) || 'CZ-NACE ' + naceFmt(mainNace)}. Vozidla jsou podpůrná, ne jádro byznysu.` } : { icon: 'grid', text: 'ARES u firmy neuvádí žádnou činnost, profil určí doplňující otázky.' },
+        reg ? { icon: 'car', text: `V registru je ${reg.total} vozidel na vaše IČO, nejvíc ${kindsSorted[0][0].toLowerCase()} (${kindsSorted[0][1]}). Průměrné stáří ${reg.age}.` } : { icon: 'car', text: 'Vozidla psaná na vaše IČO dotahuje trAIce z registru. Operativní leasing v registru není, doplníte ho v dalším kroku.' },
+        firm.contracts.public ? { icon: 'doc2', text: `${firm.contracts.public} smluv s veřejnými zadavateli, hodí se vyúčtování výkonů a evidence zakázek.` } : null,
+        firm.economy.rows.length ? { icon: 'trend', text: firm.economy.signal } : null,
+      ].filter(Boolean),
+      recsPreview: topRecs.map((r) => ({ name: profileById(r.id).name, level: r.level })),
     } : null
     return {
       onboarding: {

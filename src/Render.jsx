@@ -6872,6 +6872,25 @@ function LeasingQ({ o, mob }) {
     </OnbQ>
   )
 }
+// Krok „Co jsme zjistili": stav zdroje jako štítek, karta zdroje se stejnou anatomií, čekající stav bez vymyšlených čísel
+const ONB_STATUS = { live: ['Načteno živě', 'var(--green)', 'var(--green-soft)'], server: ['Zpracovává trAIce', '#B45309', 'var(--amber-soft)'], next: ['Doplníte v dalším kroku', 'var(--blue-ink)', 'var(--blue-soft)'], demo: ['Ukázková data', 'var(--purple)', 'var(--purple-soft)'] }
+const OnbStatus = ({ kind }) => { const [l, c, b] = ONB_STATUS[kind] || ONB_STATUS.server; return <span style={UC_CHIP({ color: c, bg: b })}>{kind === 'server' && <span style={S('display:inline-block;width:6px;height:6px;border-radius:50%;background:#B45309;margin-right:6px;animation:pulse 1.2s ease infinite')}></span>}{l}</span> }
+const OnbSource = ({ icon, title, sub, status, children }) => (
+  <div style={S(`${ONB_CARD};min-width:0`)}>
+    <div style={S('display:flex;align-items:flex-start;gap:12px;margin-bottom:14px')}>
+      <span style={S('width:36px;height:36px;border-radius:11px;background:#F1F1F6;color:var(--ink2);display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic(icon, 18)}</span>
+      <div style={S('flex:1;min-width:0')}><div style={S('font-size:14.5px;font-weight:700;letter-spacing:-.2px')}>{title}</div>{sub && <div style={S('font-size:11.5px;color:var(--ink3);margin-top:2px')}>{sub}</div>}</div>
+      <OnbStatus kind={status} />
+    </div>
+    {children}
+  </div>
+)
+const OnbPending = ({ text, next }) => (
+  <div style={S('padding:14px;border-radius:12px;background:#F7F7FA;border:1px dashed var(--border2)')}>
+    <div style={S('font-size:12.5px;color:var(--ink2);line-height:1.55')}>{text}</div>
+    {next && <div style={S('display:flex;gap:8px;align-items:flex-start;margin-top:10px;font-size:12px;color:var(--blue-ink);line-height:1.5')}><span style={S('display:flex;flex-shrink:0;margin-top:2px')}>{ic('arrow', 13)}</span><span>{next}</span></div>}
+  </div>
+)
 const ONB_LEVEL = { doporuceno: { label: 'Doporučeno', color: 'var(--green)', bg: 'var(--green-soft)' }, zvazte: { label: 'Zvažte', color: '#B45309', bg: 'var(--amber-soft)' }, ne: { label: 'Bez signálu', color: 'var(--ink3)', bg: '#F1F1F3' } }
 const DEMO_ICON = { csad: 'bus', translog: 'truck', cityride: 'car', stavby: 'fleets', agro: 'tire' }
 
@@ -7007,6 +7026,7 @@ function AnalysisModal({ o, mob }) {
 
 function Onboarding({ vm }) {
   const o = vm.onboarding
+  const [naceOpen, setNaceOpen] = useState(false)
   if (!o) return null
   const mob = vm.vp.isMobile
   const two = mob ? '1fr' : 'minmax(0,1.15fr) minmax(0,1fr)'
@@ -7076,46 +7096,52 @@ function Onboarding({ vm }) {
             <div style={S(`${CARD};padding:18px 28px 12px;margin-bottom:22px`)}><ZjStepper steps={o.steps} /></div>
 
             {o.step === 2 && (
-              <div style={S(`display:grid;grid-template-columns:${two};gap:18px;align-items:start`)}>
-                <div>
-                  <div style={S(ONB_CARD)}>
-                    <div style={S('display:flex;align-items:flex-start;gap:12px')}>
-                      <div style={S('flex:1;min-width:0')}>
-                        <OnbLabel>Firma podle ARES</OnbLabel>
-                        <div style={S('font-size:21px;font-weight:800;letter-spacing:-.6px;line-height:1.15')}>{o.company.name}</div>
-                      </div>
-                      <span style={UC_CHIP(o.company.live ? { color: 'var(--green)', bg: 'var(--green-soft)' } : { color: '#B45309', bg: 'var(--amber-soft)' })}>{o.company.live ? 'živě z ARES' : 'fiktivní firma, data ukázková'}</span>
-                    </div>
-                    <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin-top:16px')}>
-                      {o.company.rows.map(([k, v]) => <div key={k} style={S(k === 'Sídlo' ? 'grid-column:1 / -1' : '')}><div style={S('font-size:11px;color:var(--ink3);font-weight:600')}>{k}</div><div style={S('font-size:13px;font-weight:600;margin-top:2px;overflow-wrap:anywhere')}>{v}</div></div>)}
-                    </div>
-                    <div style={S('margin-top:18px;padding-top:16px;border-top:1px solid var(--border)')}>
-                      <OnbLabel>Co firmu živí (CZ-NACE)</OnbLabel>
-                      <div style={S('display:grid;gap:6px')}>
-                        {o.company.nace.map((n) => (
-                          <div key={n.code} style={S(`display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:10px;background:${n.hit ? 'var(--blue-soft)' : '#F7F7FA'}`)}>
-                            <span style={S(`font-size:11.5px;font-weight:800;font-variant-numeric:tabular-nums;color:${n.hit ? 'var(--blue-ink)' : 'var(--ink3)'};min-width:48px`)}>{n.code}</span>
-                            <span style={S(`font-size:12.5px;font-weight:${n.hit ? 650 : 500};color:${n.hit ? 'var(--ink)' : 'var(--ink2)'}`)}>{n.name}</span>
-                            {n.hit && <span style={S('margin-left:auto;font-size:10px;font-weight:700;color:var(--blue-ink)')}>signál pro profil</span>}
-                          </div>
-                        ))}
-                      </div>
+              <div>
+                {/* 1. Shrnutí: kdo to je (vlevo) a co z toho plyne (vpravo). Jediná věc, kterou si má člověk odnést. */}
+                <div style={S(`${ONB_CARD};display:grid;grid-template-columns:${mob ? '1fr' : 'minmax(0,1.05fr) minmax(0,1fr)'};gap:${mob ? '18px' : '0'}`)}>
+                  <div style={S(`min-width:0;${mob ? '' : 'padding-right:28px'}`)}>
+                    <div style={S('display:flex;align-items:center;justify-content:space-between;gap:10px')}><OnbLabel>Firma podle ARES</OnbLabel><span style={{ marginBottom: 10 }}><OnbStatus kind={o.company.live ? 'live' : 'demo'} /></span></div>
+                    <div style={S('font-size:24px;font-weight:800;letter-spacing:-.7px;line-height:1.1')}>{o.company.name}</div>
+                    <div style={S('display:flex;flex-wrap:wrap;gap:6px;margin-top:10px')}>{o.company.facts.map((f) => <span key={f} style={UC_CHIP({ color: 'var(--ink2)', bg: '#F1F1F3' })}>{f}</span>)}</div>
+                    <div style={S('display:grid;grid-template-columns:auto minmax(0,1fr);gap:7px 16px;margin-top:18px;font-size:12.5px')}>
+                      {o.company.details.map(([k, v]) => <div key={k} style={{ display: 'contents' }}><span style={S('color:var(--ink3)')}>{k}</span><span style={S('font-weight:600;overflow-wrap:anywhere;font-variant-numeric:tabular-nums')}>{v}</span></div>)}
                     </div>
                   </div>
-                  <div style={S(`${ONB_CARD};margin-top:16px`)}>
-                    <OnbLabel>Průběh analýzy trAIce</OnbLabel>
-                    {o.analysis.map((it, i) => (
-                      <div key={it.title} style={S(`display:flex;gap:12px;padding:9px 0;${i ? 'border-top:1px solid var(--border)' : ''}`)}>
-                        <span style={S('width:22px;height:22px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--green);color:#fff;margin-top:1px')}>{ic('check', 12)}</span>
-                        <div style={S('min-width:0;flex:1')}><div style={S('display:flex;align-items:center;gap:8px;flex-wrap:wrap')}><span style={S('font-size:13px;font-weight:700')}>{it.title}</span>{it.live && <span style={UC_CHIP({ color: 'var(--green)', bg: 'var(--green-soft)' })}>živá data</span>}{it.soft && <span style={UC_CHIP({ color: '#B45309', bg: 'var(--amber-soft)' })}>na serveru trAIce</span>}</div><div style={S(`font-size:12px;line-height:1.5;margin-top:2px;color:${it.soft ? 'var(--ink3)' : 'var(--ink2)'}`)}>{it.result}</div></div>
+                  <div style={S(`min-width:0;${mob ? 'padding-top:18px;border-top:1px solid var(--border)' : 'padding-left:28px;border-left:1px solid var(--border)'}`)}>
+                    <OnbLabel>Co z toho plyne</OnbLabel>
+                    <div style={S('display:grid;gap:10px')}>
+                      {o.company.findings.map((f, i) => <div key={i} style={S('display:flex;gap:10px;align-items:flex-start')}><span style={S('width:26px;height:26px;border-radius:8px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0')}>{ic(f.icon, 14)}</span><span style={S('font-size:13px;line-height:1.5;color:var(--ink);padding-top:3px')}>{f.text}</span></div>)}
+                    </div>
+                    <div style={S('margin-top:16px;padding-top:14px;border-top:1px dashed var(--border2)')}>
+                      <div style={S('font-size:11.5px;font-weight:650;color:var(--ink3);margin-bottom:8px')}>Zatím to vypadá na</div>
+                      <div style={S('display:flex;flex-wrap:wrap;gap:6px')}>
+                        {o.company.recsPreview.length ? o.company.recsPreview.map((r) => <span key={r.name} style={UC_CHIP(r.level === 'doporuceno' ? { color: 'var(--green)', bg: 'var(--green-soft)' } : { color: '#B45309', bg: 'var(--amber-soft)' })}>{r.name}{r.level === 'zvazte' ? ' · zvážit' : ''}</span>) : <span style={S('font-size:12.5px;color:var(--ink3)')}>zatím žádný jasný profil, rozhodnou odpovědi v dalším kroku</span>}
                       </div>
-                    ))}
+                      <div style={S('font-size:11.5px;color:var(--ink3);margin-top:8px;line-height:1.5')}>Návrh portálu upřesníme podle doplnění v dalším kroku. Zatím se nic nenastavuje.</div>
+                    </div>
                   </div>
-                  {footer('Doplnit, co z registrů nevidíme')}
                 </div>
-                <div style={S('display:grid;gap:16px')}>
-                  <div style={S(ONB_CARD)}>
-                    <OnbLabel>Registr silničních vozidel</OnbLabel>
+
+                {/* 2. Čtyři zdroje, stejná anatomie: ikona, název, zdroj, stav, pak hlavní údaj a detail */}
+                <div style={S(`display:grid;grid-template-columns:${mob ? '1fr' : 'repeat(2,minmax(0,1fr))'};gap:16px;margin-top:16px;align-items:start`)}>
+                  <OnbSource icon="grid" title="Čím se firma živí" sub="CZ-NACE podle ARES" status={o.company.live ? 'live' : 'demo'}>
+                    {o.company.nace.length ? (
+                      <>
+                        <div style={S('display:grid;gap:6px')}>
+                          {(naceOpen ? o.company.nace : o.company.nace.slice(0, 4)).map((n) => (
+                            <div key={n.code} style={S(`display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:10px;background:${n.hit ? 'var(--blue-soft)' : '#F7F7FA'}`)}>
+                              <span style={S(`font-size:11.5px;font-weight:800;font-variant-numeric:tabular-nums;color:${n.hit ? 'var(--blue-ink)' : 'var(--ink3)'};min-width:46px`)}>{n.code}</span>
+                              <span style={S(`font-size:12.5px;font-weight:${n.hit ? 650 : 500};color:${n.hit ? 'var(--ink)' : n.name ? 'var(--ink2)' : 'var(--ink3)'}`)}>{n.name || 'Činnost bez názvu v číselníku'}</span>
+                              {n.hit && <span style={S('margin-left:auto;font-size:10px;font-weight:700;color:var(--blue-ink);white-space:nowrap')}>souvisí s flotilou</span>}
+                            </div>
+                          ))}
+                        </div>
+                        {o.company.nace.length > 4 && <Hov onClick={() => setNaceOpen(!naceOpen)} base="display:inline-flex;margin-top:10px;font-size:12px;font-weight:650;color:var(--blue);cursor:pointer" hover="text-decoration:underline">{naceOpen ? 'Skrýt ostatní' : `Zobrazit všech ${o.company.nace.length} činností`}</Hov>}
+                      </>
+                    ) : <div style={S('font-size:12.5px;color:var(--ink3)')}>ARES u firmy neuvádí žádnou činnost.</div>}
+                  </OnbSource>
+
+                  <OnbSource icon="car" title="Vozidla v registru" sub="Registr silničních vozidel podle IČO provozovatele" status={o.register ? (o.company.live ? 'live' : 'demo') : 'server'}>
                     {o.register ? (
                       <>
                         <div style={S('display:flex;align-items:baseline;gap:8px')}><span style={S('font-size:30px;font-weight:800;letter-spacing:-1.2px')}>{o.register.total}</span><span style={S('font-size:13px;color:var(--ink2);font-weight:600')}>vozidel na IČO · průměrné stáří {o.register.age}</span></div>
@@ -7128,24 +7154,35 @@ function Onboarding({ vm }) {
                         </div>
                         <div style={S('margin-top:12px;font-size:12px;color:var(--ink2)')}><b>Provozovny:</b> {o.register.sites.join(' · ')}</div>
                       </>
-                    ) : <div style={S('font-size:12.5px;color:var(--ink3);line-height:1.55')}>Dotaz do registru běží na serveru trAIce. Vozidla na operativní leasing v registru nejsou (provozovatelem je leasingová společnost), na ty se zeptáme v dalším kroku.</div>}
-                  </div>
-                  <div style={S(ONB_CARD)}>
-                    <OnbLabel>Smlouvy a objednatelé</OnbLabel>
-                    <div style={S('display:flex;align-items:baseline;gap:8px')}><span style={S('font-size:30px;font-weight:800;letter-spacing:-1.2px')}>{o.contracts.public === null ? '—' : o.contracts.public}</span><span style={S('font-size:13px;color:var(--ink2);font-weight:600')}>smluv v registru smluv</span></div>
-                    <div style={S('font-size:12.5px;color:var(--ink2);margin-top:8px;line-height:1.55')}>{o.contracts.note}</div>
-                  </div>
-                  <div style={S(ONB_CARD)}>
-                    <OnbLabel>Ekonomika a platební morálka</OnbLabel>
-                    {o.economy.rows.length > 0 && (
-                      <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:10px 14px')}>
-                        {o.economy.rows.map(([k, v, s]) => <div key={k} style={S('padding:10px 12px;border-radius:11px;background:#F7F7FA')}><div style={S('font-size:11px;color:var(--ink3);font-weight:600')}>{k}</div><div style={S('font-size:17px;font-weight:800;letter-spacing:-.4px;margin-top:2px')}>{v}</div><div style={S('font-size:11px;color:var(--ink3);margin-top:2px')}>{s}</div></div>)}
-                      </div>
+                    ) : <OnbPending text="Dotaz do registru běží na serveru trAIce. Vozidla psaná na vaše IČO se objeví v portálu v sekci Vozidla i s doklady." next="Vozidla na operativní leasing v registru nejsou, provozovatelem je leasingová společnost. Doplníte je v dalším kroku." />}
+                  </OnbSource>
+
+                  <OnbSource icon="doc2" title="Smlouvy a zakázky" sub="Registr smluv a veřejné zakázky" status={o.contracts.public === null ? 'server' : (o.company.live ? 'live' : 'demo')}>
+                    {o.contracts.public === null ? <OnbPending text={o.contracts.note} /> : (
+                      <>
+                        <div style={S('display:flex;align-items:baseline;gap:8px')}><span style={S('font-size:30px;font-weight:800;letter-spacing:-1.2px')}>{o.contracts.public}</span><span style={S('font-size:13px;color:var(--ink2);font-weight:600')}>{o.contracts.public === 0 ? 'smluv s veřejnými zadavateli' : 'smluv s veřejnými zadavateli'}</span></div>
+                        <div style={S('font-size:12.5px;color:var(--ink2);margin-top:8px;line-height:1.55')}>{o.contracts.note}</div>
+                      </>
                     )}
-                    <div style={S(`display:flex;gap:10px;margin-top:${o.economy.rows.length ? '12px' : '0'};padding:11px 13px;border-radius:11px;background:var(--purple-soft)`)}><span style={S('display:flex;color:var(--purple);flex-shrink:0')}>{ic('sparkle', 16)}</span><div style={S('font-size:12.5px;color:var(--ink);line-height:1.5')}>{o.economy.signal}</div></div>
-                    <div style={S('margin-top:8px;font-size:11px;color:var(--ink3)')}>Zdroj: {o.economy.source}</div>
-                  </div>
+                  </OnbSource>
+
+                  <OnbSource icon="trend" title="Ekonomika a platební morálka" sub={`Zdroj: ${o.economy.source}`} status={o.economy.rows.length ? 'demo' : 'server'}>
+                    {o.economy.rows.length ? (
+                      <>
+                        <div style={S('display:grid;grid-template-columns:1fr 1fr;gap:10px 14px')}>
+                          {o.economy.rows.map(([k, v, s]) => <div key={k} style={S('padding:10px 12px;border-radius:11px;background:#F7F7FA')}><div style={S('font-size:11px;color:var(--ink3);font-weight:600')}>{k}</div><div style={S('font-size:17px;font-weight:800;letter-spacing:-.4px;margin-top:2px')}>{v}</div><div style={S('font-size:11px;color:var(--ink3);margin-top:2px')}>{s}</div></div>)}
+                        </div>
+                        <div style={S('display:flex;gap:10px;margin-top:12px;padding:11px 13px;border-radius:11px;background:var(--purple-soft)')}><span style={S('display:flex;color:var(--purple);flex-shrink:0')}>{ic('sparkle', 16)}</span><div style={S('font-size:12.5px;color:var(--ink);line-height:1.5')}>{o.economy.signal}</div></div>
+                      </>
+                    ) : <OnbPending text="Účetní závěrku ze Sbírky listin a platební morálku zpracuje trAIce na serveru. Výsledek uvidíte v portálu v Reportingu, bez odhadů a bez vymyšlených čísel." />}
+                  </OnbSource>
                 </div>
+
+                <div style={S('display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;font-size:11.5px;color:var(--ink3)')}>
+                  <span style={S('display:flex')}>{ic('info', 13)}</span>
+                  <span>Zdroje: ARES, Sbírka listin, registr silničních vozidel, registr smluv. {o.company.live && !o.register ? 'V demu je registr a ekonomika živě pro ČSAD a ukázkové firmy, u ostatních firem je dotáhne trAIce na serveru.' : ''}</span>
+                </div>
+                {footer('Doplnit, co z registrů nevidíme')}
               </div>
             )}
 

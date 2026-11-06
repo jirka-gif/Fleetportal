@@ -10,13 +10,23 @@ export const NACE_NAMES = {
   '4931': 'Městská a příměstská pozemní osobní doprava', '4932': 'Taxislužba a pronájem osobních vozů s řidičem', '49391': 'Meziměstská pravidelná pozemní osobní doprava', '49393': 'Nepravidelná pozemní osobní doprava (zájezdy)', '4939': 'Ostatní pozemní osobní doprava',
   '4941': 'Silniční nákladní doprava', '4942': 'Stěhovací služby', '5210': 'Skladování', '5221': 'Činnosti související s pozemní dopravou', '5229': 'Ostatní vedlejší činnosti v dopravě (spedice)', '5320': 'Kurýrní činnosti',
   '6831': 'Zprostředkovatelské činnosti realitních agentur', '74': 'Ostatní profesní, vědecké a technické činnosti', '7711': 'Pronájem a leasing osobních automobilů', '7712': 'Pronájem a leasing nákladních automobilů', '7731': 'Pronájem zemědělských strojů', '791': 'Činnosti cestovních agentur a kanceláří', '94': 'Činnosti organizací sdružujících osoby', '95': 'Opravy počítačů a výrobků pro osobní potřebu',
+  // oddíly CZ-NACE (2 místa), aby se u běžné firmy nezobrazovalo „Ostatní činnosti"
+  '02': 'Lesnictví a těžba dřeva', '03': 'Rybolov a akvakultura', '05': 'Těžba uhlí', '08': 'Ostatní těžba a dobývání', '11': 'Výroba nápojů', '13': 'Výroba textilií', '14': 'Výroba oděvů', '16': 'Zpracování dřeva', '17': 'Výroba papíru', '18': 'Tisk a rozmnožování nosičů',
+  '20': 'Výroba chemických látek', '22': 'Výroba pryžových a plastových výrobků', '24': 'Výroba základních kovů', '25': 'Výroba kovových konstrukcí a výrobků', '26': 'Výroba počítačů a elektroniky', '27': 'Výroba elektrických zařízení', '28': 'Výroba strojů a zařízení', '29': 'Výroba motorových vozidel', '30': 'Výroba ostatních dopravních prostředků', '31': 'Výroba nábytku', '32': 'Ostatní zpracovatelský průmysl', '33': 'Opravy a instalace strojů a zařízení',
+  '35': 'Výroba a rozvod elektřiny, plynu a tepla', '36': 'Shromažďování a úprava vody', '37': 'Činnosti související s odpadními vodami', '38': 'Sběr, odstraňování a využití odpadů', '39': 'Sanace a ostatní odpadové činnosti', '45': 'Obchod a opravy motorových vozidel', '49': 'Pozemní a potrubní doprava', '50': 'Vodní doprava', '51': 'Letecká doprava', '52': 'Skladování a vedlejší činnosti v dopravě', '53': 'Poštovní a kurýrní činnosti',
+  '55': 'Ubytování', '56': 'Stravování a pohostinství', '58': 'Vydavatelské činnosti', '59': 'Film, video a hudba', '60': 'Rozhlasové a televizní vysílání', '61': 'Telekomunikace', '62': 'Programování a poradenství v IT', '63': 'Informační činnosti', '64': 'Finanční zprostředkování', '65': 'Pojištění a penzijní financování', '66': 'Ostatní finanční činnosti', '662': 'Pomocné činnosti v pojišťovnictví', '6622': 'Činnosti zástupců pojišťovny a makléřů',
+  '68': 'Činnosti v oblasti nemovitostí', '69': 'Právní a účetnické činnosti', '70': 'Činnosti vedení podniků a poradenství', '7022': 'Poradenství v oblasti řízení', '71': 'Architektonické a inženýrské činnosti', '72': 'Výzkum a vývoj', '73': 'Reklama a průzkum trhu', '75': 'Veterinární činnosti', '77': 'Pronájem a operativní leasing', '78': 'Zprostředkování zaměstnání', '80': 'Bezpečnostní a pátrací činnosti', '81': 'Služby pro budovy a krajinu', '8121': 'Všeobecný úklid budov', '8130': 'Činnosti související s úpravou krajiny', '82': 'Administrativní a podpůrné činnosti', '8211': 'Administrativní a kancelářské činnosti',
+  '84': 'Veřejná správa a obrana', '85': 'Vzdělávání', '86': 'Zdravotní péče', '87': 'Pobytové služby sociální péče', '88': 'Ambulantní sociální služby', '90': 'Tvůrčí a umělecké činnosti', '91': 'Knihovny, archivy a muzea', '92': 'Hazardní hry a sázení', '93': 'Sportovní a rekreační činnosti', '96': 'Ostatní osobní služby',
 }
+// Název podle nejdelšího známého prefixu; když číselník kód nezná, vrátí null (UI nic nevymýšlí)
 export const naceName = (code) => {
   const c = String(code)
   for (let n = c.length; n >= 2; n--) { const k = c.slice(0, n); if (NACE_NAMES[k]) return NACE_NAMES[k] }
-  return 'Ostatní činnosti'
+  return null
 }
-export const naceFmt = (code) => { const c = String(code); return c.length <= 2 ? c : c.slice(0, 2) + '.' + c.slice(2) }
+// ARES vrací kódy bez tečky (47, 662, 46900, 49391). Pětimístný kód s nulou na konci je třída (46.90), jinak národní podtřída (49.39.1)
+export const naceFmt = (code) => { let c = String(code); if (c.length === 5 && c.endsWith('0')) c = c.slice(0, 4); if (c.length <= 2) return c; return c.slice(0, 2) + '.' + c.slice(2, 4) + (c.length > 4 ? '.' + c.slice(4) : '') }
+export const naceIsEmpty = (code) => /^0+$/.test(String(code))
 export const LEGAL_FORMS = { 101: 'Fyzická osoba podnikající', 111: 'Veřejná obchodní společnost', 112: 'Společnost s ručením omezeným', 113: 'Komanditní společnost', 121: 'Akciová společnost', 141: 'Obecně prospěšná společnost', 161: 'Ústav', 205: 'Družstvo', 301: 'Státní podnik', 331: 'Příspěvková organizace', 421: 'Odštěpný závod zahraniční osoby', 706: 'Spolek', 707: 'Odborová organizace', 736: 'Pobočný spolek', 751: 'Zájmové sdružení právnických osob', 801: 'Obec', 804: 'Kraj', 931: 'Evropská společnost' }
 
 export const PROFILES = [
